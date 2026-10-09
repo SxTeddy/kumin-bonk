@@ -19,7 +19,7 @@ import { DEFAULT_CONFIG } from './defaults.js';
 import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 
-const VERSION = '1.7.0';
+const VERSION = '1.7.1';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -123,6 +123,13 @@ function setPaused(on, by = '') {
   log('pause', on ? `⏸ พักเอฟเฟกต์${by ? ` (${by})` : ''} — ของขวัญที่ส่งมาระหว่างนี้จะรอไว้ก่อน` : `▶ เล่นเอฟเฟกต์ต่อ${engine.queue.length ? ` — ปล่อยของที่รอ ${engine.queue.length} รายการ` : ''}`);
   pushStatus();
 }
+// The live dropped and never came back (no clean "stream ended"): close its summary after 10 minutes.
+setInterval(() => {
+  const c = sessions.cur;
+  if (c && tiktok.status !== 'live' && Date.now() - (c.updated || c.start) > 10 * 60000) {
+    const kept = sessions.end(true); toDashboards({ t: 'sessions', list: sessions.all(), ended: kept });
+  }
+}, 60000).unref?.();
 let queueTimer = null;
 engine.onQueue = () => { if (!queueTimer) queueTimer = setTimeout(() => { queueTimer = null; pushStatus(); }, 300); };
 const SOUND_DIR = path.join(DATA, 'sounds');
@@ -150,7 +157,7 @@ tiktok.on('status', () => {
   const st = tiktok.status;
   if (st !== lastTikStatus) {
     if (st === 'live' && config.summary?.enabled !== false) sessions.start(tiktok.username);
-    if (st === 'offline' && sessions.cur) { sessions.end(); toDashboards({ t: 'sessions', list: sessions.all(), ended: true }); }
+    if (st === 'offline' && sessions.cur) { const kept = sessions.end(); toDashboards({ t: 'sessions', list: sessions.all(), ended: kept }); }
     lastTikStatus = st;
   }
   pushStatus();
@@ -167,7 +174,7 @@ function onEvent(ev, simulated = false) {
     if (!simulated && !giftsSeen.has(ev.gift.name)) { giftsSeen.set(ev.gift.name, { name: ev.gift.name, th: ev.gift.th, image: ev.gift.image, diamonds: ev.gift.diamonds }); seenDirty = true; }
   }
   if (!simulated) sessions.add(ev);
-  thanks.handle(ev);
+  if (!simulated) thanks.handle(ev); // the ✨ tab has its own "listen" button for testing
   const fired = engine.handle(ev, simulated); // tests always play right away (even while paused)
   const combo = ev.type === 'gift' && engine.lastCombo?.mult > 1 ? engine.lastCombo.total : 0;
   toDashboards({ t: 'event', ev, fired, simulated, time: Date.now(), combo, queued: !simulated && (engine.paused || engine.queue.length > 0) && fired.length > 0 });
@@ -249,6 +256,7 @@ async function onDashboard(ws, m) {
     case 'saveConfig': {
       const next = m.config;
       if (!next || !Array.isArray(next.rules)) return;
+      delete next.customSounds; // the server owns the uploaded-sound list (a save in flight must not undo an upload)
       const hk = JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey]);
       config = mergeConfig(config, next);
       saveConfig();
@@ -459,7 +467,7 @@ let appWindow = null;
 
 function quit() {
   log('app', 'ปิดโปรแกรม');
-  hotkey.stop(); sessions.end();
+  hotkey.stop(); sessions.end(tiktok.status !== 'live');
   try { appWindow?.kill(); } catch {}
   vts.stop(); tiktok.disconnect(true).catch(() => {});
   setTimeout(() => process.exit(0), 300);

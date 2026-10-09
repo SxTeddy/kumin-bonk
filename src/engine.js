@@ -31,7 +31,7 @@ export class Engine {
     if (this.paused) {
       if (job.ev.type === 'chat' || cfg.pause?.keepQueue === false) return;
       this.queue.push(job); this.trim(300);
-    } else { this.queue.push(job); this.trim(60); }
+    } else { this.queue.push(job); this.trim(this.draining ? 300 : 60); } // keep the paused backlog while it is released
     this.onQueue();
     this.pump();
   }
@@ -53,6 +53,10 @@ export class Engine {
     } else this.tokens = Infinity;
     this.refillAt = now;
     if (!this.queue.length) { this.draining = false; if (!isFinite(this.tokens)) this.tokens = 15; return; }
+    if (this.draining && (this.effects?.queue?.length || 0) >= 2) { // backlog after a pause: wait until the model has finished the previous effects
+      this.pumpTimer = setTimeout(() => { this.pumpTimer = null; this.pump(); }, 400);
+      return;
+    }
     if (this.tokens >= 1) {
       this.tokens -= 1;
       const j = this.queue.shift(); this.onQueue();
@@ -102,6 +106,7 @@ export class Engine {
     const combo = this.comboFor(ev);
     const fired = [];
     for (const [rule, times] of hits) {
+      if (ev.type === 'chat' && !direct && this.paused) continue; // commands are ignored while paused (and don't use up the viewer's wait)
       if (ev.type === 'chat' && !direct) { // free chat commands: each viewer waits before using it again
         const sec = Number(rule.userCooldown ?? cfg.chatCmd?.userCooldown ?? 0);
         const key = rule.id + '|' + (ev.user?.id || ev.user?.username || '');
@@ -221,7 +226,7 @@ export class Engine {
         const power = Math.min(2.5, 0.8 + Math.log10(coins + 1) * 0.35) * (Number(a.power) || 1) * cat.power * combo;
         const count = Math.max(1, Math.min(ctx.count, cat.max));
         if (cfg.throwing.target === 'overlay' && this.overlay.count() > 0) {
-          return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: 'bonk' }, ctx);
+          return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: own.sound && own.sound !== 'auto' ? own.sound : (cat.sound && cat.sound !== 'auto' ? cat.sound : 'bonk') }, ctx);
         }
         if (!vts.ready || !vts.canCustomImages) {
           for (let i = 0; i < Math.min(count, 5); i++) { vts.flinch(Math.random() * 2 - 1, power * 0.7, cfg.throwing.eyesClose); await sleep(200); }

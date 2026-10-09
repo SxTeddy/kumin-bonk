@@ -71,7 +71,7 @@ export class Hotkey {
         const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
         if (line === 'hit') this.onPress();
         else if (line === 'ok') { this.state = 'on'; this.log('hotkey', `คีย์ลัดพักเอฟเฟกต์: ${key} (กดได้แม้อยู่ในเกม)`); }
-        else if (line === 'busy') { this.state = 'busy'; this.log('hotkey', `คีย์ ${key} ถูกโปรแกรมอื่นใช้อยู่ — ลองเลือกคีย์อื่นในแท็บตั้งค่า`, 'warn'); }
+        else if (line === 'busy') { this.state = 'busy'; this.log('hotkey', `คีย์ ${key} ถูกโปรแกรมอื่นใช้อยู่ — ลองเลือกคีย์อื่นในแท็บ ✨ ตัวช่วยไลฟ์`, 'warn'); }
       }
     });
     p.stderr.on('data', () => {});

@@ -209,6 +209,7 @@ EXTRA = [
 ("พิมพ์ !ดาว = ดาวตกใส่หัว", "Type !ดาว = stars fall on head", "!ดาว と打つ = 星が頭に落ちる", "输入 !ดาว = 星星砸头", "!ดาว 입력 = 별이 머리에", "Gõ !ดาว = sao rơi trúng đầu", "Ketik !ดาว = bintang jatuh ke kepala", "Escribe !ดาว = estrellas a la cabeza"),
 ("พิมพ์ !bonk = ค้อนของเล่น", "Type !bonk = toy hammer", "!bonk と打つ = おもちゃのハンマー", "输入 !bonk = 玩具锤", "!bonk 입력 = 장난감 망치", "Gõ !bonk = búa đồ chơi", "Ketik !bonk = palu mainan", "Escribe !bonk = martillo de juguete"),
 ("กดเพื่อเปิด/ปิดหมวดนี้", "Click to turn this category on/off", "クリックでこのカテゴリーをオン/オフ", "点击开启/关闭此分类", "눌러서 이 카테고리 켜기/끄기", "Bấm để bật/tắt nhóm này", "Klik untuk menyalakan/mematikan kategori ini", "Pulsa para activar/desactivar esta categoría"),
+("⏳ รอ", "⏳ Waiting", "⏳ 待機中", "⏳ 等待中", "⏳ 대기 중", "⏳ Đang chờ", "⏳ Menunggu", "⏳ En espera"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)
@@ -285,4 +286,5 @@ PATS = [
 (r"^หมวด (.+)$","category $1", "カテゴリー $1", "分类 $1", "카테고리 $1", "nhóm $1", "kategori $1", "categoría $1"),
 (r"^✅ เปิด (.+)$", "✅ On: $1", "✅ オン: $1", "✅ 开启：$1", "✅ 켬: $1", "✅ Bật: $1", "✅ Nyala: $1", "✅ Activado: $1"),
 (r"^⛔ ปิด (.+)$", "⛔ Off: $1", "⛔ オフ: $1", "⛔ 关闭：$1", "⛔ 끔: $1", "⛔ Tắt: $1", "⛔ Mati: $1", "⛔ Desactivado: $1"),
+(r"^ตั้งคีย์ลัดไม่ได้: (.+)$", "Couldn't set the shortcut: $1", "ショートカットを設定できません: $1", "无法设置快捷键：$1", "단축키 설정 실패: $1", "Không đặt được phím tắt: $1", "Gagal mengatur shortcut: $1", "No se pudo poner el atajo: $1"),
 ]

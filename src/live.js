@@ -19,16 +19,18 @@ export class Sessions {
     const r = this.resumable; this.resumable = null;
     if (r && r.user === username && Date.now() - (r.updated || r.start) < 10 * 60000) { this.end(); this.cur = r; r.end = null; return; }
     if (r && !r.end) r.end = r.updated || r.start;
-    this.end();
+    this.end(true);
     this.cur = { id: Date.now(), user: username, start: Date.now(), end: null, updated: Date.now(), coins: 0, gifts: 0, likes: 0, follows: 0, shares: 0, joins: 0, chats: 0, peak: 0, givers: {}, giftTypes: {} };
     this.list.unshift(this.cur); this.list = this.list.slice(0, 30); this.dirty = true;
   }
-  end() {
-    const c = this.cur; if (!c) return;
-    c.end = Date.now(); this.cur = null;
+  // stale = the live dropped without a clean "stream ended": finish at the last activity, not now
+  end(stale = false) {
+    const c = this.cur; if (!c) return false;
+    c.end = stale ? Math.max(c.start, c.updated || c.start) : Date.now(); this.cur = null;
     const empty = !c.gifts && !c.likes && !c.chats && !c.follows && c.end - c.start < 120000;
     if (empty) this.list = this.list.filter(s => s !== c);
     this.dirty = true; this.flush();
+    return !empty;
   }
   viewers(n) { if (this.cur && n > this.cur.peak) { this.cur.peak = n; this.dirty = true; } }
   add(ev) {
