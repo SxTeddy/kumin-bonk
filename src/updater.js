@@ -1,4 +1,4 @@
-// Auto-update: checks GitHub releases, downloads the new app files in the background,
+// Auto-update: checks the GitHub repo's updates/ folder, downloads the new app files in the background,
 // and switches to them on the next start (or right away when the user presses restart).
 // Installed layout:  <install>\launch.cjs  <install>\current.txt  <install>\versions\<ver>\{app.cjs, public\...}
 import { EventEmitter } from 'node:events';
@@ -8,7 +8,8 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 
 export const REPO = 'SxTeddy/kumin-bonk';
-const API = process.env.KB_UPDATE_API || `https://api.github.com/repos/${REPO}/releases/latest`;
+// Update files live in the repo's updates/ folder: latest.json + update-<version>.json.gz
+const BASE = process.env.KB_UPDATE_BASE || `https://raw.githubusercontent.com/${REPO}/main/updates`;
 
 export const newer = (a, b) => {
   const pa = String(a).replace(/^v/, '').split('.').map(Number), pb = String(b).replace(/^v/, '').split('.').map(Number);
@@ -37,7 +38,7 @@ export class Updater extends EventEmitter {
   }
 
   async get(url, type = 'json') {
-    const r = await fetch(url, { headers: { 'User-Agent': 'KuminBonk', Accept: type === 'json' ? 'application/vnd.github+json' : 'application/octet-stream' }, signal: AbortSignal.timeout(type === 'json' ? 15000 : 300000) });
+    const r = await fetch(url, { headers: { 'User-Agent': 'KuminBonk', Accept: '*/*', 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(type === 'json' ? 15000 : 300000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return type === 'json' ? r.json() : type === 'text' ? r.text() : Buffer.from(await r.arrayBuffer());
   }
@@ -47,21 +48,17 @@ export class Updater extends EventEmitter {
     this.busy = true;
     try {
       this.set({ status: 'checking' });
-      const rel = await this.get(API);
-      const latest = String(rel.tag_name || '').replace(/^v/, '');
+      const man = await this.get(`${BASE}/latest.json?t=${Date.now()}`);
+      const latest = String(man.version || '').replace(/^v/, '');
       if (!latest || !newer(latest, this.version)) { this.set({ status: 'uptodate', latest }); return this.state; }
       const dir = path.join(this.install, 'versions', latest);
-      if (fs.existsSync(path.join(dir, '.complete'))) { this.activate(latest); this.set({ status: 'ready', latest, notes: rel.body || '' }); return this.state; }
-
-      const asset = n => rel.assets?.find(a => a.name === n)?.browser_download_url;
-      const bundleUrl = asset('update.json.gz'), sumUrl = asset('update.sha256');
-      if (!bundleUrl || !sumUrl) throw new Error('release has no update files');
+      if (fs.existsSync(path.join(dir, '.complete'))) { this.activate(latest); this.set({ status: 'ready', latest, notes: man.notes || '' }); return this.state; }
+      if (!man.file || !man.sha256 || /[\\/]/.test(man.file)) throw new Error('bad update manifest');
       this.set({ status: 'downloading', latest });
       this.log('update', `พบเวอร์ชันใหม่ ${latest} กำลังดาวน์โหลด…`);
-      const [gz, sum] = await Promise.all([this.get(bundleUrl, 'bin'), this.get(sumUrl, 'text')]);
-      const want = sum.trim().split(/\s+/)[0].toLowerCase();
+      const gz = await this.get(`${BASE}/${man.file}`, 'bin');
       const got = crypto.createHash('sha256').update(gz).digest('hex');
-      if (want !== got) throw new Error('ไฟล์อัปเดตไม่ตรงกับลายเซ็น');
+      if (String(man.sha256).toLowerCase() !== got) throw new Error('ไฟล์อัปเดตไม่ตรงกับลายเซ็น');
       const bundle = JSON.parse(zlib.gunzipSync(gz).toString('utf8'));
       if (String(bundle.version) !== latest) throw new Error('เวอร์ชันในไฟล์ไม่ตรง');
 
@@ -80,7 +77,7 @@ export class Updater extends EventEmitter {
       fs.rmSync(dir, { recursive: true, force: true });
       fs.renameSync(tmp, dir);
       this.activate(latest);
-      this.set({ status: 'ready', latest, notes: rel.body || '' });
+      this.set({ status: 'ready', latest, notes: man.notes || '' });
       this.log('update', `ดาวน์โหลดเวอร์ชัน ${latest} เสร็จแล้ว — จะใช้ตอนเปิดโปรแกรมครั้งหน้า หรือกด "รีสตาร์ท" ได้เลย`);
     } catch (e) {
       this.set({ status: 'error', detail: e.message });

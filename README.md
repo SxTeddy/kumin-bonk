@@ -12,8 +12,10 @@
 - เวอร์ชันที่จะมา: ดู [แผนเวอร์ชันถัดไป](ROADMAP.md)
 
 ## อัปเดตอัตโนมัติ
-แอปที่ติดตั้งแล้วจะเช็ก [Releases](../../releases) ของที่เก็บนี้ทุกครั้งที่เปิด แล้วดาวน์โหลดเวอร์ชันใหม่ให้เอง
-(ไฟล์ `update.json.gz` + ลายเซ็น SHA-256 `update.sha256`)
+แอปที่ติดตั้งแล้วจะเช็กโฟลเดอร์ [`updates/`](updates) ของที่เก็บนี้ทุกครั้งที่เปิด แล้วดาวน์โหลดเวอร์ชันใหม่ให้เอง
+(`latest.json` บอกเวอร์ชันล่าสุด + ลายเซ็น SHA-256, ไฟล์ `update-<เวอร์ชัน>.json.gz` คือโค้ดชุดใหม่)
+
+ออกเวอร์ชันใหม่: แก้ `VERSION` ใน `src/server.js` และ CHANGELOG → `npx esbuild ...` (ดู tools) → `node tools/make-update.mjs <เวอร์ชัน>` → commit + push
 
 รูปของขวัญ TikTok ไม่ได้อยู่ในที่เก็บนี้ (เป็นของ TikTok) — มาจากตัวติดตั้งของผู้ใช้เอง
 
@@ -22,5 +24,5 @@
 npm install
 node src/server.js          # เปิดที่ http://localhost:3939
 node test/mock-vts.js       # VTube Studio จำลองสำหรับทดสอบ
-node tools/make-update.mjs <version>   # สร้างไฟล์อัปเดต
+node tools/make-update.mjs <version>   # สร้างไฟล์อัปเดตใน updates/
 ```
