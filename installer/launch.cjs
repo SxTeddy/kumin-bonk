@@ -3,6 +3,14 @@
 const fs = require('fs');
 const path = require('path');
 const root = __dirname;
+// Started by the official node.exe from a shortcut (a console program): start a copy of ourselves
+// with the window hidden and close this one, so no black window stays open.
+// (Windows "Smart App Control" blocks unsigned helper .exe files, but allows the signed node.exe.)
+if ((process.platform === 'win32' || process.env.KB_FORCE_RESPAWN) && !process.env.KB_CHILD && path.basename(process.execPath).toLowerCase().startsWith('node')) {
+  const { spawn } = require('child_process');
+  spawn(process.execPath, [__filename, ...process.argv.slice(2)], { cwd: root, detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, KB_CHILD: '1' } }).unref();
+  process.exit(0);
+}
 const read = f => { try { return fs.readFileSync(path.join(root, f), 'utf8').trim(); } catch { return ''; } };
 const ok = v => v && fs.existsSync(path.join(root, 'versions', v, '.complete')) && fs.existsSync(path.join(root, 'versions', v, 'app.cjs'));
 const num = v => v.split('.').map(n => n.padStart(5, '0')).join('.');

@@ -14,7 +14,6 @@ for f in ('install.ps1', 'uninstall.ps1'):
     open(os.path.join(out, 'setup', f), 'w', encoding='utf-8-sig', newline='\r\n').write(txt)  # BOM: Windows PowerShell 5 needs it for Thai
 shutil.copy(os.path.join(ROOT, 'installer', 'install.cmd'), os.path.join(out, 'ติดตั้ง KuminBonk.cmd'))
 shutil.copy(os.path.join(ROOT, 'installer', 'launch.cjs'), os.path.join(out, 'setup', 'launch.cjs'))
-shutil.copy(os.path.join(ROOT, 'build', 'KuminBonk-launcher.exe'), os.path.join(out, 'setup', 'KuminBonk.exe'))  # built by tools/build-setup.py
 readme = open(os.path.join(ROOT, 'README-TH.txt'), encoding='utf-8').read()
 open(os.path.join(out, 'README-TH.txt'), 'w', encoding='utf-8-sig', newline='\r\n').write(readme)
 for f in ('LICENSE', 'THIRD-PARTY-NOTICES.txt'):

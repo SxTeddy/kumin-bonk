@@ -5,7 +5,7 @@ $ProgressPreference = 'SilentlyContinue'
 $Host.UI.RawUI.WindowTitle = 'ติดตั้ง KuminBonk'
 $src  = $PSScriptRoot
 $dest = Join-Path $env:LOCALAPPDATA 'Programs\KuminBonk'
-$exe  = Join-Path $dest 'KuminBonk.exe'          # small starter, no console window
+$exe  = Join-Path $dest 'KuminBonk.exe'          # used by older versions; removed now
 $node = Join-Path $dest 'node\node.exe'           # official Node.js, never modified
 $appVersion = '__VERSION__'
 
@@ -132,7 +132,8 @@ try {
   Set-Content -Path (Join-Path $vdir '.complete') -Value $appVersion -NoNewline
   Set-Content -Path (Join-Path $dest 'current.txt') -Value $appVersion -NoNewline
   if (Test-Path (Join-Path $dest 'app')) { Remove-Item -Recurse -Force (Join-Path $dest 'app') }  # layout of v1.3
-  Copy-Item -Force (Join-Path $src 'icon.ico'), (Join-Path $src 'uninstall.ps1'), (Join-Path $src 'launch.cjs'), (Join-Path $src 'KuminBonk.exe') $dest
+  Copy-Item -Force (Join-Path $src 'icon.ico'), (Join-Path $src 'uninstall.ps1'), (Join-Path $src 'launch.cjs') $dest
+  if (Test-Path $exe) { Remove-Item -Force $exe -ErrorAction SilentlyContinue }
 
   $needNode = $true
   if (Test-Path $node) { if ((Get-Item $node).VersionInfo.ProductVersion -like '22.*') { $needNode = $false } }
@@ -163,7 +164,9 @@ try {
   $ws = New-Object -ComObject WScript.Shell
   foreach ($d in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) {
     $s = $ws.CreateShortcut((Join-Path $d 'KuminBonk.lnk'))
-    $s.TargetPath = $exe
+    $s.TargetPath = $node
+    $s.Arguments = 'launch.cjs'
+    $s.WindowStyle = 7
     $s.WorkingDirectory = $dest
     $s.IconLocation = (Join-Path $dest 'icon.ico') + ',0'
     $s.Description = 'KuminBonk - ของขวัญ TikTok สู่ VTube Studio'
@@ -185,7 +188,7 @@ try {
 
   Step 'ติดตั้งเสร็จแล้ว! กำลังเปิด KuminBonk ...' 1
   if ($ui) { $state.rotate = $false; $ui.title.Text = 'ติดตั้งเสร็จแล้ว!'; $ui.sub.Text = 'กำลังเปิด KuminBonk ให้นะ ' + [char]0x2665; Ui-Pump }
-  Start-Process -FilePath $exe -WorkingDirectory $dest
+  Start-Process -FilePath $node -ArgumentList 'launch.cjs' -WorkingDirectory $dest -WindowStyle Hidden
   $until = (Get-Date).AddSeconds(3)
   while ((Get-Date) -lt $until) { Ui-Pump; Start-Sleep -Milliseconds 30 }
   if ($ui) { $state.canClose = $true; $ui.timer.Stop(); $ui.form.Close() }

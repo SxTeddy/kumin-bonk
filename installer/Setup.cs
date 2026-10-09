@@ -131,7 +131,7 @@ class SetupForm : Form {
       using (var r = new StreamReader(Res("version.txt"))) version = r.ReadToEnd().Trim();
       Ui(() => Text = "ติดตั้ง KuminBonk v" + version);
       dest = Env("KB_SETUP_DEST") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "KuminBonk");
-      exe = Path.Combine(dest, "KuminBonk.exe");            // small starter (no console window)
+      exe = Path.Combine(dest, "KuminBonk.exe");            // used by older versions; removed now
       node = Path.Combine(dest, "node", "node.exe");       // official Node.js, never modified
 
       Step("ปิด KuminBonk ที่เปิดอยู่ (ถ้ามี)...", 0.02);
@@ -162,8 +162,8 @@ class SetupForm : Form {
       File.WriteAllText(Path.Combine(dest, "current.txt"), version);
       string oldApp = Path.Combine(dest, "app"); if (Directory.Exists(oldApp)) Directory.Delete(oldApp, true); // layout of v1.3
 
-      // the starter (replaces the KuminBonk.exe of older versions)
-      using (var r = Res("launcher.exe")) using (var o = File.Create(exe)) r.CopyTo(o);
+      // older versions started from KuminBonk.exe; now the signed, official node.exe starts launch.cjs
+      try { if (File.Exists(exe)) File.Delete(exe); } catch { }
 
       bool needNode = true;
       if (File.Exists(node)) { try { if ((FileVersionInfo.GetVersionInfo(node).ProductVersion ?? "").StartsWith("22.")) needNode = false; } catch { } }
@@ -178,7 +178,7 @@ class SetupForm : Form {
       Step("ติดตั้งเสร็จแล้ว!", 1);
       Ui(() => { rotate = false; title.Text = "ติดตั้งเสร็จแล้ว!"; sub.Text = "กำลังเปิด KuminBonk ให้นะ ♥"; });
       if (IsWindows && Env("KB_SETUP_NOLAUNCH") == null)
-        Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = dest, UseShellExecute = false });
+        Process.Start(new ProcessStartInfo(node, "launch.cjs") { WorkingDirectory = dest, UseShellExecute = false, CreateNoWindow = true });
       Thread.Sleep(2500);
       Ui(() => { canClose = true; Close(); });
     } catch (Exception ex) {
@@ -247,7 +247,9 @@ class SetupForm : Form {
     foreach (var dir in new[] { Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Environment.GetFolderPath(Environment.SpecialFolder.Programs) }) {
       object lnk = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { Path.Combine(dir, "KuminBonk.lnk") });
       var t = lnk.GetType();
-      t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, lnk, new object[] { exe });
+      t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, lnk, new object[] { node });
+      t.InvokeMember("Arguments", BindingFlags.SetProperty, null, lnk, new object[] { "launch.cjs" });
+      t.InvokeMember("WindowStyle", BindingFlags.SetProperty, null, lnk, new object[] { 7 }); // start minimized: the brief console never pops up
       t.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, lnk, new object[] { dest });
       t.InvokeMember("IconLocation", BindingFlags.SetProperty, null, lnk, new object[] { Path.Combine(dest, "icon.ico") + ",0" });
       t.InvokeMember("Description", BindingFlags.SetProperty, null, lnk, new object[] { "KuminBonk - ของขวัญ TikTok สู่ VTube Studio" });
