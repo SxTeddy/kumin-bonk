@@ -1,4 +1,4 @@
-# KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz
+# KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ !
 # Gift names per screenshot, row-major, 4 per row ('' = not a normal gift / skip)
 GRIDS = {
 '0c57db87': 'ฟุตบอลหมุน|ปฏิกิริยาเว่อร์วัง|กล่าวชื่อชมเชย|ตัวอังกอร์|นิ้วขั้นเทพ|เลข 9 นำโชค|ไดโนเสาร์จิ๋ว|โรซ่า|สร้อยคอมิตรภาพ|I\'m Yours|สโลโมชั่น|อึ้งไปเลย',

@@ -1,4 +1,4 @@
-// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
+// KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Turns a throw source ('rose', a gift picture URL, an avatar URL) into PNG/JPG/GIF data VTube Studio accepts.
 import crypto from 'node:crypto';
 

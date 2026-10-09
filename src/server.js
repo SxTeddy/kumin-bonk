@@ -1,4 +1,4 @@
-// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
+// KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // KuminBonk — TikTok LIVE gifts → VTube Studio reactions + OBS throwing overlay.
 import http from 'node:http';
 import fs from 'node:fs';
@@ -17,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.5';
+const VERSION = '1.4.6';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.

@@ -1,4 +1,4 @@
-// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
+// KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // KuminBonk dashboard
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];

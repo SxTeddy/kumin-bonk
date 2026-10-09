@@ -1,4 +1,4 @@
-# KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz
+# KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ !
 # Render a mock-VTS timeline into a contact sheet of frames (sanity check of effect choreography).
 import sys, json, math
 from PIL import Image, ImageDraw

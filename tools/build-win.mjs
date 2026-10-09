@@ -1,4 +1,4 @@
-// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
+// KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Builds dist/KuminBonk.exe: one Windows app file with every web asset embedded.
 // usage: node tools/build-win.mjs <path to Windows node.exe> [--linux-test]
 import fs from 'node:fs';
@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = path.join(ROOT, 'build');
 const DIST = path.join(ROOT, 'dist');
-const VERSION = '1.4.5';
+const VERSION = '1.4.6';
 const nodeExe = process.argv[2];
 const linuxTest = process.argv.includes('--linux-test');
 fs.mkdirSync(BUILD, { recursive: true });

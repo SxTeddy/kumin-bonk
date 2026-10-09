@@ -1,4 +1,4 @@
-// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
+// KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // VTube Studio public API client (ws://localhost:8001).
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';

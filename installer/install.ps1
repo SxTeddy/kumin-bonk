@@ -1,4 +1,4 @@
-# KuminBonk - created by hxz - Copyright (c) 2026 hxz - see LICENSE
+# KuminBonk - created by HXZ ! - Copyright (c) 2026 HXZ ! - see LICENSE
 # KuminBonk installer: copies the app, downloads the official Node.js runtime (verified), makes shortcuts.
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -60,7 +60,7 @@ function New-CuteWindow {
   $btn.BackColor = $pink; $btn.ForeColor = [Drawing.Color]::White; $btn.FlatAppearance.BorderSize = 0
   $btn.Add_Click({ $st.canClose = $true; $this.FindForm().Close() }.GetNewClosure()); $f.Controls.Add($btn)
   $credit = New-Object Windows.Forms.Label
-  $credit.Text = 'สร้างโดย hxz'; $credit.ForeColor = $muted; $credit.BackColor = [Drawing.Color]::Transparent
+  $credit.Text = 'สร้างโดย HXZ !'; $credit.ForeColor = $muted; $credit.BackColor = [Drawing.Color]::Transparent
   $credit.Font = New-Object Drawing.Font('Leelawadee UI', 8); $credit.AutoSize = $true; $credit.Left = 8; $credit.Top = 308; $f.Controls.Add($credit)
   $f.Add_FormClosing({ param($s, $e) if (-not $st.canClose) { $e.Cancel = $true } }.GetNewClosure())
   # animation: the icon hops, hearts float up, the cute line changes now and then
@@ -180,7 +180,7 @@ try {
   $un = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$dest\uninstall.ps1`""
   Set-ItemProperty $key -Name DisplayName -Value 'KuminBonk'
   Set-ItemProperty $key -Name DisplayVersion -Value $appVersion
-  Set-ItemProperty $key -Name Publisher -Value 'hxz'
+  Set-ItemProperty $key -Name Publisher -Value 'HXZ !'
   Set-ItemProperty $key -Name DisplayIcon -Value "$dest\icon.ico"
   Set-ItemProperty $key -Name InstallLocation -Value $dest
   Set-ItemProperty $key -Name UninstallString -Value $un

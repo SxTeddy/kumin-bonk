@@ -1,4 +1,4 @@
-// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
+// KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Makes dist/update.json.gz + dist/update.sha256 (code + web files, no TikTok gift pictures).
 import fs from 'node:fs';
 import path from 'node:path';

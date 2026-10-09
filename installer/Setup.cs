@@ -1,4 +1,4 @@
-// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
+// KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // The KuminBonk installer: one .exe with a cute pink window (like a game launcher's updater).
 // It unpacks the app (embedded payload.zip), downloads the official Node.js runtime from nodejs.org
 // (SHA-256 verified), makes the Desktop / Start menu shortcuts and registers the app in Settings → Apps.
@@ -20,8 +20,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("KuminBonk")]
 [assembly: AssemblyProduct("KuminBonk")]
-[assembly: AssemblyCompany("hxz")]
-[assembly: AssemblyCopyright("Copyright (c) 2026 hxz")]
+[assembly: AssemblyCompany("HXZ !")]
+[assembly: AssemblyCopyright("Copyright (c) 2026 HXZ !")]
 
 static class Program {
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
@@ -81,7 +81,7 @@ class SetupForm : Form {
     btn.FlatAppearance.BorderSize = 0;
     btn.Click += (s, e) => { canClose = true; Close(); };
     Controls.Add(btn);
-    var credit = new Label { Text = "สร้างโดย hxz", ForeColor = Muted, BackColor = Color.Transparent, AutoSize = true,
+    var credit = new Label { Text = "สร้างโดย HXZ !", ForeColor = Muted, BackColor = Color.Transparent, AutoSize = true,
       Font = new Font("Leelawadee UI", 8f), Left = S(8), Top = S(306) };
     Controls.Add(credit);
     pic.BringToFront(); title.BringToFront(); sub.BringToFront(); track.BringToFront(); pct.BringToFront(); detail.BringToFront(); btn.BringToFront();
@@ -263,7 +263,7 @@ class SetupForm : Form {
     using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\KuminBonk")) {
       key.SetValue("DisplayName", "KuminBonk");
       key.SetValue("DisplayVersion", version);
-      key.SetValue("Publisher", "hxz");
+      key.SetValue("Publisher", "HXZ !");
       key.SetValue("DisplayIcon", Path.Combine(dest, "icon.ico"));
       key.SetValue("InstallLocation", dest);
       key.SetValue("UninstallString", "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"" + Path.Combine(dest, "uninstall.ps1") + "\"");

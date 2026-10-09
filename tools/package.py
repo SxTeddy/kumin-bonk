@@ -1,4 +1,4 @@
-# KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz
+# KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ !
 # Builds dist/KuminBonk-v<ver>-Windows.zip (installer layout).
 import os, shutil, zipfile, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

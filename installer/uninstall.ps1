@@ -1,4 +1,4 @@
-# KuminBonk - created by hxz - Copyright (c) 2026 hxz - see LICENSE
+# KuminBonk - created by HXZ ! - Copyright (c) 2026 HXZ ! - see LICENSE
 # Removes KuminBonk (settings in %APPDATA%\KuminBonk are kept unless you delete them yourself).
 $ErrorActionPreference = 'SilentlyContinue'
 $dest = Join-Path $env:LOCALAPPDATA 'Programs\KuminBonk'

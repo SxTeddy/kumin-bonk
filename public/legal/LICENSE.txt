@@ -1,19 +1,19 @@
 KuminBonk
-Copyright (c) 2026 hxz. All rights reserved.
-สร้างโดย hxz — สงวนลิขสิทธิ์
+Copyright (c) 2026 HXZ ! All rights reserved.
+สร้างโดย HXZ ! — สงวนลิขสิทธิ์
 
 ภาษาไทย
 -------
-KuminBonk (โค้ด หน้าตาแอป ไอคอน ภาพเอฟเฟกต์ เสียงสังเคราะห์ ตัวติดตั้ง และเอกสาร) เป็นลิขสิทธิ์ของ hxz
+KuminBonk (โค้ด หน้าตาแอป ไอคอน ภาพเอฟเฟกต์ เสียงสังเคราะห์ ตัวติดตั้ง และเอกสาร) เป็นลิขสิทธิ์ของ HXZ !
 
 อนุญาต
   - ดาวน์โหลด ติดตั้ง และใช้ KuminBonk ในการไลฟ์ของตัวเองได้ฟรี
   - ดูและศึกษาโค้ดในหน้า GitHub นี้ได้
 
-ไม่อนุญาต หากไม่ได้รับอนุญาตเป็นลายลักษณ์อักษรจาก hxz
+ไม่อนุญาต หากไม่ได้รับอนุญาตเป็นลายลักษณ์อักษรจาก HXZ !
   - นำโค้ดหรือส่วนใดส่วนหนึ่งไปแจกจ่ายต่อ ขาย ให้เช่า หรือรวมไว้ในผลงานของผู้อื่น
   - ดัดแปลงแล้วเผยแพร่ หรืออ้างว่าเป็นผู้สร้าง
-  - ลบหรือแก้ไขข้อความลิขสิทธิ์และคำว่า "สร้างโดย hxz"
+  - ลบหรือแก้ไขข้อความลิขสิทธิ์และคำว่า "สร้างโดย HXZ !"
 
 ไม่รวมอยู่ในลิขสิทธิ์นี้
   - ไลบรารีของบุคคลอื่นที่แอปใช้ (เช่น tiktok-live-connector, ws) อยู่ภายใต้สัญญาอนุญาตของเจ้าของแต่ละราย
@@ -29,14 +29,14 @@ KuminBonk (โค้ด หน้าตาแอป ไอคอน ภาพเ
 English
 -------
 KuminBonk (source code, user interface, icons, effect artwork, synthesized sounds, installer and
-documentation) is the copyright of hxz.
+documentation) is the copyright of HXZ !
 
 You MAY download, install and use KuminBonk free of charge for your own live streams, and read the
 source code published in this repository.
 
-You may NOT, without written permission from hxz: redistribute, sell, sublicense or rent the software
+You may NOT, without written permission from HXZ !: redistribute, sell, sublicense or rent the software
 or any part of it; publish modified versions; claim authorship; or remove or alter this copyright
-notice or the "created by hxz" credit.
+notice or the "created by HXZ !" credit.
 
 Not covered by this license: third-party libraries, which remain under their own licenses (see
 THIRD-PARTY-NOTICES.txt; tiktok-live-connector is AGPL-3.0 with a Section 18 exception that allows

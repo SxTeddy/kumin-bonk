@@ -1,4 +1,4 @@
-# KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz
+# KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ !
 # Builds dist/KuminBonk-v<ver>-ติดตั้ง.exe: one installer .exe with the app packed inside (needs mono-mcs).
 import os, sys, zipfile, subprocess, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
