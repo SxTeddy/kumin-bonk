@@ -342,3 +342,7 @@ nav, main, .updbar { position: relative; z-index: 1; }
 #ctStyles .chip.on { border-color: var(--pink); background: var(--pink); color: var(--on-accent); }
 #libGroups .chip { cursor: pointer; padding: 4px 12px; border: 2px solid transparent; }
 #libGroups .chip.on { background: var(--pink); color: var(--on-accent); }
+
+.lockbox { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--soft-bg); border: 2px dashed var(--line); font-size: 14px; }
+.lockbox.on { border-style: solid; border-color: var(--mint); }
+.lockbox.wait { border-color: var(--pink); animation: blink 1.2s infinite; }

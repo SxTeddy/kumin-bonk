@@ -126,6 +126,7 @@ export class Engine {
         const fx = cfg.fx || {};
         const own = (e && fx.gifts?.[e.th]) || {};                       // per-gift override
         let style = a.style && a.style !== 'auto' ? a.style : (own.style || e?.style || (ctx.gift ? 'bonk' : 'love'));
+        const baseStyle = style;
         const cat = catSettings(fx, style);                               // per-category settings
         if (!cat.enabled) return;
         if (cat.as && cat.as !== 'same') style = cat.as;
@@ -145,6 +146,7 @@ export class Engine {
           size: cat.size * (Number(own.size) || 1), speed: cat.speed, sound: cat.sound,
           showcaseMin: fx.showcaseMin ?? 1000,
           aim: own.aim || cat.aim || null,                                 // per-gift / per-category target offset
+          lock: (e && cfg.locks?.['gift:' + e.th]) ? 'gift:' + e.th : (cfg.locks?.['cat:' + baseStyle] ? 'cat:' + baseStyle : null), // locked to the model
         });
         return;
       }

@@ -10,6 +10,7 @@ const counts = {};
 let granted = false;
 let pos = { positionX: 0, positionY: -0.2, rotation: 0, size: -40 };
 wss.on('connection', ws => {
+  ws.on('close', () => clearInterval(ws.track));
   ws.on('message', raw => {
     const m = JSON.parse(raw);
     counts[m.messageType] = (counts[m.messageType] || 0) + 1;
@@ -23,7 +24,7 @@ wss.on('connection', ws => {
     switch (m.messageType) {
       case 'AuthenticationTokenRequest': return reply('AuthenticationTokenResponse', { authenticationToken: 'tok123' });
       case 'AuthenticationRequest': return reply('AuthenticationResponse', { authenticated: m.data.authenticationToken === 'tok123', reason: '' });
-      case 'CurrentModelRequest': return reply('CurrentModelResponse', { modelLoaded: true, modelName: 'Kumin_Test', modelPosition: pos });
+      case 'CurrentModelRequest': return reply('CurrentModelResponse', { modelLoaded: true, modelName: 'Kumin_Test', modelID: 'mock-model-1', modelPosition: pos });
       case 'MoveModelRequest': pos = { positionX: m.data.positionX ?? pos.positionX, positionY: m.data.positionY ?? pos.positionY, rotation: m.data.rotation ?? pos.rotation, size: m.data.size ?? pos.size }; return reply('MoveModelResponse', {});
       case 'HotkeysInCurrentModelRequest': return reply('HotkeysInCurrentModelResponse', { availableHotkeys: [{ name: 'โดนตี', type: 'TriggerAnimation', hotkeyID: 'hk1' }, { name: 'อาย', type: 'ToggleExpression', hotkeyID: 'hk2' }] });
       case 'ExpressionStateRequest': return reply('ExpressionStateResponse', { expressions: [{ name: 'Blush', file: 'blush.exp3.json' }] });
@@ -36,6 +37,20 @@ wss.on('connection', ws => {
         rec({ e: 'load', id: iid, file: fname, x: d.positionX, y: d.positionY, size: d.size, rot: d.rotation });
         return reply('ItemLoadResponse', { instanceID: iid, fileName: fname }); }
       case 'PermissionRequest': granted = granted || !!m.data.requestedPermission; return reply('PermissionResponse', { grantSuccess: granted, permissions: [{ name: 'LoadCustomImagesAsItems', granted }] });
+      case 'EventSubscriptionRequest': {
+        const ev = d.eventName;
+        if (ev === 'ArtMeshTrackingEvent' && process.env.NO_TRACKING) return ws.send(JSON.stringify({ messageType: 'APIError', requestID: m.requestID, data: { errorID: 1, message: 'unknown event' } }));
+        rec({ e: 'sub', ev, on: d.subscribe });
+        if (ev === 'ModelClickedEvent' && d.subscribe) setTimeout(() => ws.send(JSON.stringify({ messageType: 'ModelClickedEvent', data: {
+          modelLoaded: true, loadedModelID: 'mock-model-1', loadedModelName: 'Kumin_Test', modelWasClicked: true, mouseButtonID: 0, clickPosition: { x: 0.1, y: 0.3 }, windowSize: { x: 1920, y: 1080 },
+          clickedArtMeshCount: 1, artMeshHits: [{ artMeshOrder: 0, isMasked: false, hitInfo: { modelID: 'mock-model-1', artMeshID: 'HairTop', angle: 0, size: 1, vertexID1: 1, vertexID2: 2, vertexID3: 3, vertexWeight1: 0.2, vertexWeight2: 0.3, vertexWeight3: 0.5 } }] } })), 500);
+        if (ev === 'ArtMeshTrackingEvent') {
+          clearInterval(ws.track);
+          if (d.subscribe) { const pts = d.config.trackingPoints; let n = 0; ws.track = setInterval(() => { n++; ws.send(JSON.stringify({ messageType: 'ArtMeshTrackingEvent', data: { modelLoaded: true, foundPointsCount: pts.length, trackingPoints: pts.map(p => ({ trackingPointID: p.trackingPointID, artMeshVisible: true, position: { x: 0.1 + 0.2 * Math.sin(n / 10), y: 0.3 }, rotation: 0, size: 0.1 })) } })); }, 50); }
+        }
+        return reply('EventSubscriptionResponse', { subscribedEventCount: 1, subscribedEvents: [ev] });
+      }
+      case 'ItemPinRequest': rec({ e: 'pin', id: d.itemInstanceID, pin: d.pin, mesh: d.pinInfo?.artMeshID }); return reply('ItemPinResponse', { isPinned: !!d.pin, itemInstanceID: d.itemInstanceID });
       default: return reply(m.messageType.replace('Request', 'Response'), {});
     }
   });

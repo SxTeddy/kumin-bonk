@@ -140,6 +140,20 @@ export class VTS extends EventEmitter {
   }
   async spriteKill(id) { if (!id) return; await this.unloadItems([id]); this.sprites = Math.max(0, this.sprites - 1); }
 
+  // ---- lock to the model ----
+  subscribe(eventName, subscribe = true, config = {}) { return this.request('EventSubscriptionRequest', { eventName, subscribe, config }); }
+  // Pin an item to an exact point on the model (barycentric coords from a model click); it then follows the model.
+  pin(id, coords) {
+    if (!id || !coords) return Promise.resolve(false);
+    return this.request('ItemPinRequest', {
+      pin: true, itemInstanceID: id, angleRelativeTo: 'RelativeToCurrentItemRotation', sizeRelativeTo: 'RelativeToCurrentItemSize', vertexPinType: 'Provided',
+      pinInfo: { modelID: coords.modelID || '', artMeshID: coords.artMeshID, angle: 0, size: 0,
+        vertexID1: coords.vertexID1, vertexID2: coords.vertexID2, vertexID3: coords.vertexID3,
+        vertexWeight1: coords.vertexWeight1, vertexWeight2: coords.vertexWeight2, vertexWeight3: coords.vertexWeight3 },
+    }).then(r => !!r.isPinned).catch(e => { this.log('vts', `ติดหมุดไอเท็มกับโมเดลไม่ได้: ${e.message}`, 'warn'); return false; });
+  }
+  unpin(id) { return id ? this.request('ItemPinRequest', { pin: false, itemInstanceID: id }).catch(() => {}) : Promise.resolve(); }
+
   // Aim marker shown inside VTS while calibrating.
   async showCalib(img, head) {
     if (!this.ready) return;
@@ -175,7 +189,8 @@ export class VTS extends EventEmitter {
       let msg; try { msg = JSON.parse(raw); } catch { return; }
       const p = this.pending.get(msg.requestID);
       if (p) { this.pending.delete(msg.requestID); clearTimeout(p.t); p.resolve(msg); }
-      else if (msg.messageType === 'ModelLoadedEvent') this.refreshModel();
+      else if (msg.messageType === 'ModelLoadedEvent') { this.refreshModel(); this.emit('modelLoaded'); }
+      else if (/Event$/.test(msg.messageType || '')) this.emit('vtsEvent', msg.messageType, msg.data || {});
     });
     ws.on('close', () => {
       for (const p of this.pending.values()) { clearTimeout(p.t); p.reject(new Error('disconnected')); }
@@ -221,6 +236,7 @@ export class VTS extends EventEmitter {
         await this.request('EventSubscriptionRequest', { eventName: 'ModelLoadedEvent', subscribe: true }).catch(() => {});
         await this.refreshModel();
         this.setStatus('ready');
+        this.emit('ready');
         this.log('vts', `เชื่อมต่อ VTube Studio แล้ว${this.model?.modelName ? ` (โมเดล: ${this.model.modelName})` : ''}`);
         this.itemFileCache.clear();
         this.ensureImagePermission();

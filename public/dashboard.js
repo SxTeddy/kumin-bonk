@@ -42,6 +42,9 @@ function handle(m) {
     case 'sound': if (soundOn) KBSound.play(m.sound, m.volume); break;
     case 'saved': flashSaved(); break;
     case 'update': renderUpdate(m); break;
+    case 'lockWaiting': lockWait = m.target; renderLock(); toast('ไปคลิกที่ตัวละครใน VTube Studio 1 ครั้งนะ'); break;
+    case 'lockCancelled': lockWait = null; renderLock(); break;
+    case 'lockDone': { const was = lockWait; lockWait = null; config = { ...config, ...m.config }; renderAimFor(); renderCats?.(); if (was) toast('📌 ล็อกกับโมเดลแล้ว! เป้าจะขยับตามตัวละคร'); break; }
     case 'closeWindow': closedByNewer = true; window.close(); break; // a newer app window took over
     case 'restarting': if (!restartingNow) { restartingNow = true; showSplash('กำลังเปลี่ยนชุดใหม่ ✨', 'รอแป๊บนึงนะ เดี๋ยวกลับมา~'); } $('#updBar').hidden = true; break;
   }
@@ -632,14 +635,30 @@ function renderAimFor() {
   $('#btnAimReset').hidden = isHead || !aimInfo().own;
   $('#followWrap').hidden = !isHead;
   $('#btnTestAim').textContent = isHead ? '🌹 ปาทดสอบ 3 ดอก' : '▶ ลองท่านี้';
-  const chip = (v, txt, done) => `<button data-aim="${esc(v)}" class="${v === aimFor ? 'on' : ''} ${done ? 'done' : ''}">${esc(txt)}${done ? ' ✓' : ''}</button>`;
+  const chip = (v, txt, done) => `<button data-aim="${esc(v)}" class="${v === aimFor ? 'on' : ''} ${done ? 'done' : ''}">${lockOf(v) ? '🔒 ' : ''}${esc(txt)}${done ? ' ✓' : ''}</button>`;
   const giftsSet = Object.entries(config.fx?.gifts || {}).filter(([, o]) => o.aim).map(([n]) => n);
   $('#aimList').innerHTML = chip('head', '🎯 หัว (จุดหลัก)', false)
     + Object.keys(styles).map(k => chip('cat:' + k, styles[k], !!config.fx?.cats?.[k]?.aim)).join('')
     + (giftsSet.length ? '<div class="aimsub">ของขวัญที่ตั้งเฉพาะชิ้น</div>' + giftsSet.map(n => chip('gift:' + n, n, true)).join('') : '');
   $$('#aimList [data-aim]').forEach(b => b.onclick = () => pickAim(b.dataset.aim));
-  placeDot();
+  placeDot(); renderLock();
 }
+// ---- lock to the model ----
+let lockWait = null;
+const lockOf = v => config?.locks?.[v];
+function renderLock() {
+  const box = $('#lockBox'); if (!box || !config) return;
+  const l = lockOf(aimFor), waiting = lockWait === aimFor;
+  box.className = 'lockbox' + (waiting ? ' wait' : l ? ' on' : '');
+  box.innerHTML = waiting ? '👆 <b>ไปคลิกที่ตัวละครในหน้าต่าง VTube Studio 1 ครั้ง</b> ตรงจุดที่อยากให้ของไปโดน (ซ้ายคลิก) <button class="small" id="btnLockCancel">ยกเลิก</button>'
+    : l ? `🔒 <b>ล็อกกับโมเดลแล้ว</b> (${esc(l.coords?.artMeshID || '')}${l.model ? ' · ' + esc(l.model) : ''}) — เป้าจะขยับตามหัว/ตัวละคร แม้ย้าย ซูม หรือขยับหัว ของที่วางบนตัวจะติดไปกับโมเดลด้วย`
+    : '📌 <b>ล็อกกับโมเดล</b>: กดปุ่มด้านบน แล้วคลิกที่ตัวละครใน VTube Studio ตรงจุดที่ต้องการ — แอปจะจำจุดนั้นบนโมเดลไว้ ใช้ได้ทุกคอม ทุกขนาดหน้าจอ และจำแยกตามโมเดล';
+  $('#btnLock').hidden = waiting; $('#btnUnlock').hidden = !l || waiting;
+  $('#btnLock').textContent = l ? '📌 ล็อกจุดใหม่' : '📌 ล็อกกับโมเดล';
+  const c = $('#btnLockCancel'); if (c) c.onclick = () => send({ t: 'lockCancel' });
+}
+$('#btnLock').onclick = () => send({ t: 'lockStart', target: aimFor });
+$('#btnUnlock').onclick = () => send({ t: 'unlock', target: aimFor });
 function pickAim(v) {
   // drop empty override objects left behind by browsing
   for (const o of [config.fx?.gifts, config.fx?.cats]) for (const k in (o || {})) if (o[k] && !Object.keys(o[k]).length) delete o[k];

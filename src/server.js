@@ -17,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.16';
+const VERSION = '1.5.0';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -83,11 +83,20 @@ const vts = new VTS({ port: config.vtsPort, tokenFile: path.join(DATA, 'vts-toke
 const tiktok = new TikTokSource(log);
 const images = new Images(readPublic, log);
 let liveHead = null; // head position after following the model around
-const getHead = () => liveHead || { x: config.head.x, y: config.head.y };
+// ---------- lock to the model ----------
+// config.locks[target] = { coords (point on the model from a click in VTS), x, y, model }  target: 'head' | 'cat:<style>' | 'gift:<name>'
+const livePts = new Map(); // target -> live position from VTube Studio's point tracking
+let trackingOk = null, lockWaiting = null, lockTimer = null;
+const livePoint = key => { const p = livePts.get(key); return p && Date.now() - p.t < 1500 ? p : null; };
+const getLock = key => { const l = config.locks?.[key]; return l ? { ...l, live: livePoint(key) } : null; };
+// Locks are saved per model (every model is drawn differently), so switching models switches lock points too.
+const modelId = () => vts.model?.modelID || '';
+function useModelLocks() { config.modelLocks = config.modelLocks || {}; config.locks = config.modelLocks[modelId()] || {}; }
+const getHead = () => livePoint('head') || liveHead || { x: config.head.x, y: config.head.y };
 const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(path.join(DATA, f), 'utf8')); } catch { return d; } };
 const writeJson = (f, v) => { try { fs.writeFileSync(path.join(DATA, f), JSON.stringify(v, null, 1)); } catch {} };
 const gifts = new GiftMatcher(readJson('gift-aliases.json', {}));
-const effects = new Effects({ vts, images, getHead, log, getConfig: () => config, sound: name => engine.sound(name) });
+const effects = new Effects({ vts, images, getHead, getLock, log, getConfig: () => config, sound: name => engine.sound(name) });
 const engine = new Engine({ getConfig: () => config, getHead, vts, images, gifts, effects, overlay, dashboard: toDashboards, log });
 // Gifts actually received in lives (real English name, picture and price) — shown in the gift picker.
 const giftsSeen = new Map(readJson('gifts-seen.json', []).map(g => [g.name, g]));
@@ -128,6 +137,60 @@ function onEvent(ev, simulated = false) {
   toDashboards({ t: 'event', ev, fired, simulated, time: Date.now() });
 }
 tiktok.on('event', e => onEvent(e));
+
+const COORD_KEYS = ['modelID', 'artMeshID', 'vertexID1', 'vertexID2', 'vertexID3', 'vertexWeight1', 'vertexWeight2', 'vertexWeight3'];
+async function syncTracking() {
+  if (!vts.ready) return;
+  const pts = Object.entries(config.locks || {}).filter(([, l]) => l?.coords)
+    .map(([k, l]) => ({ trackingPointID: k, artMeshCoords: { ...Object.fromEntries(COORD_KEYS.map(c => [c, l.coords[c]])), angle: 0, size: 1 }, visualize: false }));
+  try {
+    if (!pts.length) { await vts.subscribe('ArtMeshTrackingEvent', false); livePts.clear(); return; }
+    await vts.subscribe('ArtMeshTrackingEvent', true, { frequency: 20, trackingPoints: pts });
+    if (trackingOk !== true) log('lock', `ล็อกกับโมเดลแล้ว ${pts.length} จุด — เป้าจะขยับตามตัวละครตลอดเวลา`);
+    trackingOk = true;
+  } catch (e) {
+    if (trackingOk !== false) log('lock', 'VTube Studio เวอร์ชันนี้ยังติดตามจุดบนโมเดลแบบสด ๆ ไม่ได้ (มีในเวอร์ชันใหม่/beta) — ของที่วางบนตัวยังติดหมุดตามโมเดลได้ปกติ', 'warn');
+    trackingOk = false;
+  }
+}
+function finishLock(target, d, hit) {
+  clearTimeout(lockTimer); lockWaiting = null;
+  vts.subscribe('ModelClickedEvent', false).catch(() => {});
+  const pos = { x: clamp01((d.clickPosition.x + 1) / 2), y: clamp01((1 - d.clickPosition.y) / 2) };
+  config.modelLocks = config.modelLocks || {};
+  const mid = d.loadedModelID || modelId();
+  config.modelLocks[mid] = { ...(config.modelLocks[mid] || {}), [target]: { coords: hit, x: pos.x, y: pos.y, model: d.loadedModelName || '' } };
+  config.locks = config.modelLocks[mid];
+  // the clicked point is also the new aim for that target
+  if (target === 'head') { config.head.x = pos.x; config.head.y = pos.y; liveHead = null; }
+  else {
+    const [kind, ...rest] = target.split(':'); const name = rest.join(':');
+    config.fx = config.fx || {}; config.fx.cats = config.fx.cats || {}; config.fx.gifts = config.fx.gifts || {};
+    const style = kind === 'cat' ? name : (config.fx.gifts[name]?.style || CATALOG.find(g => g.th === name)?.style || 'bonk');
+    const a = ANCHOR[style] || { dx: 0, dy: 0 };
+    const aim = { dx: Math.round((pos.x - config.head.x - a.dx) * 1000) / 1000, dy: Math.round((pos.y - config.head.y - a.dy) * 1000) / 1000 };
+    if (kind === 'cat') config.fx.cats[name] = { ...(config.fx.cats[name] || {}), aim };
+    else config.fx.gifts[name] = { ...(config.fx.gifts[name] || {}), aim };
+  }
+  saveConfig(); syncTracking();
+  log('lock', `📌 ล็อกจุด ${target === 'head' ? 'หัว' : target.replace(/^cat:/, 'หมวด ').replace(/^gift:/, '')} ไว้กับ "${hit.artMeshID}" ของโมเดลแล้ว`);
+  toDashboards({ t: 'lockDone', target, config });
+  if (vts.ready && vts.canCustomImages) vts.showCalib(images.builtin('target'), pos);
+}
+vts.on('ready', () => { trackingOk = null; livePts.clear(); useModelLocks(); syncTracking(); toDashboards({ t: 'lockDone', config }); });
+vts.on('modelLoaded', () => { livePts.clear(); setTimeout(() => { useModelLocks(); syncTracking(); toDashboards({ t: 'lockDone', config }); }, 800); });
+vts.on('vtsEvent', (type, d) => {
+  if (type === 'ArtMeshTrackingEvent') {
+    const now = Date.now();
+    for (const tp of d.trackingPoints || []) if (tp.position) livePts.set(tp.trackingPointID, { x: (tp.position.x + 1) / 2, y: (1 - tp.position.y) / 2, t: now });
+    return;
+  }
+  if (type === 'ModelClickedEvent' && lockWaiting) {
+    if (d.mouseButtonID !== 0 || !d.modelWasClicked || !d.artMeshHits?.length) return;
+    const hit = (d.artMeshHits.find(h => h.artMeshOrder === 0) || d.artMeshHits[0]).hitInfo;
+    if (hit) finishLock(lockWaiting, d, hit);
+  }
+});
 
 // Keep the aim on the head when the model is dragged around in VTS.
 setInterval(async () => {
@@ -201,6 +264,26 @@ async function onDashboard(ws, m) {
       const at = { x: clamp01(m.x), y: clamp01(m.y) };
       overlay.send({ t: 'calib', ...at, show: true });
       if (vts.ready && vts.canCustomImages) vts.showCalib(images.builtin('target'), at);
+      return;
+    }
+    case 'lockStart': {
+      if (!vts.ready) return log('lock', 'ต้องเชื่อมต่อ VTube Studio ก่อน', 'warn');
+      lockWaiting = String(m.target || 'head');
+      await vts.subscribe('ModelClickedEvent', true, { onlyClicksOnModel: true }).catch(e => { lockWaiting = null; log('lock', `เริ่มล็อกไม่ได้: ${e.message}`, 'warn'); });
+      if (!lockWaiting) return;
+      await vts.hideCalib();
+      clearTimeout(lockTimer);
+      lockTimer = setTimeout(() => { if (lockWaiting) { lockWaiting = null; vts.subscribe('ModelClickedEvent', false).catch(() => {}); toDashboards({ t: 'lockCancelled' }); } }, 90000);
+      toDashboards({ t: 'lockWaiting', target: lockWaiting });
+      return;
+    }
+    case 'lockCancel': clearTimeout(lockTimer); lockWaiting = null; vts.subscribe('ModelClickedEvent', false).catch(() => {}); toDashboards({ t: 'lockCancelled' }); return;
+    case 'unlock': {
+      const ml = config.modelLocks?.[modelId()]; if (ml) delete ml[m.target];
+      useModelLocks();
+      livePts.delete(m.target); saveConfig(); syncTracking();
+      log('lock', 'ปลดล็อกจุดแล้ว');
+      toDashboards({ t: 'lockDone', target: m.target, config });
       return;
     }
     case 'calibDone': {

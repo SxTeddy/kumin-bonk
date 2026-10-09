@@ -1,6 +1,7 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Gift effects played inside VTube Studio: each style is a small choreography of
 // item sprites (the gift picture + particles) and reactions of the model itself.
+import { ANCHOR } from './gifts.js';
 let SPEED = 1; // per-category speed while a job runs
 const sleep = ms => new Promise(r => setTimeout(r, ms / SPEED));
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -13,8 +14,8 @@ const HEAVY_TIMEOUT = 18000;
 export const sizeFor = coins => clamp(0.75 + 0.22 * Math.log10(Math.max(1, coins)), 0.75, 1.75);
 
 export class Effects {
-  constructor({ vts, images, getHead, sound, log, getConfig }) {
-    Object.assign(this, { vts, images, log, getConfig });
+  constructor({ vts, images, getHead, getLock = () => null, sound, log, getConfig }) {
+    Object.assign(this, { vts, images, log, getConfig, getLock });
     this.baseHead = getHead;
     this.aim = null; // per-category / per-gift target offset {dx, dy} while a job runs
     this._sound = sound;
@@ -25,6 +26,9 @@ export class Effects {
 
   // head point moved by the aim offset of the gift/category being played
   getHead(aim = this.aim) {
+    // locked to the model: use the live tracked point (the style's own offset is taken back out, so it lands exactly there)
+    const lk = this.lock && this.getLock(this.lock);
+    if (lk?.live) { const a = ANCHOR[this.style] || { dx: 0, dy: 0 }; return { x: clamp(lk.live.x - a.dx, 0, 1), y: clamp(lk.live.y - a.dy, 0, 1) }; }
     const h = this.baseHead();
     if (!aim || (!aim.dx && !aim.dy)) return h;
     return { x: clamp(h.x + (Number(aim.dx) || 0), 0, 1), y: clamp(h.y + (Number(aim.dy) || 0), 0, 1) };
@@ -36,14 +40,14 @@ export class Effects {
     this._sound(this.soundMode && this.soundMode !== 'auto' ? this.soundMode : name);
   }
 
-  play(style, { img = 'heart', count = 1, power = 1, label = '', coins = 1, size = 1, speed = 1, sound = 'auto', showcaseMin = 1000, aim = null } = {}) {
+  play(style, { img = 'heart', count = 1, power = 1, label = '', coins = 1, size = 1, speed = 1, sound = 'auto', showcaseMin = 1000, aim = null, lock = null } = {}) {
     if (!this.vts.ready) return;
     const show = showcaseMin > 0 && coins >= showcaseMin;
     if (style === 'bonk' && !show) return this.bonk(img, count, power, sizeFor(coins) * size, speed, sound, aim);
     const same = this.queue.find(q => q.style === style && q.img === img && JSON.stringify(q.aim) === JSON.stringify(aim));
     if (same) { same.count += count; return; }
     if (this.queue.length >= 8) return this.vts.flinch(side(), 0.8, true); // too busy: just react
-    this.queue.push({ style, img, count, power, label, coins, size, speed, sound, show, aim });
+    this.queue.push({ style, img, count, power, label, coins, size, speed, sound, show, aim, lock });
     if (!this.running) this._drain();
   }
 
@@ -55,12 +59,12 @@ export class Effects {
       try {
         const pic = await this.images.get(job.img, 'heart');
         this.cur = { img: pic, scale: sizeFor(job.coins) * (job.size || 1) }; // the gift picture is drawn at this scale
-        SPEED = Math.max(0.3, job.speed || 1); this.soundMode = job.sound || 'auto'; this.aim = job.aim || null;
+        SPEED = Math.max(0.3, job.speed || 1); this.soundMode = job.sound || 'auto'; this.aim = job.aim || null; this.lock = job.lock || null; this.style = job.style;
         if (job.show) await this.showcase(pic, job.coins);
         const power = clamp(job.power, 0.6, 2.5);
         const run = fn === this.bonk ? this.bonk(pic, job.count, power, this.cur.scale, job.speed, job.sound, job.aim) : fn.call(this, pic, job.count, power, job);
         await Promise.race([run, sleep(HEAVY_TIMEOUT)]);
-        this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null;
+        this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null; this.lock = null;
       } catch (e) { this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null; this.log('fx', `เอฟเฟกต์ ${job.style} ผิดพลาด: ${e.message}`, 'warn'); }
     }
     this.running = false;
@@ -72,6 +76,21 @@ export class Effects {
   async spawn(img, o) {
     if (this.cur && img === this.cur.img) o = { ...o, size: clamp((o.size ?? 0.2) * this.cur.scale, 0.03, 0.75) };
     try { return await this.vts.sprite(img, o); } catch { return null; }
+  }
+  // While a sprite rests on the character, pin it to the model so it moves with the head (when a lock point exists).
+  pinCoords() {
+    const own = this.lock && this.getLock(this.lock);
+    if (own?.coords) return own.coords;
+    const a = ANCHOR[this.style];
+    if (!a || (!a.dx && !a.dy)) return this.getLock('head')?.coords || null;
+    return null;
+  }
+  async rest(id, ms) {
+    const c = this.pinCoords();
+    const pinned = c ? await this.vts.pin(id, c) : false;
+    await sleep(ms);
+    if (pinned) await this.vts.unpin(id);
+    return pinned;
   }
   // scale a target size for the current gift picture (used by moves that resize it)
   gs(size) { return this.cur ? clamp(size * this.cur.scale, 0.02, 0.75) : size; }
@@ -140,7 +159,8 @@ export class Effects {
     await this.to(id, { x: h.x, y: h.y - 0.14, rot: 0 }, 0.45, 'easeIn'); await sleep(450);
     this.sound('boing'); this.vts.flinch(0, 0.5, false); this.vts.move('squash', 0.6);
     this.happy(4, 0.8);
-    for (let i = 0; i < 4; i++) { await this.to(id, { rot: i % 2 ? -7 : 7 }, 0.45, 'easeBoth'); await sleep(900); }
+    if (this.pinCoords()) await this.rest(id, 3600); // locked: stays on the head and follows it
+    else for (let i = 0; i < 4; i++) { await this.to(id, { rot: i % 2 ? -7 : 7 }, 0.45, 'easeBoth'); await sleep(900); }
     await this.to(id, { y: -0.3, rot: rnd(-60, 60) }, 0.5, 'easeIn'); await sleep(520);
     await this.kill(id);
   }
@@ -151,7 +171,7 @@ export class Effects {
     await this.to(id, { x: h.x, y: h.y + 0.15 }, 0.6, 'overshoot'); await sleep(620);
     this.sound('ding'); this.shy(3);
     this.particles('sparkle', 5, this.ring({ x: h.x, y: h.y + 0.15 }, 5, 0.1), (i, a) => ({ x: a.x, y: a.y - 0.08, size: 0.02 }), 0.9);
-    await sleep(3000);
+    await this.rest(id, 3000);
     await this.to(id, { y: 1.3 }, 0.6, 'easeIn'); await sleep(620);
     await this.kill(id);
   }
@@ -262,7 +282,8 @@ export class Effects {
     await this.to(id, { x: top.x, y: top.y }, 0.45, 'overshoot'); await sleep(460);
     this.sound('boing'); this.vts.flinch(0, 0.7, false); this.vts.move('squash', 0.7);
     this.vts.animate(3.6, t => ({ FaceAngleZ: 6 * Math.sin(t * 5), FaceAngleY: -6, MouthSmile: 0.8 }));
-    for (let i = 0; i < 4; i++) {
+    if (this.pinCoords()) { const r = this.rest(id, 3200); for (let i = 0; i < 4; i++) { await sleep(700); this.vts.flinch(0, 0.25, false); } await r; }
+    else for (let i = 0; i < 4; i++) {
       await this.to(id, { y: top.y - 0.06 }, 0.18, 'easeOut'); await sleep(190);
       await this.to(id, { y: top.y }, 0.18, 'easeIn'); await sleep(190);
       this.vts.flinch(0, 0.25, false);
@@ -422,7 +443,7 @@ export class Effects {
     const id = await this.spawn(img, { x: h.x, y: h.y + 0.02, size: 0.05, rot: rnd(-15, 15), order: 29 });
     await this.to(id, { size: this.gs(0.34) }, 0.15, 'overshoot'); await sleep(150);
     this.sound('bonk'); this.vts.flinch(0, 1.3, this.eyes); this.vts.move('squash', 0.8);
-    await sleep(1300);
+    await this.rest(id, 1300);
     await this.to(id, { y: h.y + 0.5, rot: rnd(-30, 30) }, 0.9, 'easeIn'); await sleep(920);
     await this.kill(id);
   }
