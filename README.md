@@ -30,6 +30,8 @@ npm install
 node src/server.js          # เปิดที่ http://localhost:3939
 node test/mock-vts.js       # VTube Studio จำลองสำหรับทดสอบ
 node tools/make-update.mjs <version>   # สร้างไฟล์อัปเดตใน updates/
+python3 tools/build-setup.py <version> # ตัวติดตั้ง .exe ไฟล์เดียว (ต้องมี mono-mcs)
+python3 tools/package.py <version>     # แบบ zip
 ```
 
 ## ลิขสิทธิ์
