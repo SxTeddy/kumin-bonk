@@ -195,12 +195,12 @@ class SetupForm : Form {
     try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; } catch { } // TLS 1.2
     Directory.CreateDirectory(Path.GetDirectoryName(node));
     string tmp = node + ".download";
-    string[] bases = (Env("KB_SETUP_NODE_BASE") ?? "https://nodejs.org/dist/v22.22.0;https://nodejs.org/dist/latest-v22.x").Split(';');
+    string[] bases = (Env("KB_SETUP_NODE_BASE") ?? "https://nodejs.org/dist/v22.22.0;https://nodejs.org/dist/latest-v22.x").Split(new[] { ';' });
     foreach (var b in bases) {
       try {
         Download(b + "/win-x64/node.exe", tmp, 0.1, 0.88);
         string sums = Fetch(b + "/SHASUMS256.txt");
-        string want = sums.Split('\n').Select(l => l.Trim()).Where(l => l.EndsWith(" win-x64/node.exe")).Select(l => l.Split(' ')[0].ToLowerInvariant()).FirstOrDefault();
+        string want = sums.Split(new[] { '\n' }).Select(l => l.Trim()).Where(l => l.EndsWith(" win-x64/node.exe")).Select(l => l.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant()).FirstOrDefault();
         string got;
         using (var sha = SHA256.Create()) using (var f = File.OpenRead(tmp)) got = BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "").ToLowerInvariant();
         if (want == null || want != got) { Step("ไฟล์ไม่ตรงกับลายเซ็นของ nodejs.org ลองแหล่งถัดไป...", 0.1); continue; }
