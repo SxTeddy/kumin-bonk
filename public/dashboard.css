@@ -234,3 +234,6 @@ button.ghost { background: transparent; border-color: transparent; color: var(--
 .yay-card li { margin: 4px 0; }
 .confetti i { position: absolute; top: 0; width: 10px; height: 14px; border-radius: 3px; animation: kb-fall linear forwards; }
 @media (prefers-reduced-motion: reduce) { .splash *, .updbar *, .yay * { animation: none !important; } }
+.yay-card ul.steps { list-style: none; padding: 0; counter-reset: st; }
+.yay-card ul.steps li { counter-increment: st; position: relative; padding: 8px 10px 8px 44px; margin: 8px 0; border-radius: 12px; background: var(--pink-soft); }
+.yay-card ul.steps li::before { content: counter(st); position: absolute; left: 10px; top: 50%; margin-top: -13px; width: 26px; height: 26px; border-radius: 50%; background: var(--pink); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; }

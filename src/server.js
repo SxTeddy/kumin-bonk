@@ -17,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.4';
+const VERSION = '1.4.5';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -54,7 +54,8 @@ if ((config.rulesVersion || 1) < DEFAULT_CONFIG.rulesVersion) {
   config.rulesVersion = DEFAULT_CONFIG.rulesVersion;
   saveConfig();
 }
-if (!fs.existsSync(CONFIG_FILE)) saveConfig();
+let firstRun = !fs.existsSync(CONFIG_FILE); // brand-new install: show the welcome card once
+if (firstRun) saveConfig();
 
 // ---------- logging ----------
 const logs = [];
@@ -106,7 +107,7 @@ const updater = new Updater({ version: VERSION, log, dataDir: DATA });
 // Show a cute "updated!" card once after the app switched to a new version.
 let justUpdated = '';
 if (config.seenVersion !== VERSION) {
-  if (config.seenVersion || updater.previous()) justUpdated = VERSION;
+  if (!firstRun && (config.seenVersion || updater.previous())) justUpdated = VERSION;
   config.seenVersion = VERSION; saveConfig();
 }
 updater.set({});
@@ -286,8 +287,8 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => { overlays.delete(ws); pushStatus(); });
   } else {
     dashboards.add(ws);
-    send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, anchors: ANCHOR, logs, justUpdated });
-    justUpdated = '';
+    send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, anchors: ANCHOR, logs, justUpdated, firstRun });
+    justUpdated = ''; firstRun = false;
     send(ws, { t: 'status', ...status() });
     send(ws, { t: 'update', ...updater.state });
     ws.on('message', raw => { let m; try { m = JSON.parse(raw); } catch { return; } onDashboard(ws, m).catch(e => log('app', e.message, 'warn')); });

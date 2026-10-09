@@ -30,6 +30,7 @@ function handle(m) {
       renderAll();
       hideSplash();
       if (m.justUpdated) setTimeout(() => showWhatsNew(m.justUpdated), 800);
+      else if (m.firstRun) setTimeout(showWelcome, 800);
       break;
     case 'status': renderStatus(m); break;
     case 'log': addLog(m); break;
@@ -92,12 +93,25 @@ function mdLine(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
 async function showWhatsNew(ver) {
   let notes = [];
   try { const w = await (await fetch('/whatsnew.json', { cache: 'no-store' })).json(); if (!ver || w.version === ver) notes = String(w.notes || '').split('\n').map(l => l.replace(/^\s*-\s*/, '').trim()).filter(Boolean); } catch {}
-  $('#yayTitle').textContent = `อัปเดตเป็น v${ver} แล้ว! 🎉`;
+  $('#yayTitle').textContent = `อัปเดตเป็น v${ver} แล้ว! 🎉`; $('#yaySub').textContent = 'มีอะไรใหม่บ้าง'; $('#btnYay').textContent = 'เย้! ไปกันเลย ✨'; $('#yayNotes').className = '';
   $('#yayNotes').innerHTML = notes.length ? notes.map(n => `<li>${mdLine(n)}</li>`).join('') : '<li>แก้ไขและปรับปรุงให้ดีขึ้น 💖</li>';
   $('#yay').hidden = false; confetti($('#yay .confetti'));
   try { KBSound.play?.('fanfare'); } catch {}
 }
 $('#btnYay').onclick = () => { $('#yay').hidden = true; };
+// first time ever: a welcome card with the 3 things to do
+function showWelcome() {
+  $('#yayTitle').textContent = 'ยินดีต้อนรับสู่ KuminBonk! 💖';
+  $('#yaySub').textContent = 'เริ่มใช้ได้ใน 3 ขั้นตอน';
+  $('#yayNotes').className = 'steps';
+  $('#yayNotes').innerHTML = [
+    '<b>เปิด VTube Studio</b> → ตั้งค่า (ฟันเฟือง) → เปิด <b>Start API</b> แล้วกด <b>Allow</b> 2 ครั้ง',
+    'แท็บ <b>🎯 เล็งหัว</b> → ลากเป้าให้ตรงหัวตัวละคร → บันทึก',
+    'หน้าหลัก → ใส่ชื่อ TikTok → <b>เชื่อมต่อ</b> (เปิดไลฟ์ใน TikTok LIVE Studio ก่อน)',
+  ].map(t => `<li>${t}</li>`).join('');
+  $('#btnYay').textContent = 'เริ่มกันเลย ✨';
+  $('#yay').hidden = false; confetti($('#yay .confetti'), 60);
+}
 $('#yay').onclick = e => { if (e.target.id === 'yay') $('#yay').hidden = true; };
 
 const DL_LINES = ['กำลังไปรับชุดใหม่มาให้~ 🧺', 'ห่อของขวัญอยู่นะ 🎁', 'อีกนิดเดียว ฮึบ! 💪', 'วิ่ง ๆ ๆ 🏃‍♀️💨', 'ใกล้แล้วว ✨'];
