@@ -34,12 +34,14 @@ function handle(m) {
       if (m.justUpdated) setTimeout(() => showWhatsNew(m.justUpdated), 800);
       else if (m.firstRun) setTimeout(showWelcome, 800);
       break;
-    case 'status': renderStatus(m); break;
+    case 'status': renderStatus(m); renderPause(m); break;
+    case 'sessions': renderSessions(m); break;
+    case 'sounds': config.customSounds = m.customSounds || []; renderSounds(); renderCats(); renderRules(); if (m.added) toast('เพิ่มเสียงแล้ว 🎵'); break;
     case 'log': addLog(m); break;
     case 'event': addFeed(m); if (m.ev.type === 'chat') readChat(m.ev.user?.nickname || m.ev.user?.username, m.ev.user?.username, m.ev.text); if (m.ev.type === 'gift' && !seenGifts.some(g => g.name === m.ev.gift.name)) { seenGifts.push(m.ev.gift); fillGiftList(); } break;
     case 'fired': break;
     case 'vtsLists': vtsLists = m; if (config) renderRules(); break;
-    case 'tts': speak(m.text); break;
+    case 'tts': speak(m.text, m.kind === 'thanks' ? '🙏' : 'กฎ'); break;
     case 'sound': if (soundOn) KBSound.play(m.sound, m.volume); break;
     case 'saved': flashSaved(); break;
     case 'update': renderUpdate(m); break;
@@ -231,7 +233,7 @@ function addFeed(m) {
   ul.querySelector('.empty')?.remove();
   const li = document.createElement('li');
   const gpic = ev.type === 'gift' ? catalog.find(c => c.th === ev.gift.th || c.en === ev.gift.name) : null;
-  li.innerHTML = `${gpic ? `<img class="gp" src="/gifts/${gpic.img}.png" alt="">` : ev.user?.avatar ? `<img src="${esc(ev.user.avatar)}" alt="">` : '<img alt="">'}<span><b>${esc(ev.user?.nickname)}</b> ${evText(ev)} ${m.simulated ? '<span class="sim">ทดสอบ</span>' : ''}</span>${m.fired.length ? `<span class="fired">${m.fired.map(esc).join('<br>')}</span>` : ''}`;
+  li.innerHTML = `${gpic ? `<img class="gp" src="/gifts/${gpic.img}.png" alt="">` : ev.user?.avatar ? `<img src="${esc(ev.user.avatar)}" alt="">` : '<img alt="">'}<span><b>${esc(ev.user?.nickname)}</b> ${evText(ev)} ${m.combo > 1 ? `<span class="combo">🔥 x${m.combo}</span>` : ''}${m.queued ? '<span class="qd">⏳ รอ</span>' : ''}${m.simulated ? '<span class="sim">ทดสอบ</span>' : ''}</span>${m.fired.length ? `<span class="fired">${m.fired.map(esc).join('<br>')}</span>` : ''}`;
   ul.prepend(li);
   while (ul.children.length > 80) ul.lastChild.remove();
 }
@@ -272,6 +274,7 @@ function renderAll() {
   $('#optEyes').checked = config.throwing.eyesClose;
   $('#followModel').checked = config.head.followModel;
   renderSliders(); renderRules(); fillGiftList(); renderAimFor(); renderGallery(); renderCats();
+  renderHelpers();
 }
 
 function fillGiftList() {
@@ -295,7 +298,7 @@ const ACTIONS = {
     ['amount', 'จำนวน', 'amount'],
     ['max', 'สูงสุดต่อครั้ง', 'number'],
     ['from', 'มาจาก', 'select', () => FROM],
-    ['sound', 'เสียง', 'select', () => SOUNDS],
+    ['sound', 'เสียง', 'select', () => soundMap(SOUNDS)],
     ['strength', 'แรงสะดุ้ง', 'number', null, false, 0.1],
     ['flinch', 'โดนแล้วสะดุ้ง', 'check'],
   ] },
@@ -306,7 +309,7 @@ const ACTIONS = {
   tint: { label: '🎨 เปลี่ยนสีตัว', def: { color: '#ff8fb8', seconds: 2 }, fields: [['color', 'สี', 'color'], ['seconds', 'นาน (วิ)', 'number']] },
   item: { label: '🎀 ใส่ไอเท็ม VTS', def: { file: '', size: 0.3, seconds: 5 }, fields: [['file', 'ไอเท็ม', 'item'], ['size', 'ขนาด', 'number', null, false, 0.05], ['seconds', 'นาน (วิ)', 'number']] },
   alert: { label: '💬 ข้อความบนจอ', def: { text: '{name} ส่ง {gift} x{count}!', seconds: 4 }, fields: [['text', 'ข้อความ ({name} {gift} {count} {text})', 'text'], ['seconds', 'นาน (วิ)', 'number']] },
-  sound: { label: '🔊 เล่นเสียง', def: { sound: 'ding' }, fields: [['sound', 'เสียง', 'select', () => SOUNDS]] },
+  sound: { label: '🔊 เล่นเสียง', def: { sound: 'ding' }, fields: [['sound', 'เสียง', 'select', () => soundMap(SOUNDS)]] },
   tts: { label: '🗣️ อ่านออกเสียง', def: { text: '{name} บอกว่า {text}' }, fields: [['text', 'ข้อความ', 'text']] },
   wait: { label: '⏳ รอ', def: { ms: 500 }, fields: [['ms', 'มิลลิวินาที', 'number']] },
 };
@@ -380,6 +383,7 @@ function renderTrigger(box, r) {
   } else if (t.type === 'chat') {
     add(`<label>คำที่พิมพ์</label><input value="${esc(t.match)}">`, d => d.querySelector('input').oninput = e => { t.match = e.target.value; save(); });
     add(`<label>แบบ</label><select><option value="start" ${t.mode !== 'contains' ? 'selected' : ''}>ขึ้นต้นด้วยคำนี้</option><option value="contains" ${t.mode === 'contains' ? 'selected' : ''}>มีคำนี้อยู่ในข้อความ</option></select>`, d => d.querySelector('select').onchange = e => { t.mode = e.target.value; save(); });
+    add(`<label>แต่ละคนใช้ซ้ำได้ทุกกี่วินาที (ว่าง = ตามค่าในแท็บ ✨ ตัวช่วยไลฟ์)</label><input type="number" min="0" value="${r.userCooldown ?? ''}" placeholder="${Number(config.chatCmd?.userCooldown ?? 30)}">`, d => d.querySelector('input').oninput = e => { const v = e.target.value.trim(); if (v === '') delete r.userCooldown; else r.userCooldown = Number(v) || 0; save(); });
   }
   add(`<label>พักระหว่างครั้ง (วินาที, 0 = ไม่พัก)</label><input type="number" min="0" value="${Number(r.cooldown) || 0}">`, d => d.querySelector('input').oninput = e => { r.cooldown = Number(e.target.value) || 0; save(); });
 }
@@ -513,6 +517,8 @@ $('#sChat').onkeydown = e => { if (e.key === 'Enter') $('#btnSimChat').click(); 
 $('#btnClear').onclick = () => send({ t: 'clearOverlay' });
 
 // ---------- categories (per-category & per-gift effect settings) ----------
+// effect sounds + the user's uploaded ones ('u:<id>')
+function soundMap(base) { const o = { ...base }; for (const x of config?.customSounds || []) o['u:' + x.id] = '🎵 ' + x.name; return o; }
 const FX_SOUNDS = { auto: 'ตามท่า', none: 'ปิดเสียง', bonk: 'ป๊อก!', pop: 'ป๊อป', boing: 'ดึ๋ง', ding: 'ติ๊ง', fanfare: 'แตร', crash: 'โครม', whoosh: 'วู้ม', zap: 'ซี้ด', cash: 'กริ๊ง', magic: 'วิ้ง', scream: 'กรี๊ด', munch: 'ง่ำ' };
 function fxCfg() { config.fx ||= { showcaseMin: 1000, cats: {}, gifts: {} }; config.fx.cats ||= {}; config.fx.gifts ||= {}; return config.fx; }
 function catOf(style) { return { ...catDefault, ...(fxCfg().cats[style] || {}) }; }
@@ -520,6 +526,11 @@ function setCat(style, k, v) { const c = fxCfg().cats; c[style] = { ...(c[style]
 function giftStyle(g) { return fxCfg().gifts[g.th]?.style || g.style; }
 function renderCats() {
   const box = $('#catList'); if (!box || !catalog.length) return;
+  const q = $('#catQuick');
+  if (q) {
+    q.innerHTML = Object.entries(styles).map(([st, label]) => `<button data-q="${esc(st)}" class="${catOf(st).enabled ? '' : 'off'}" title="กดเพื่อเปิด/ปิดหมวดนี้"><i></i>${esc(label)}</button>`).join('');
+    q.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { const st = b.dataset.q, on = !catOf(st).enabled; setCat(st, 'enabled', on); renderCats(); toast((on ? '✅ เปิด ' : '⛔ ปิด ') + styles[st]); });
+  }
   $('#showcaseMin').value = String(fxCfg().showcaseMin ?? 1000);
   const groups = {};
   for (const g of catalog) (groups[giftStyle(g)] ||= []).push(g);
@@ -530,9 +541,9 @@ function renderCats() {
     const slider = (k, lab, min, max, step, fmt = v => '×' + v) => `<div class="ctl"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${c[k]}"><output>${fmt(c[k])}</output></div>`;
     el.innerHTML = `<div class="cat-head"><label class="switch"><input type="checkbox" ${c.enabled ? 'checked' : ''}><span></span></label><b>${esc(label)}</b><small>${list.length} ชิ้น</small><button class="small" data-aimcat title="ตั้งจุดที่ท่านี้ไปโดน เช่น ปาก คอ ตัว">🎯 เป้า${c.aim ? ' ✓' : ''}</button><button class="small" data-try>▶ ลอง</button></div>
       ${slider('size', 'ขนาดรูป', 0.4, 2.5, 0.1)}${slider('power', 'ความแรง', 0, 2, 0.1)}${slider('speed', 'ความเร็ว', 0.5, 2, 0.1)}${slider('max', 'สูงสุดต่อครั้ง', 1, 30, 1, v => v)}
-      <div class="sel"><div><label>เสียง</label><select data-k="sound">${Object.entries(FX_SOUNDS).map(([k, v]) => `<option value="${k}" ${k === c.sound ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div class="sel"><div><label>เสียง</label><select data-k="sound">${Object.entries(soundMap(FX_SOUNDS)).map(([k, v]) => `<option value="${k}" ${k === c.sound ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
       <div><label>ใช้ท่า</label><select data-k="as"><option value="same">ท่าของหมวดนี้</option>${Object.entries(styles).filter(([k]) => k !== st).map(([k, v]) => `<option value="${k}" ${k === c.as ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div></div>
-      <div class="gifts">${list.map(g => `<button data-g="${esc(g.th)}" class="${fxCfg().gifts[g.th] ? 'own' : ''}" title="${esc(g.th)} · ${g.coins} เหรียญ"><img src="/gifts/${g.img}.png" alt="${esc(g.th)}" loading="lazy"></button>`).join('') || '<small class="hint">ยังไม่มีของขวัญในหมวดนี้</small>'}</div>`;
+      <div class="gifts">${list.map(g => `<button data-g="${esc(g.th)}" class="${fxCfg().gifts[g.th] ? 'own' : ''}${fxCfg().gifts[g.th]?.off ? ' offg' : ''}" title="${esc(g.th)} · ${g.coins} เหรียญ"><img src="/gifts/${g.img}.png" alt="${esc(g.th)}" loading="lazy"></button>`).join('') || '<small class="hint">ยังไม่มีของขวัญในหมวดนี้</small>'}</div>`;
     el.querySelector('.switch input').onchange = e => { setCat(st, 'enabled', e.target.checked); el.classList.toggle('off', !e.target.checked); };
     el.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { const v = Number(r.value); r.nextElementSibling.textContent = r.dataset.k === 'max' ? v : '×' + v; setCat(st, r.dataset.k, v); });
     el.querySelectorAll('select').forEach(sel => sel.onchange = () => setCat(st, sel.dataset.k, sel.value));
@@ -545,7 +556,9 @@ function renderCats() {
 function openGiftPop(g, anchor) {
   const pop = $('#giftPop'), own = fxCfg().gifts[g.th] || {};
   pop.innerHTML = `<div class="ph"><img src="/gifts/${g.img}.png" alt=""><div><b>${esc(g.th)}</b><br><small class="hint">${g.coins.toLocaleString()} เหรียญ</small></div></div>
+    <label class="check"><label class="switch"><input type="checkbox" id="popOn" ${own.off ? '' : 'checked'}><span></span></label> เปิดใช้ชิ้นนี้</label>
     <label>ท่าของชิ้นนี้</label><select id="popStyle">${Object.entries(styles).map(([k, v]) => `<option value="${k}" ${k === (own.style || g.style) ? 'selected' : ''}>${esc(v)}${k === g.style ? ' (เดิม)' : ''}</option>`).join('')}</select>
+    <label>เสียงของชิ้นนี้</label><select id="popSound">${Object.entries(soundMap({ ...FX_SOUNDS, auto: 'ตามหมวด' })).map(([k, v]) => `<option value="${k}" ${k === (own.sound || 'auto') ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>
     <div class="ctl" style="display:grid;grid-template-columns:92px 1fr 46px;gap:8px;align-items:center"><span>ขนาดชิ้นนี้</span><input id="popSize" type="range" min="0.4" max="2.5" step="0.1" value="${own.size || 1}"><output>×${own.size || 1}</output></div>
     <div class="row"><button class="primary small" id="popTry">▶ ลอง</button><button class="small" id="popAim">🎯 เป้า${own.aim ? ' ✓' : ''}</button><button class="small" id="popReset">คืนค่าเดิม</button><button class="small" id="popClose">ปิด</button></div>`;
   pop.hidden = false;
@@ -554,11 +567,14 @@ function openGiftPop(g, anchor) {
   pop.style.top = Math.min(window.innerHeight - pop.offsetHeight - 8, r.bottom + 6) + 'px';
   const put = () => {
     const st = $('#popStyle').value, sz = Number($('#popSize').value);
-    const o = {}; if (st !== g.style) o.style = st; if (sz !== 1) o.size = sz; if (fxCfg().gifts[g.th]?.aim) o.aim = fxCfg().gifts[g.th].aim;
+    const snd = $('#popSound')?.value || 'auto';
+    const o = {}; if (!$('#popOn').checked) o.off = true; if (st !== g.style) o.style = st; if (sz !== 1) o.size = sz; if (snd !== 'auto') o.sound = snd; if (fxCfg().gifts[g.th]?.aim) o.aim = fxCfg().gifts[g.th].aim;
     if (Object.keys(o).length) fxCfg().gifts[g.th] = o; else delete fxCfg().gifts[g.th];
     save();
   };
   $('#popStyle').onchange = () => { put(); renderCats(); };
+  $('#popOn').onchange = e => { put(); toast(e.target.checked ? `เปิด ${g.th} แล้ว` : `ปิด ${g.th} แล้ว`); };
+  $('#popSound').onchange = e => { put(); if (e.target.value !== 'auto') KBSound.play(e.target.value, config.throwing.volume); };
   $('#popSize').oninput = e => { e.target.nextElementSibling.textContent = '×' + e.target.value; put(); };
   $('#popTry').onclick = () => send({ t: 'previewStyle', gift: g.th, count: 1 });
   $('#popAim').onclick = () => goAim('gift:' + g.th);
@@ -567,7 +583,10 @@ function openGiftPop(g, anchor) {
 }
 document.addEventListener('pointerdown', e => { const pop = $('#giftPop'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.gifts')) { pop.hidden = true; renderCats(); } });
 $('#showcaseMin').onchange = e => { fxCfg().showcaseMin = Number(e.target.value); save(); };
-$('#btnCatsReset').onclick = () => { if (confirm('คืนค่าการตั้งค่าทุกหมวดและทุกชิ้น?')) { config.fx = { showcaseMin: 1000, cats: {}, gifts: {} }; save(); renderCats(); } };
+const allCats = on => { for (const st of Object.keys(styles)) { const c = fxCfg().cats; c[st] = { ...(c[st] || {}), enabled: on }; } save(); renderCats(); toast(on ? 'เปิดทุกหมวดแล้ว' : 'ปิดทุกหมวดแล้ว'); };
+$('#btnCatsAllOn').onclick = () => allCats(true);
+$('#btnCatsAllOff').onclick = () => allCats(false);
+$('#btnCatsReset').onclick =() => { if (confirm('คืนค่าการตั้งค่าทุกหมวดและทุกชิ้น?')) { config.fx = { showcaseMin: 1000, cats: {}, gifts: {} }; save(); renderCats(); } };
 
 // ---------- effect gallery (test tab) ----------
 function renderGallery() {
@@ -864,8 +883,8 @@ function tidy(text) {
 }
 // returns { say: [{text, lang}], why } — why = reason it was skipped
 const readWhat = () => ct().readWhat || (ct().readName === false ? 'text' : 'both');
-function prepare(name, user, text) {
-  const c = ct(), what = readWhat();
+function prepare(name, user, text, forceText = false) {
+  const c = ct(), what = forceText ? 'text' : readWhat();
   const who = String(name || '');
   if ((c.blockedUsers || []).some(b => { const n = norm(b).replace(/^@/, ''); return n && (norm(who) === n || norm(user) === n); })) return { why: 'คนที่ไม่อ่าน' };
   if (what === 'name') {
@@ -963,9 +982,9 @@ function readChat(name, user, text, { force = false } = {}) {
   if (r.why) return;
   enqueue({ id, say: r.say, userKey: user || name });
 }
-function speak(text) { // rule action "อ่านออกเสียง": already formatted text, still filtered
-  const r = prepare('', '', text);
-  const id = addChatFeed('กฎ', text, r.why ? `ข้าม: ${r.why}` : 'รอ');
+function speak(text, label = 'กฎ') { // rule action "อ่านออกเสียง" / thank-you: already formatted text, still filtered
+  const r = prepare('', '', text, true);
+  const id = addChatFeed(label, text, r.why ? `ข้าม: ${r.why}` : 'รอ');
   if (!r.why) enqueue({ id, say: r.say, userKey: '' });
 }
 
@@ -1103,3 +1122,191 @@ setTimeout(() => { if (KBSound.running()) enableSound(); }, 300);
 $('#btnQuit').onclick = () => { if (confirm('ปิดโปรแกรม KuminBonk?')) { send({ t: 'quit' }); setTimeout(() => window.close(), 300); } };
 
 connect();
+
+
+// ---------- ✨ live helpers ----------
+let lastStatus = null;
+function renderPause(s) {
+  lastStatus = s;
+  const on = !!s.paused, q = s.queued || 0;
+  const pill = $('#pPause');
+  pill.classList.toggle('on', on);
+  pill.textContent = on ? (q ? `⏸ พักอยู่ · รอ ${q}` : '⏸ พักอยู่') : '⏸ พักเอฟเฟกต์';
+  $('#pauseBar').hidden = !on;
+  $('#pauseBarText').textContent = q ? `ของขวัญรอ ${q} รายการ` : 'ของขวัญที่ส่งมาจะรอไว้ก่อน';
+  $('#btnPause2').textContent = on ? '▶ เล่นต่อ' : '⏸ พักเอฟเฟกต์';
+  $('#btnPause2').className = on ? '' : 'primary';
+  $('#pauseInfo').textContent = q ? `รออยู่ ${q} รายการ` : '';
+  const hk = s.hotkey || {};
+  const sel = $('#pzHotkey');
+  if (sel && hk.list && sel.options.length !== hk.list.length) sel.innerHTML = hk.list.map(k => `<option>${esc(k)}</option>`).join('');
+  if (sel && config?.pause) sel.value = config.pause.hotkey || hk.list?.[0];
+  $('#pzHkState').textContent = !config?.pause?.hotkeyOn ? '' : { on: '✅ ใช้ได้', busy: '⚠️ คีย์นี้มีโปรแกรมอื่นใช้อยู่ ลองเลือกคีย์อื่น', error: '⚠️ ตั้งคีย์ลัดไม่ได้', starting: '…', off: navigator.userAgent.includes('Windows') ? '' : '(ใช้ได้บน Windows)' }[hk.state] || '';
+}
+const togglePause = () => send({ t: 'pause', on: !lastStatus?.paused });
+$('#pPause').onclick = togglePause;
+$('#btnPause2').onclick = togglePause;
+$('#btnResume').onclick = () => send({ t: 'pause', on: false });
+$('#btnClearQ').onclick = () => send({ t: 'clearQueue' });
+
+function sec(k) { config[k] = config[k] || {}; return config[k]; }
+function setSec(k, key, v) { sec(k)[key] = v; save(); }
+function sliderBox(box, k, list) {
+  box.innerHTML = '';
+  for (const [key, label, min, max, step, fmt = v => v] of list) {
+    const v = sec(k)[key];
+    const d = document.createElement('div'); d.className = 'slider';
+    d.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${v}"><output>${fmt(v)}</output>`;
+    d.querySelector('input').oninput = e => { const n = Number(e.target.value); d.querySelector('output').textContent = fmt(n); setSec(k, key, n); };
+    box.appendChild(d);
+  }
+}
+function bindCheck(id, k, key, after) { const el = $(id); el.checked = !!sec(k)[key]; el.onchange = () => { setSec(k, key, el.checked); after?.(); }; }
+function bindText(id, k, key, num = false) { const el = $(id); el.value = sec(k)[key] ?? ''; el.oninput = () => setSec(k, key, num ? Number(el.value) || 0 : el.value); }
+
+const CMD_PRESETS = [
+  { match: '!หัวใจ', name: 'พิมพ์ !หัวใจ = หัวใจลอย', actions: [{ type: 'throw', image: 'heart', amount: 3, multiply: 1, max: 5, from: 'bottom', flinch: false, sound: 'ding' }] },
+  { match: '!หมุน', name: 'พิมพ์ !หมุน = หมุนตัว', actions: [{ type: 'move', kind: 'spin', power: 1 }] },
+  { match: '!โดด', name: 'พิมพ์ !โดด = กระโดด', actions: [{ type: 'move', kind: 'jump', power: 1 }] },
+  { match: '!ดาว', name: 'พิมพ์ !ดาว = ดาวตกใส่หัว', actions: [{ type: 'throw', image: 'star', amount: 2, multiply: 1, max: 3, from: 'top', flinch: true, sound: 'boing' }] },
+  { match: '!bonk', name: 'พิมพ์ !bonk = ค้อนของเล่น', actions: [{ type: 'throw', image: 'hammer', amount: 1, multiply: 1, max: 1, from: 'random', flinch: true, strength: 1.4, sound: 'bonk' }] },
+];
+function renderCmds() {
+  const box = $('#cmdList'); if (!box) return;
+  const rules = config.rules.filter(r => r.trigger?.type === 'chat');
+  box.innerHTML = rules.length ? '' : '<p class="hint">ยังไม่มีคำสั่ง — กดเพิ่มด้านล่างได้เลย</p>';
+  for (const r of rules) {
+    const d = document.createElement('div'); d.className = 'it';
+    d.innerHTML = `<label class="switch"><input type="checkbox" ${r.enabled ? 'checked' : ''}><span></span></label><code></code><b></b><button class="small" data-run>▶</button><button class="small" data-edit>แก้ไข</button>`;
+    d.querySelector('code').textContent = r.trigger.match || '';
+    d.querySelector('b').textContent = r.name;
+    d.querySelector('input').onchange = e => { r.enabled = e.target.checked; save(); renderRules(); };
+    d.querySelector('[data-run]').onclick = () => send({ t: 'runRule', id: r.id });
+    d.querySelector('[data-edit]').onclick = () => $('#tabs button[data-tab=rules]').click();
+    box.appendChild(d);
+  }
+  const pre = $('#cmdPresets'); pre.innerHTML = '';
+  for (const p of CMD_PRESETS) {
+    if (rules.some(r => String(r.trigger.match).trim().toLowerCase() === p.match.toLowerCase())) continue;
+    const b = document.createElement('button'); b.className = 'small'; b.textContent = '+ ' + p.match;
+    b.onclick = () => {
+      config.rules.push({ id: 'r' + Date.now(), enabled: true, name: p.name, trigger: { type: 'chat', match: p.match, mode: 'start' }, cooldown: 0, actions: structuredClone(p.actions) });
+      save(); renderRules(); renderCmds(); toast(`เพิ่มคำสั่ง ${p.match} แล้ว`);
+    };
+    pre.appendChild(b);
+  }
+  if (!pre.children.length) pre.innerHTML = '<small class="hint">เพิ่มครบแล้ว ✓</small>';
+}
+
+function renderSounds() {
+  const box = $('#sndList'); if (!box) return;
+  const list = config.customSounds || [];
+  box.innerHTML = list.length ? '' : '<p class="hint">ยังไม่มีเสียง</p>';
+  for (const x of list) {
+    const d = document.createElement('div'); d.className = 'it';
+    d.innerHTML = `<button class="small" data-play>▶</button><b></b><button class="small danger" data-del>✕</button>`;
+    d.querySelector('b').textContent = '🎵 ' + x.name;
+    d.querySelector('[data-play]').onclick = () => KBSound.play('u:' + x.id, config.throwing.volume);
+    d.querySelector('[data-del]').onclick = () => { if (confirm(`ลบเสียง "${x.name}" ?`)) send({ t: 'delSound', id: x.id }); };
+    box.appendChild(d);
+  }
+}
+$('#sndAdd').onclick = () => $('#sndFile').click();
+$('#sndFile').onchange = e => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  if (f.size > 3 * 1024 * 1024) return toast('ไฟล์เสียงต้องไม่เกิน 3 MB');
+  const rd = new FileReader();
+  rd.onload = () => send({ t: 'addSound', name: f.name, mime: f.type, ext: (f.name.split('.').pop() || ''), data: String(rd.result).split(',')[1] || '' });
+  rd.readAsDataURL(f);
+};
+
+const PROFILE_KEYS = ['rules', 'fx', 'throwing', 'chatTts', 'pause', 'combo', 'limit', 'chatCmd', 'thanks'];
+function renderProfiles() {
+  const box = $('#pfList'); if (!box) return;
+  const all = config.profiles || {};
+  const names = Object.keys(all);
+  box.innerHTML = names.length ? '' : '<p class="hint">ยังไม่มีโปรไฟล์</p>';
+  for (const n of names) {
+    const d = document.createElement('div'); d.className = 'it' + (config.profileName === n ? ' cur' : '');
+    d.innerHTML = `<b></b><small></small><button class="small primary" data-use>ใช้</button><button class="small" data-over title="บันทึกการตั้งค่าตอนนี้ทับโปรไฟล์นี้">💾</button><button class="small danger" data-del>✕</button>`;
+    d.querySelector('b').textContent = (config.profileName === n ? '✅ ' : '') + n;
+    d.querySelector('small').textContent = all[n].saved ? new Date(all[n].saved).toLocaleDateString() : '';
+    d.querySelector('[data-use]').onclick = () => useProfile(n);
+    d.querySelector('[data-over]').onclick = () => { if (confirm(`บันทึกการตั้งค่าตอนนี้ทับโปรไฟล์ "${n}" ?`)) saveProfile(n); };
+    d.querySelector('[data-del]').onclick = () => { if (confirm(`ลบโปรไฟล์ "${n}" ?`)) { delete config.profiles[n]; if (config.profileName === n) config.profileName = ''; save(); renderProfiles(); } };
+    box.appendChild(d);
+  }
+}
+function saveProfile(n) {
+  config.profiles = config.profiles || {};
+  config.profiles[n] = { saved: Date.now(), data: structuredClone(Object.fromEntries(PROFILE_KEYS.map(k => [k, config[k]]))) };
+  config.profileName = n; save(); renderProfiles(); toast(`บันทึกโปรไฟล์ "${n}" แล้ว`);
+}
+function useProfile(n) {
+  const p = config.profiles?.[n]; if (!p) return;
+  Object.assign(config, structuredClone(p.data)); config.profileName = n;
+  clearTimeout(saveTimer); send({ t: 'saveConfig', config });
+  renderAll(); renderChat?.(); toast(`ใช้โปรไฟล์ "${n}" แล้ว`);
+}
+$('#pfSave').onclick = () => {
+  const n = $('#pfName').value.trim(); if (!n) return toast('ตั้งชื่อโปรไฟล์ก่อนนะ');
+  if (config.profiles?.[n] && !confirm(`มีโปรไฟล์ "${n}" อยู่แล้ว บันทึกทับ?`)) return;
+  $('#pfName').value = ''; saveProfile(n);
+};
+
+function renderHelpers() {
+  if (!config) return;
+  bindCheck('#pzHotkeyOn', 'pause', 'hotkeyOn', () => renderPause(lastStatus || {}));
+  bindCheck('#pzKeep', 'pause', 'keepQueue');
+  $('#pzHotkey').onchange = e => setSec('pause', 'hotkey', e.target.value);
+  bindCheck('#cbOn', 'combo', 'enabled');
+  sliderBox($('#cbSliders'), 'combo', [['window', 'ต่อคอมโบภายใน (วินาที)', 3, 20, 1, v => v + ' วิ'], ['strength', 'ใหญ่ขึ้นเร็วแค่ไหน', 0.5, 2, 0.1, v => '×' + v], ['max', 'ใหญ่สุด', 1.5, 3, 0.1, v => '×' + v]]);
+  bindCheck('#lmOn', 'limit', 'enabled');
+  sliderBox($('#lmSliders'), 'limit', [['perMinute', 'เอฟเฟกต์ต่อนาที', 10, 120, 5, v => v + ' ครั้ง']]);
+  bindCheck('#thOn', 'thanks', 'enabled');
+  bindText('#thMin', 'thanks', 'minCoins', true);
+  bindText('#thGift', 'thanks', 'giftText');
+  bindCheck('#thFollow', 'thanks', 'follow'); bindText('#thFollowText', 'thanks', 'followText');
+  bindCheck('#thShare', 'thanks', 'share'); bindText('#thShareText', 'thanks', 'shareText');
+  sliderBox($('#cmdSliders'), 'chatCmd', [['userCooldown', 'แต่ละคนใช้ซ้ำได้ทุก', 0, 300, 5, v => v ? v + ' วิ' : 'ไม่จำกัด']]);
+  bindCheck('#smOn', 'summary', 'enabled');
+  renderCmds(); renderSounds(); renderProfiles();
+  if (lastStatus) renderPause(lastStatus);
+}
+$('#thTest').onclick = () => {
+  const t = sec('thanks');
+  speak(String(t.giftText || '').replace(/\{name\}/g, 'คนทดสอบ').replace(/\{gift\}/g, 'กุหลาบ').replace(/\{count\}/g, '5').replace(/\{coins\}/g, '5'), '🙏');
+};
+
+// ---------- 📊 live summary ----------
+let sessionsList = [], smPicked = null;
+function fmtDur(ms) { const m = Math.max(0, Math.round(ms / 60000)); const h = Math.floor(m / 60); return h ? `${h} ชม. ${m % 60} นาที` : `${m} นาที`; }
+function renderSessions(m) {
+  sessionsList = m.list || [];
+  if (m.ended && sessionsList[0]) { smPicked = sessionsList[0].id; toast('ไลฟ์จบแล้ว ดูสรุปได้ที่แท็บ 📊 สรุปไลฟ์'); }
+  const sel = $('#smPick');
+  if (!sessionsList.length) { sel.innerHTML = '<option>—</option>'; $('#smBody').innerHTML = '<p class="hint mt8">ยังไม่มีสรุป — เชื่อมต่อไลฟ์ TikTok แล้วแอปจะเริ่มนับให้เอง</p>'; return; }
+  if (!sessionsList.some(x => x.id === smPicked)) smPicked = sessionsList[0].id;
+  sel.innerHTML = sessionsList.map(x => `<option value="${x.id}">${x.live ? '🔴 ' : ''}${new Date(x.start).toLocaleString()} · @${esc(x.user || '')}</option>`).join('');
+  sel.value = String(smPicked);
+  drawSession(sessionsList.find(x => x.id === smPicked));
+}
+function drawSession(x) {
+  if (!x) return;
+  const dur = (x.end || Date.now()) - x.start;
+  const tile = (v, l) => `<div><b>${v}</b><small>${l}</small></div>`;
+  const medal = i => ['🥇', '🥈', '🥉'][i] || (i + 1);
+  $('#smBody').innerHTML = `
+    <p class="mt8">${x.live ? '<span class="live-dot"></span><b>กำลังไลฟ์</b> · ' : ''}${fmtDur(dur)}</p>
+    <div class="smtiles">${tile((x.coins || 0).toLocaleString(), 'เหรียญรวม')}${tile((x.gifts || 0).toLocaleString(), 'ของขวัญ')}${tile(x.giverCount || 0, 'คนส่งของขวัญ')}${tile((x.likes || 0).toLocaleString(), 'ไลค์')}${tile(x.follows || 0, 'ฟอลโลว์ใหม่')}${tile(x.shares || 0, 'แชร์')}${tile(x.chats || 0, 'แชต')}${tile(x.peak || 0, 'คนดูสูงสุด')}</div>
+    <div class="smcols">
+      <div><h3>🏆 คนส่งของขวัญเยอะสุด</h3><ul class="smtop">${(x.givers || []).map((g, i) => `<li><span class="rk">${medal(i)}</span>${g.avatar ? `<img src="${esc(g.avatar)}" alt="">` : '<img alt="">'}<span class="nm">${esc(g.name)}</span><span class="v">${g.coins.toLocaleString()} เหรียญ</span></li>`).join('') || '<li class="hint">ยังไม่มี</li>'}</ul></div>
+      <div><h3>🎁 ของขวัญที่ได้</h3><div class="smgifts">${(x.giftTypes || []).map(t => { const c = catalog.find(g => g.th === t.name || g.en === t.name); const src = c ? `/gifts/${c.img}.png` : t.image; return `<div>${src ? `<img src="${esc(src)}" alt="">` : ''}<b>${esc(t.name)}</b><br>×${t.count.toLocaleString()}</div>`; }).join('') || '<p class="hint">ยังไม่มี</p>'}</div></div>
+    </div>`;
+}
+$('#smPick').onchange = e => { smPicked = Number(e.target.value); drawSession(sessionsList.find(x => x.id === smPicked)); };
+$('#smDel').onclick = () => { const x = sessionsList.find(s => s.id === smPicked); if (x && !x.live && confirm('ลบสรุปไลฟ์นี้?')) send({ t: 'delSession', id: x.id }); };
+$('#tabs button[data-tab=summary]').addEventListener('click', () => send({ t: 'sessions' }));
+$('#tabs button[data-tab=helpers]').addEventListener('click', () => renderHelpers());
+setInterval(() => { if ($('#summary').classList.contains('on') && lastStatus?.session) send({ t: 'sessions' }); }, 10000);

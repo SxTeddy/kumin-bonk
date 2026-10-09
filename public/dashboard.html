@@ -36,12 +36,18 @@
   <div class="brand"><img src="/assets/icon.svg" alt=""><div><b>KuminBonk</b><small>TikTok → VTube Studio · สร้างโดย HXZ !</small></div></div>
   <div class="pills">
     <button class="pill sound-off" id="pSound" title="เสียงเอฟเฟกต์เล่นจากหน้านี้">🔇 กดเพื่อเปิดเสียง</button>
+    <button class="pill pause-pill" id="pPause" title="พักเอฟเฟกต์ชั่วคราว">⏸ พักเอฟเฟกต์</button>
     <span class="pill" id="pTik"><i></i>TikTok</span>
     <span class="pill" id="pVts"><i></i>VTube Studio</span>
     <span class="pill" id="pObs" style="display:none"><i></i>Overlay</span>
   </div>
   <div class="stats" id="stats"></div>
 </header>
+
+<div id="pauseBar" class="pausebar" hidden>
+  <b>⏸ พักเอฟเฟกต์อยู่</b><span id="pauseBarText"></span>
+  <button id="btnResume" class="primary small">▶ เล่นต่อ</button>
+</div>
 
 <div id="updBar" class="updbar" hidden>
   <div class="upd-mascot"><img src="/assets/icon.svg" alt=""></div>
@@ -59,6 +65,8 @@
   <button data-tab="test">🧪 ทดสอบ</button>
   <button data-tab="aim">🎯 เล็งหัว</button>
   <button data-tab="chat">💬 อ่านแชต</button>
+  <button data-tab="helpers">✨ ตัวช่วยไลฟ์</button>
+  <button data-tab="summary">📊 สรุปไลฟ์</button>
   <button data-tab="settings">⚙️ ตั้งค่า</button>
   <button data-tab="lang">🌐 ภาษา</button>
 </nav>
@@ -108,8 +116,12 @@
       <div class="row">
         <label class="inline">อวดของขวัญใหญ่กลางจอเมื่อราคาตั้งแต่
           <select id="showcaseMin"><option value="0">ปิด</option><option value="100">100</option><option value="500">500</option><option value="1000">1,000</option><option value="5000">5,000</option><option value="10000">10,000</option></select> เหรียญ</label>
+        <button id="btnCatsAllOn" class="small">✅ เปิดทุกหมวด</button>
+        <button id="btnCatsAllOff" class="small">⛔ ปิดทุกหมวด</button>
         <button id="btnCatsReset" class="ghost">คืนค่าทุกหมวด</button>
       </div>
+      <p class="hint">กดสวิตช์ของแต่ละหมวดเพื่อเปิด/ปิด · กดรูปของขวัญเพื่อเปิด/ปิดหรือตั้งค่าทีละชิ้น (ชิ้นที่ปิดจะเป็นสีจาง)</p>
+      <div class="catquick" id="catQuick"></div>
     </div>
     <div id="catList" class="catlist"></div>
   </section>
@@ -290,6 +302,75 @@
         <h2>ล่าสุด</h2>
         <ul class="feed" id="ctFeed"><li class="empty">ยังไม่มีแชต</li></ul>
       </div>
+    </div>
+  </section>
+
+  <!-- LIVE HELPERS -->
+  <section id="helpers" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <div class="fhead"><h2>⏸ พักเอฟเฟกต์</h2></div>
+        <p class="hint">กดพักตอนเล่นเกมหรือไม่อยากให้อะไรบังหน้า ของขวัญที่ส่งมาระหว่างพักจะรอไว้ แล้วค่อย ๆ ปล่อยออกมาตอนกดเล่นต่อ</p>
+        <div class="row mt8"><button id="btnPause2" class="primary">⏸ พักเอฟเฟกต์</button><button id="btnClearQ" class="small">🗑 ล้างของที่รอ</button><span id="pauseInfo" class="hint"></span></div>
+        <label class="check"><input type="checkbox" id="pzHotkeyOn"> ใช้คีย์ลัด (กดได้แม้กำลังเล่นเกมอยู่)</label>
+        <div class="row"><select id="pzHotkey" style="max-width:220px"></select><span id="pzHkState" class="hint"></span></div>
+        <label class="check"><input type="checkbox" id="pzKeep"> เก็บของขวัญที่ส่งมาตอนพักไว้เล่นทีหลัง</label>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🔥 คอมโบ</h2><label class="switch"><input type="checkbox" id="cbOn"><span></span></label></div>
+        <p class="hint">คนเดิมส่งของขวัญเดิมรัว ๆ เอฟเฟกต์จะใหญ่และแรงขึ้นเรื่อย ๆ ยิ่งรัวยิ่งมัน</p>
+        <div class="sliders" id="cbSliders"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🔒 จำกัดเอฟเฟกต์ต่อนาที</h2><label class="switch"><input type="checkbox" id="lmOn"><span></span></label></div>
+        <p class="hint">กันเครื่องหน่วงตอนของขวัญเข้ารัว ๆ ถ้าเกินจำนวนนี้จะรอคิวก่อน และถ้ารอเยอะเกินไปจะตัดของราคาถูกทิ้งก่อน</p>
+        <div class="sliders" id="lmSliders"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🙏 ขอบคุณอัตโนมัติ</h2><label class="switch"><input type="checkbox" id="thOn"><span></span></label></div>
+        <p class="hint">แอปพูดขอบคุณให้เอง ใช้เสียงเดียวกับอ่านแชต (ตั้งเสียงได้ในแท็บ 💬 อ่านแชต) · ต้องเปิดหน้าต่างแอปไว้ · ถ้าส่งรัว ๆ จะรอให้ส่งเสร็จก่อนแล้วขอบคุณครั้งเดียว</p>
+        <label>ขอบคุณเมื่อของขวัญรวมตั้งแต่ (เหรียญ)</label>
+        <input type="number" id="thMin" min="0" style="max-width:140px">
+        <label>ข้อความขอบคุณของขวัญ</label>
+        <input id="thGift">
+        <small class="hint">{name} = ชื่อคนส่ง · {gift} = ของขวัญ · {count} = จำนวน · {coins} = เหรียญรวม</small>
+        <label class="check"><input type="checkbox" id="thFollow"> ขอบคุณคนที่ฟอลโลว์</label>
+        <input id="thFollowText">
+        <label class="check"><input type="checkbox" id="thShare"> ขอบคุณคนที่แชร์ไลฟ์</label>
+        <input id="thShareText">
+        <div class="row mt8"><button id="thTest" class="small">▶ ลองฟัง</button></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🎮 คำสั่งฟรีของคนดู</h2></div>
+        <p class="hint">คนดูพิมพ์คำสั่งในแชตแล้วตัวละครขยับ ไม่ต้องส่งของขวัญ · แต่ละคนต้องรอก่อนใช้คำสั่งซ้ำ กันสแปม</p>
+        <div class="sliders" id="cmdSliders"></div>
+        <div id="cmdList" class="cmdlist"></div>
+        <label>เพิ่มคำสั่งสำเร็จรูป</label>
+        <div class="row" id="cmdPresets"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🎵 เสียงของฉัน</h2></div>
+        <p class="hint">อัปโหลดเสียงเอง (mp3 / wav / ogg ไม่เกิน 3 MB) แล้วเลือกใช้ได้ในแท็บ 🎭 หมวดของขวัญ (ทั้งหมวดหรือทีละชิ้น) และในกฎ</p>
+        <input type="file" id="sndFile" accept="audio/*,.mp3,.wav,.ogg,.m4a" hidden>
+        <div class="row mt8"><button id="sndAdd" class="primary small">+ เพิ่มไฟล์เสียง</button></div>
+        <div id="sndList" class="sndlist"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🗂️ โปรไฟล์การตั้งค่า</h2></div>
+        <p class="hint">บันทึกการตั้งค่าตอนนี้ (กฎ ท่าของขวัญ การปาของ เสียงอ่านแชต ตัวช่วยไลฟ์) เป็นชุด แล้วสลับได้ในคลิกเดียว เช่น "ไลฟ์เกม" กับ "ไลฟ์คุย"</p>
+        <div class="row mt8"><input id="pfName" placeholder="ชื่อโปรไฟล์ เช่น ไลฟ์เกม" maxlength="30"><button id="pfSave" class="primary small">💾 บันทึกเป็นโปรไฟล์</button></div>
+        <div id="pfList" class="pflist"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE SUMMARY -->
+  <section id="summary" class="tab">
+    <div class="card">
+      <div class="fhead"><h2>📊 สรุปไลฟ์</h2><label class="check" style="margin:0"><input type="checkbox" id="smOn"> เก็บสรุปทุกไลฟ์</label></div>
+      <p class="hint">เริ่มนับเองตอนเชื่อมต่อไลฟ์ TikTok และเก็บไว้ 30 ไลฟ์ล่าสุด</p>
+      <div class="row mt8"><select id="smPick" style="flex:1;max-width:420px"></select><button class="small" id="smDel">ลบ</button></div>
+      <div id="smBody"></div>
     </div>
   </section>
 

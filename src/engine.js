@@ -10,9 +10,77 @@ export class Engine {
     this.lastFired = new Map();
     this.likeBucket = new Map(); // ruleId -> likes accumulated
     this.stats = { gifts: 0, diamonds: 0, likes: 0, follows: 0, shares: 0, triggers: 0 };
+    this.paused = false;      // ⏸ effects on hold (gifts wait in the queue)
+    this.queue = [];          // jobs waiting: paused, or over the per-minute limit
+    this.tokens = 15; this.refillAt = Date.now();
+    this.pumpTimer = null; this.draining = false;
+    this.combos = new Map();  // user+gift -> { total, last }
+    this.userCd = new Map();  // rule+viewer -> last use (chat commands)
+    this.onQueue = () => {};
   }
 
-  handle(ev) {
+  // ---------- pause / limit queue ----------
+  setPaused(on) {
+    this.paused = !!on;
+    if (!this.paused) { this.draining = this.queue.length > 0; this.pump(); }
+    this.onQueue();
+  }
+  clearQueue() { this.queue = []; this.onQueue(); }
+  enqueue(job) {
+    const cfg = this.getConfig();
+    if (this.paused) {
+      if (job.ev.type === 'chat' || cfg.pause?.keepQueue === false) return;
+      this.queue.push(job); this.trim(300);
+    } else { this.queue.push(job); this.trim(60); }
+    this.onQueue();
+    this.pump();
+  }
+  trim(max) { // too many waiting: drop the cheapest ones first
+    while (this.queue.length > max) {
+      let lo = 0; for (let i = 1; i < this.queue.length; i++) if (this.queue[i].value < this.queue[lo].value) lo = i;
+      this.queue.splice(lo, 1);
+    }
+  }
+  pump() {
+    if (this.pumpTimer || this.paused) return;
+    const cfg = this.getConfig();
+    const lim = cfg.limit || {};
+    const now = Date.now();
+    if (lim.enabled) {
+      const per = Math.max(5, Number(lim.perMinute) || 60);
+      const cap = Math.max(5, Math.round(per / 4)); // short bursts are fine
+      this.tokens = Math.min(cap, this.tokens + (now - this.refillAt) * per / 60000);
+    } else this.tokens = Infinity;
+    this.refillAt = now;
+    if (!this.queue.length) { this.draining = false; if (!isFinite(this.tokens)) this.tokens = 15; return; }
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      const j = this.queue.shift(); this.onQueue();
+      this.fire(j.rule, j.ev, j.times, j.combo);
+      const gap = this.draining ? 700 : 0; // after a pause: let the waiting gifts out one by one
+      this.pumpTimer = setTimeout(() => { this.pumpTimer = null; this.pump(); }, gap);
+    } else {
+      const per = Math.max(5, Number(lim.perMinute) || 60);
+      this.pumpTimer = setTimeout(() => { this.pumpTimer = null; this.pump(); }, Math.ceil((1 - this.tokens) * 60000 / per) + 20);
+    }
+  }
+
+  // 🔥 the same viewer sending the same gift again and again makes the effect bigger
+  comboFor(ev) {
+    const c = this.getConfig().combo || {};
+    if (!c.enabled || ev.type !== 'gift') return { mult: 1, total: ev.count || 1 };
+    const key = `${ev.user?.id || ev.user?.username || ''}:${ev.gift?.name}`;
+    const now = Date.now();
+    let st = this.combos.get(key);
+    if (!st || now - st.last > (Number(c.window) || 8) * 1000) st = { total: 0, last: now };
+    st.total += ev.count || 1; st.last = now; this.combos.set(key, st);
+    if (this.combos.size > 500) for (const [k, v] of this.combos) if (now - v.last > 60000) this.combos.delete(k);
+    const max = Math.max(1, Number(c.max) || 2.5);
+    const mult = 1 + Math.min(max - 1, (st.total - 1) * 0.08 * (Number(c.strength) || 1));
+    return { mult: Math.round(mult * 100) / 100, total: st.total };
+  }
+
+  handle(ev, direct = false) {
     const cfg = this.getConfig();
     if (ev.type === 'gift') { this.stats.gifts += ev.count; this.stats.diamonds += ev.count * (ev.gift.diamonds || 0); }
     if (ev.type === 'like') this.stats.likes += ev.count;
@@ -31,8 +99,23 @@ export class Engine {
         if (times > 0) hits.push([r, times]);
       }
     }
-    for (const [rule, times] of hits) this.fire(rule, ev, times);
-    return hits.map(([r]) => r.name);
+    const combo = this.comboFor(ev);
+    const fired = [];
+    for (const [rule, times] of hits) {
+      if (ev.type === 'chat' && !direct) { // free chat commands: each viewer waits before using it again
+        const sec = Number(rule.userCooldown ?? cfg.chatCmd?.userCooldown ?? 0);
+        const key = rule.id + '|' + (ev.user?.id || ev.user?.username || '');
+        const last = this.userCd.get(key) || 0;
+        if (sec > 0 && Date.now() - last < sec * 1000) continue;
+        this.userCd.set(key, Date.now());
+        if (this.userCd.size > 2000) this.userCd.clear();
+      }
+      fired.push(rule.name);
+      if (direct) this.fire(rule, ev, times, combo.mult);
+      else this.enqueue({ rule, ev, times, combo: combo.mult, value: ev.type === 'gift' ? (Number(ev.gift?.diamonds) || 1) * (ev.count || 1) : 0 });
+    }
+    this.lastCombo = combo;
+    return fired;
   }
 
   // How many times the rule should fire for this event (0 = no match).
@@ -63,7 +146,7 @@ export class Engine {
     }
   }
 
-  async fire(rule, ev, times = 1) {
+  async fire(rule, ev, times = 1, combo = 1) {
     const now = Date.now();
     const cd = (Number(rule.cooldown) || 0) * 1000;
     if (cd && now - (this.lastFired.get(rule.id) || 0) < cd) return;
@@ -71,6 +154,7 @@ export class Engine {
     this.stats.triggers++;
     this.dashboard({ t: 'fired', rule: rule.name, user: ev.user?.nickname });
     const ctx = makeCtx(ev, times);
+    ctx.combo = combo || 1;
     if (ev.type === 'gift') ctx.entry = this.gifts.find(ev.gift);
     for (const a of rule.actions || []) {
       try { await this.run(a, ctx); }
@@ -95,7 +179,7 @@ export class Engine {
         const base = a.amount === 'count' ? ctx.count : Math.max(1, Number(a.amount) || 1);
         const n = Math.min(Math.max(1, Math.round(base * (Number(a.multiply) || 1))), Math.max(1, Number(a.max) || 30));
         const src = a.image === 'gift' ? (ctx.entry ? `gift:${ctx.entry.img}` : ctx.giftImage || this.images.guess(ctx.gift)) : a.image === 'avatar' ? (ctx.avatar || 'heart') : (a.image || 'rose');
-        const strength = (Number(a.strength) || 1) * (cfg.throwing.flinchStrength ?? 1);
+        const strength = (Number(a.strength) || 1) * (cfg.throwing.flinchStrength ?? 1) * Math.min(2, ctx.combo || 1);
         const flinch = a.flinch !== false;
         const sound = a.sound || 'bonk';
         const target = cfg.throwing.target || 'vts';
@@ -125,6 +209,7 @@ export class Engine {
         const e = ctx.entry;
         const fx = cfg.fx || {};
         const own = (e && fx.gifts?.[e.th]) || {};                       // per-gift override
+        if (own.off) return;                                              // this gift is switched off
         let style = a.style && a.style !== 'auto' ? a.style : (own.style || e?.style || (ctx.gift ? 'bonk' : 'love'));
         const baseStyle = style;
         const cat = catSettings(fx, style);                               // per-category settings
@@ -132,7 +217,8 @@ export class Engine {
         if (cat.as && cat.as !== 'same') style = cat.as;
         const img = a.image && a.image !== 'gift' ? a.image : e ? `gift:${e.img}` : (ctx.giftImage || this.images.guess(ctx.gift || ''));
         const coins = Number(ctx.diamonds) || e?.coins || 1;
-        const power = Math.min(2.5, 0.8 + Math.log10(coins + 1) * 0.35) * (Number(a.power) || 1) * cat.power;
+        const combo = ctx.combo || 1;
+        const power = Math.min(2.5, 0.8 + Math.log10(coins + 1) * 0.35) * (Number(a.power) || 1) * cat.power * combo;
         const count = Math.max(1, Math.min(ctx.count, cat.max));
         if (cfg.throwing.target === 'overlay' && this.overlay.count() > 0) {
           return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: 'bonk' }, ctx);
@@ -143,7 +229,7 @@ export class Engine {
         }
         this.effects.play(style, {
           img, count, power, coins, label: e?.th || ctx.gift || '',
-          size: cat.size * (Number(own.size) || 1), speed: cat.speed, sound: cat.sound,
+          size: cat.size * (Number(own.size) || 1) * Math.sqrt(combo), speed: cat.speed, sound: own.sound && own.sound !== 'auto' ? own.sound : cat.sound,
           showcaseMin: fx.showcaseMin ?? 1000,
           aim: own.aim || cat.aim || null,                                 // per-gift / per-category target offset
           lock: (e && cfg.locks?.['gift:' + e.th]) ? 'gift:' + e.th : (cfg.locks?.['cat:' + baseStyle] ? 'cat:' + baseStyle : null), // locked to the model

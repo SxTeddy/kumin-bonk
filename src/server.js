@@ -16,8 +16,10 @@ import { Images } from './images.js';
 import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
+import { Sessions, Thanks } from './live.js';
+import { Hotkey, HOTKEYS } from './hotkey.js';
 
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -40,8 +42,15 @@ let config = loadConfig();
 function loadConfig() {
   try {
     const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    return { ...structuredClone(DEFAULT_CONFIG), ...c, head: { ...DEFAULT_CONFIG.head, ...c.head }, throwing: { ...DEFAULT_CONFIG.throwing, ...c.throwing }, fx: { ...DEFAULT_CONFIG.fx, ...c.fx }, chatTts: { ...DEFAULT_CONFIG.chatTts, ...c.chatTts } };
+    return mergeConfig(structuredClone(DEFAULT_CONFIG), c);
   } catch { return structuredClone(DEFAULT_CONFIG); }
+}
+// Settings groups (plain objects like head, throwing, combo…) are merged key by key so new options get their defaults.
+function mergeConfig(base, next) {
+  const SECTIONS = ['head', 'throwing', 'fx', 'chatTts', 'pause', 'combo', 'limit', 'chatCmd', 'thanks', 'summary'];
+  const out = { ...base, ...next };
+  for (const k of SECTIONS) if (next?.[k] && typeof next[k] === 'object') out[k] = { ...base[k], ...next[k] };
+  return out;
 }
 function saveConfig() {
   const tmp = CONFIG_FILE + '.tmp';
@@ -103,12 +112,27 @@ const giftsSeen = new Map(readJson('gifts-seen.json', []).map(g => [g.name, g]))
 let seenDirty = false;
 setInterval(() => { if (seenDirty) { seenDirty = false; writeJson('gifts-seen.json', [...giftsSeen.values()]); writeJson('gift-aliases.json', gifts.learned); } }, 5000);
 let viewers = 0;
+// 📊 live summaries, 🙏 thank-you messages, ⌨️ pause shortcut
+const sessions = new Sessions(path.join(DATA, 'sessions.json'), log);
+const thanks = new Thanks(() => config, text => toDashboards({ t: 'tts', text, kind: 'thanks' }));
+const hotkey = new Hotkey(log);
+hotkey.onPress = () => setPaused(!engine.paused, 'คีย์ลัด');
+function setupHotkey() { hotkey.set(config.pause?.hotkeyOn ? config.pause.hotkey : ''); setTimeout(pushStatus, 2500); }
+function setPaused(on, by = '') {
+  engine.setPaused(on);
+  log('pause', on ? `⏸ พักเอฟเฟกต์${by ? ` (${by})` : ''} — ของขวัญที่ส่งมาระหว่างนี้จะรอไว้ก่อน` : `▶ เล่นเอฟเฟกต์ต่อ${engine.queue.length ? ` — ปล่อยของที่รอ ${engine.queue.length} รายการ` : ''}`);
+  pushStatus();
+}
+let queueTimer = null;
+engine.onQueue = () => { if (!queueTimer) queueTimer = setTimeout(() => { queueTimer = null; pushStatus(); }, 300); };
+const SOUND_DIR = path.join(DATA, 'sounds');
 
 function status() {
   return {
     tiktok: { status: tiktok.status, detail: tiktok.statusDetail || '', username: tiktok.username },
     vts: { status: vts.status, detail: vts.statusDetail || '', model: vts.model?.modelName || '', images: vts.canCustomImages },
     overlays: overlays.size, viewers, stats: engine.stats, version: VERSION,
+    paused: engine.paused, queued: engine.queue.length, hotkey: { key: hotkey.key, state: hotkey.state, list: HOTKEYS }, session: !!sessions.cur,
   };
 }
 const pushStatus = () => toDashboards({ t: 'status', ...status() });
@@ -121,9 +145,18 @@ if (config.seenVersion !== VERSION) {
 }
 updater.set({});
 updater.on('state', st => toDashboards({ t: 'update', ...st }));
-tiktok.on('status', pushStatus);
+let lastTikStatus = '';
+tiktok.on('status', () => {
+  const st = tiktok.status;
+  if (st !== lastTikStatus) {
+    if (st === 'live' && config.summary?.enabled !== false) sessions.start(tiktok.username);
+    if (st === 'offline' && sessions.cur) { sessions.end(); toDashboards({ t: 'sessions', list: sessions.all(), ended: true }); }
+    lastTikStatus = st;
+  }
+  pushStatus();
+});
 vts.on('status', pushStatus);
-tiktok.on('viewers', v => { viewers = v; });
+tiktok.on('viewers', v => { viewers = v; sessions.viewers(v); });
 setInterval(pushStatus, 3000);
 
 function onEvent(ev, simulated = false) {
@@ -133,8 +166,11 @@ function onEvent(ev, simulated = false) {
     ev.gift.th = gifts.thaiName(ev.gift.name) || (CATALOG.some(g => g.th === ev.gift.name) ? ev.gift.name : '');
     if (!simulated && !giftsSeen.has(ev.gift.name)) { giftsSeen.set(ev.gift.name, { name: ev.gift.name, th: ev.gift.th, image: ev.gift.image, diamonds: ev.gift.diamonds }); seenDirty = true; }
   }
-  const fired = engine.handle(ev);
-  toDashboards({ t: 'event', ev, fired, simulated, time: Date.now() });
+  if (!simulated) sessions.add(ev);
+  thanks.handle(ev);
+  const fired = engine.handle(ev, simulated); // tests always play right away (even while paused)
+  const combo = ev.type === 'gift' && engine.lastCombo?.mult > 1 ? engine.lastCombo.total : 0;
+  toDashboards({ t: 'event', ev, fired, simulated, time: Date.now(), combo, queued: !simulated && (engine.paused || engine.queue.length > 0) && fired.length > 0 });
 }
 tiktok.on('event', e => onEvent(e));
 
@@ -213,8 +249,10 @@ async function onDashboard(ws, m) {
     case 'saveConfig': {
       const next = m.config;
       if (!next || !Array.isArray(next.rules)) return;
-      config = { ...config, ...next, head: { ...config.head, ...next.head }, throwing: { ...config.throwing, ...next.throwing }, fx: { ...config.fx, ...next.fx }, chatTts: { ...config.chatTts, ...next.chatTts } };
+      const hk = JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey]);
+      config = mergeConfig(config, next);
       saveConfig();
+      if (hk !== JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey])) setupHotkey();
       vts.setPort(Number(config.vtsPort) || 8001);
       overlay.send(overlaySettings());
       send(ws, { t: 'saved' });
@@ -306,6 +344,30 @@ async function onDashboard(ws, m) {
       toDashboards({ t: 'event', ev, fired: [`ท่า: ${STYLES[g.style]}`], simulated: true, time: Date.now() });
       return engine.run({ type: 'giftfx', style: m.style && !m.gift ? m.style : 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: ev.count, diamonds: g.coins, entry: g });
     }
+    case 'pause': return setPaused(m.on !== undefined ? !!m.on : !engine.paused, 'ปุ่ม');
+    case 'clearQueue': engine.clearQueue(); log('pause', 'ล้างของที่รออยู่แล้ว'); return pushStatus();
+    case 'sessions': return send(ws, { t: 'sessions', list: sessions.all() });
+    case 'delSession': sessions.remove(Number(m.id)); return send(ws, { t: 'sessions', list: sessions.all() });
+    case 'addSound': {
+      const ext = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/x-m4a': 'm4a', 'audio/mp4': 'm4a', 'audio/aac': 'aac' }[m.mime] || String(m.ext || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!['mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac'].includes(ext)) return log('sound', 'ใช้ได้เฉพาะไฟล์เสียง mp3 / wav / ogg / m4a', 'warn');
+      const buf = Buffer.from(String(m.data || ''), 'base64');
+      if (!buf.length || buf.length > 3 * 1024 * 1024) return log('sound', 'ไฟล์เสียงต้องไม่เกิน 3 MB', 'warn');
+      fs.mkdirSync(SOUND_DIR, { recursive: true });
+      const id = Date.now().toString(36);
+      fs.writeFileSync(path.join(SOUND_DIR, `${id}.${ext}`), buf);
+      const name = String(m.name || 'เสียงของฉัน').replace(/\.[a-z0-9]+$/i, '').slice(0, 40);
+      config.customSounds = [...(config.customSounds || []), { id, name, file: `${id}.${ext}` }];
+      saveConfig(); log('sound', `เพิ่มเสียง "${name}" แล้ว`);
+      return toDashboards({ t: 'sounds', customSounds: config.customSounds, added: id });
+    }
+    case 'delSound': {
+      const s = (config.customSounds || []).find(x => x.id === m.id);
+      if (s) { try { fs.rmSync(path.join(SOUND_DIR, s.file), { force: true }); } catch {} }
+      config.customSounds = (config.customSounds || []).filter(x => x.id !== m.id);
+      saveConfig();
+      return toDashboards({ t: 'sounds', customSounds: config.customSounds });
+    }
     case 'quit': return quit();
     case 'checkUpdate': return updater.check(true);
     case 'restartForUpdate': return restartApp();
@@ -350,6 +412,14 @@ const server = http.createServer((req, res) => {
   if (p === '/') p = '/dashboard.html';
   if (p === '/overlay') p = '/overlay.html';
   if (p === '/api/ping') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('kuminbonk'); }
+  if (p.startsWith('/usound/')) { // uploaded effect sounds
+    const s = (config.customSounds || []).find(x => x.id === p.slice(8));
+    let buf = null; try { if (s) buf = fs.readFileSync(path.join(SOUND_DIR, s.file)); } catch {}
+    if (!buf) { res.writeHead(404); return res.end('not found'); }
+    const ext = path.extname(s.file).slice(1);
+    res.writeHead(200, { 'Content-Type': { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', webm: 'audio/webm', m4a: 'audio/mp4', aac: 'audio/aac' }[ext] || 'application/octet-stream', 'Cache-Control': 'max-age=3600' });
+    return res.end(buf);
+  }
   const buf = readPublic(decodeURIComponent(p));
   if (!buf) { res.writeHead(404); return res.end('not found'); }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(p)] || 'application/octet-stream', 'Cache-Control': p.startsWith('/gifts/') ? 'max-age=86400' : 'no-cache' });
@@ -389,6 +459,7 @@ let appWindow = null;
 
 function quit() {
   log('app', 'ปิดโปรแกรม');
+  hotkey.stop(); sessions.end();
   try { appWindow?.kill(); } catch {}
   vts.stop(); tiktok.disconnect(true).catch(() => {});
   setTimeout(() => process.exit(0), 300);
@@ -404,7 +475,7 @@ function restartApp() {
   log('update', 'กำลังรีสตาร์ทเพื่อใช้เวอร์ชันใหม่…');
   // Keep the app window open: it shows a "changing outfit" screen and reloads itself when the new version is up.
   toDashboards({ t: 'restarting' });
-  vts.stop(); tiktok.disconnect(true).catch(() => {});
+  vts.stop(); tiktok.disconnect(true).catch(() => {}); hotkey.stop(); sessions.dirty = true; sessions.flush();
   for (const ws of [...dashboards, ...overlays]) { try { ws.terminate(); } catch {} }
   server.close(() => {
     spawn(process.execPath, [path.join(process.env.KB_INSTALL, 'launch.cjs')], { cwd: process.env.KB_INSTALL, detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, KB_RESTARTED: '1' } }).unref();
@@ -448,6 +519,7 @@ server.listen(PORT, '127.0.0.1', () => {
   if (!IS_APP) console.log(`\n  KuminBonk v${VERSION}\n  หน้าตั้งค่า: ${URL_}\n  (overlay ไม่บังคับ: ${URL_}/overlay)\n`);
   log('app', `เปิด KuminBonk v${VERSION}`);
   bootOk();
+  setupHotkey();
   vts.start();
   updater.start();
   if (config.autoConnect && config.tiktokUsername) tiktok.connect(config.tiktokUsername, config.eulerApiKey);

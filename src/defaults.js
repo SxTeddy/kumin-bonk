@@ -39,6 +39,25 @@ export const DEFAULT_CONFIG = {
     banned: [], bannedMode: 'skip',   // 'skip' = don't read the message, 'remove' = read without the word, 'beep' = say "ปี๊บ"
     blockedUsers: [],
   },
+  // ⏸ pause effects (button or a keyboard shortcut that works even while a game is in front)
+  pause: { hotkeyOn: true, hotkey: 'Ctrl+Alt+P', keepQueue: true },
+  // 🔥 combo: the same viewer sending the same gift again within `window` seconds → bigger effect
+  combo: { enabled: true, window: 8, strength: 1, max: 2.5 },
+  // 🔒 at most this many effects per minute (the rest wait in line; cheapest dropped if too many)
+  limit: { enabled: true, perMinute: 60 },
+  // 🎮 free chat commands: seconds each viewer waits before using a command again
+  chatCmd: { userCooldown: 30 },
+  // 🙏 auto thank-you (spoken with the chat reader voices)
+  thanks: {
+    enabled: false, minCoins: 1, wait: 3,
+    giftText: 'ขอบคุณ {name} ที่ส่ง {gift} {count} อันนะ',
+    follow: false, followText: 'ขอบคุณ {name} ที่ฟอลโลว์นะ',
+    share: false, shareText: 'ขอบคุณ {name} ที่แชร์ไลฟ์นะ',
+  },
+  // 📊 summary after each live
+  summary: { enabled: true },
+  customSounds: [],      // [{ id, name, file }] uploaded effect sounds (played as 'u:<id>')
+  profiles: {},          // name -> saved copy of rules / effects / throwing / chat settings
   rulesVersion: 4,
   rules: [
     {

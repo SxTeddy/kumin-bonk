@@ -46,5 +46,13 @@ const SOUNDS = {
 
 
 
-window.KBSound = { play(name, volume) { if (volume != null) VOL = volume; try { (SOUNDS[name] || SOUNDS.pop)(); } catch {} }, unlock() { try { audio(); } catch {} }, running() { try { return audio().state === 'running'; } catch { return false; } } };
+// uploaded sounds: 'u:<id>' → /usound/<id>
+const files = {};
+function playFile(id) {
+  let a = files[id];
+  if (!a) a = files[id] = new Audio('/usound/' + encodeURIComponent(id));
+  const c = a.paused ? a : a.cloneNode(); // overlapping hits each get their own copy
+  c.volume = Math.max(0, Math.min(1, VOL)); c.currentTime = 0; c.play().catch(() => {});
+}
+window.KBSound = { play(name, volume) { if (volume != null) VOL = volume; try { if (String(name).startsWith('u:')) return playFile(String(name).slice(2)); (SOUNDS[name] || SOUNDS.pop)(); } catch {} }, unlock() { try { audio(); } catch {} }, running() { try { return audio().state === 'running'; } catch { return false; } } };
 })();
