@@ -11,4 +11,8 @@ execFileSync('npx', ['esbuild', 'src/server.js', '--bundle', '--platform=node', 
 fs.mkdirSync(path.join(ROOT, 'public', 'legal'), { recursive: true });
 fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(ROOT, 'public', 'legal', 'LICENSE.txt'));
 fs.copyFileSync(path.join(ROOT, 'THIRD-PARTY-NOTICES.txt'), path.join(ROOT, 'public', 'legal', 'THIRD-PARTY-NOTICES.txt'));
-console.log('built build/app.cjs');
+// what's new card: the newest CHANGELOG section
+const log = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8').split(/^## /m)[1] || '';
+const ver = (log.match(/^v([\d.]+)/) || [])[1] || '';
+fs.writeFileSync(path.join(ROOT, 'public', 'whatsnew.json'), JSON.stringify({ version: ver, notes: log.split('\n').slice(1).join('\n').trim() }, null, 1) + '\n');
+console.log('built build/app.cjs · whatsnew', ver);

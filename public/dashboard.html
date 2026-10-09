@@ -11,6 +11,24 @@
 <link rel="stylesheet" href="/dashboard.css">
 </head>
 <body>
+<div id="splash" class="splash">
+  <div class="floaties" aria-hidden="true"></div>
+  <div class="mascot"><img src="/assets/icon.svg" alt=""><span class="shadow"></span></div>
+  <b id="splashTitle">กำลังเปิด KuminBonk</b>
+  <small id="splashSub">เตรียมของขวัญแป๊บนึงนะ~</small>
+  <div class="dots"><i></i><i></i><i></i></div>
+  <small class="credit">สร้างโดย hxz</small>
+</div>
+<div id="yay" class="yay" hidden>
+  <div class="confetti" aria-hidden="true"></div>
+  <div class="yay-card">
+    <div class="mascot small"><img src="/assets/icon.svg" alt=""></div>
+    <h2 id="yayTitle">อัปเดตแล้ว! 🎉</h2>
+    <p class="hint">มีอะไรใหม่บ้าง</p>
+    <ul id="yayNotes"></ul>
+    <button class="primary" id="btnYay">เย้! ไปกันเลย ✨</button>
+  </div>
+</div>
 <header>
   <div class="brand"><img src="/assets/icon.svg" alt=""><div><b>KuminBonk</b><small>TikTok → VTube Studio · สร้างโดย hxz</small></div></div>
   <div class="pills">
@@ -22,7 +40,15 @@
   <div class="stats" id="stats"></div>
 </header>
 
-<div id="updBar" class="updbar" hidden><span id="updText"></span><button id="btnRestart" class="primary small" hidden>รีสตาร์ทเพื่ออัปเดต</button></div>
+<div id="updBar" class="updbar" hidden>
+  <div class="upd-mascot"><img src="/assets/icon.svg" alt=""></div>
+  <div class="upd-body">
+    <b id="updTitle"></b>
+    <small id="updText"></small>
+    <div class="prog" id="updProg" hidden><div class="fill" id="updFill"><img class="runner" src="/assets/heart.svg" alt=""></div><span id="updPct"></span></div>
+  </div>
+  <div class="upd-btns"><button id="btnRestart" class="primary" hidden>เปลี่ยนเป็นชุดใหม่เลย 💖</button><button id="btnLater" class="small ghost" hidden>ไว้ทีหลัง</button></div>
+</div>
 <nav id="tabs">
   <button data-tab="home" class="on">🏠 หน้าหลัก</button>
   <button data-tab="cats">🎭 หมวดของขวัญ</button>

@@ -40,10 +40,20 @@ export class Updater extends EventEmitter {
     setInterval(() => this.check(), 6 * 3600 * 1000);
   }
 
-  async get(url, type = 'json') {
+  async get(url, type = 'json', onProgress = null) {
     const r = await fetch(url, { headers: { 'User-Agent': 'KuminBonk', Accept: '*/*', 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(type === 'json' ? 15000 : 300000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return type === 'json' ? r.json() : type === 'text' ? r.text() : Buffer.from(await r.arrayBuffer());
+    if (type === 'json') return r.json();
+    if (type === 'text') return r.text();
+    // binary: read in chunks so the dashboard can show a progress bar
+    const total = Number(r.headers.get('content-length')) || 0;
+    const parts = []; let got = 0, last = 0;
+    for await (const chunk of r.body) {
+      parts.push(chunk); got += chunk.length;
+      if (onProgress && Date.now() - last > 150) { last = Date.now(); onProgress(got, total); }
+    }
+    if (onProgress) onProgress(got, total || got);
+    return Buffer.concat(parts.map(c => Buffer.from(c)));
   }
 
   async check(manual = false) {
@@ -60,9 +70,10 @@ export class Updater extends EventEmitter {
       const dir = path.join(this.install, 'versions', latest);
       if (fs.existsSync(path.join(dir, '.complete'))) { this.activate(latest); this.set({ status: 'ready', latest, notes: man.notes || '' }); return this.state; }
       if (!man.file || !man.sha256 || /[\\/]/.test(man.file)) throw new Error('bad update manifest');
-      this.set({ status: 'downloading', latest });
+      this.set({ status: 'downloading', latest, progress: 0 });
       this.log('update', `พบเวอร์ชันใหม่ ${latest} กำลังดาวน์โหลด…`);
-      const gz = await this.get(`${BASE}/${man.file}`, 'bin');
+      const size = Number(man.size) || 0;
+      const gz = await this.get(`${BASE}/${man.file}`, 'bin', (got, total) => this.set({ status: 'downloading', latest, progress: Math.min(1, got / (total || size || got || 1)) }));
       const got = crypto.createHash('sha256').update(gz).digest('hex');
       if (String(man.sha256).toLowerCase() !== got) throw new Error('ไฟล์อัปเดตไม่ตรงกับลายเซ็น');
       const bundle = JSON.parse(zlib.gunzipSync(gz).toString('utf8'));

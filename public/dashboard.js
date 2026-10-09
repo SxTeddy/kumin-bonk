@@ -18,7 +18,7 @@ function send(m) { if (ws?.readyState === 1) ws.send(JSON.stringify(m)); }
 function connect() {
   ws = new WebSocket(`ws://${location.host}/ws?role=dashboard`);
   ws.onopen = () => send({ t: 'vtsLists' });
-  ws.onclose = () => { setPill('pTik', 'bad', 'TikTok'); setPill('pVts', 'bad', 'VTube Studio'); toast('โปรแกรมปิดอยู่ — เปิด KuminBonk แล้วรีเฟรชหน้านี้'); setTimeout(connect, 2000); };
+  ws.onclose = () => { if (restartingNow) return setTimeout(connect, 1500); setPill('pTik', 'bad', 'TikTok'); setPill('pVts', 'bad', 'VTube Studio'); toast('โปรแกรมปิดอยู่ — เปิด KuminBonk แล้วรีเฟรชหน้านี้'); setTimeout(connect, 2000); };
   ws.onmessage = e => handle(JSON.parse(e.data));
 }
 
@@ -28,6 +28,8 @@ function handle(m) {
       config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.anchors) anchors = m.anchors;
       (m.logs || []).forEach(addLog);
       renderAll();
+      hideSplash();
+      if (m.justUpdated) setTimeout(() => showWhatsNew(m.justUpdated), 800);
       break;
     case 'status': renderStatus(m); break;
     case 'log': addLog(m); break;
@@ -61,19 +63,73 @@ function renderStatus(s) {
 }
 
 // ---------- auto-update ----------
+// cute bits shared by the splash screen, the update card and the "updated!" card
+const FLOATIES = ['heart', 'star', 'sparkle', 'rose', 'note', 'confetti'];
+function fillFloaties() {
+  const box = $('#splash .floaties'); if (!box || box.childElementCount) return;
+  for (let i = 0; i < 14; i++) {
+    const im = document.createElement('img'); im.src = `/assets/${FLOATIES[i % FLOATIES.length]}.svg`; im.alt = '';
+    im.style.left = (4 + Math.random() * 92) + '%'; im.style.width = (18 + Math.random() * 18) + 'px';
+    im.style.animationDuration = (5 + Math.random() * 5) + 's'; im.style.animationDelay = (-Math.random() * 8) + 's';
+    box.appendChild(im);
+  }
+}
+fillFloaties();
+let splashT0 = Date.now(), restartingNow = false;
+setTimeout(() => { if (!$('#splash').classList.contains('gone') && !restartingNow) $('#splashSub').textContent = 'ยังเชื่อมกับโปรแกรมไม่ได้… ถ้านานเกินไป ลองปิดแล้วเปิด KuminBonk ใหม่นะ'; }, 10000);
+function showSplash(title, sub) { $('#splashTitle').textContent = title; $('#splashSub').textContent = sub; $('#splash').classList.remove('gone'); }
+function hideSplash() { if (restartingNow) return; setTimeout(() => $('#splash').classList.add('gone'), Math.max(0, 700 - (Date.now() - splashT0))); }
+function confetti(box, n = 80) {
+  const colors = ['#ff4f8b', '#ffb3cd', '#ffd23f', '#7ad7f0', '#9b8cff', '#2fbf8f'];
+  box.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('i'); c.style.left = Math.random() * 100 + '%'; c.style.background = colors[i % colors.length];
+    c.style.animationDuration = (2.2 + Math.random() * 2.5) + 's'; c.style.animationDelay = (Math.random() * 1.2) + 's';
+    c.style.transform = `rotate(${Math.random() * 360}deg)`; box.appendChild(c);
+  }
+}
+function mdLine(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+async function showWhatsNew(ver) {
+  let notes = [];
+  try { const w = await (await fetch('/whatsnew.json', { cache: 'no-store' })).json(); if (!ver || w.version === ver) notes = String(w.notes || '').split('\n').map(l => l.replace(/^\s*-\s*/, '').trim()).filter(Boolean); } catch {}
+  $('#yayTitle').textContent = `อัปเดตเป็น v${ver} แล้ว! 🎉`;
+  $('#yayNotes').innerHTML = notes.length ? notes.map(n => `<li>${mdLine(n)}</li>`).join('') : '<li>แก้ไขและปรับปรุงให้ดีขึ้น 💖</li>';
+  $('#yay').hidden = false; confetti($('#yay .confetti'));
+  try { KBSound.play?.('fanfare'); } catch {}
+}
+$('#btnYay').onclick = () => { $('#yay').hidden = true; };
+$('#yay').onclick = e => { if (e.target.id === 'yay') $('#yay').hidden = true; };
+
+const DL_LINES = ['กำลังไปรับชุดใหม่มาให้~ 🧺', 'ห่อของขวัญอยู่นะ 🎁', 'อีกนิดเดียว ฮึบ! 💪', 'วิ่ง ๆ ๆ 🏃‍♀️💨', 'ใกล้แล้วว ✨'];
+let dlLine = 0, dlTimer = null, updLater = false;
 function renderUpdate(u) {
-  const bar = $('#updBar'), txt = $('#updText'), btn = $('#btnRestart');
+  const bar = $('#updBar'), btn = $('#btnRestart'), later = $('#btnLater'), prog = $('#updProg');
   $('#verInfo').textContent = `เวอร์ชัน ${u.current || ''}` + (u.status === 'off' ? ' · อัปเดตอัตโนมัติใช้ได้เมื่อติดตั้งด้วยตัวติดตั้ง' : u.status === 'uptodate' ? ' · ล่าสุดแล้ว ✓' : u.status === 'skipped' ? ` · ข้ามเวอร์ชัน ${u.latest} ไว้ (กดตรวจหาอัปเดตเพื่อลองอีกครั้ง)` : u.status === 'error' ? ` · ตรวจอัปเดตไม่ได้ (${u.detail || ''})` : '');
-  if (u.status === 'downloading') { bar.hidden = false; btn.hidden = true; txt.textContent = `⬇️ กำลังดาวน์โหลดเวอร์ชันใหม่ ${u.latest}…`; }
-  else if (u.status === 'verifying') { bar.hidden = false; btn.hidden = true; txt.textContent = `🔎 กำลังตรวจเวอร์ชัน ${u.latest} ก่อนใช้งาน…`; }
-  else if (u.status === 'ready') { bar.hidden = false; btn.hidden = false; txt.textContent = `✅ เวอร์ชันใหม่ ${u.latest} ตรวจผ่านแล้ว และสำรองการตั้งค่าไว้ให้แล้ว — จะใช้ตอนเปิดครั้งหน้า หรือรีสตาร์ทตอนนี้ (ถ้ากำลังไลฟ์ รอปิดไลฟ์ก่อนก็ได้)`; }
-  else if (u.status === 'error' && /ตรวจไม่ผ่าน/.test(u.detail || '')) { bar.hidden = false; btn.hidden = true; txt.textContent = `⚠️ ${u.detail}`; }
+  const show = (title, text, { pct = null, busy = false, ready = false, err = false } = {}) => {
+    bar.hidden = false; bar.classList.toggle('ready', ready); bar.classList.toggle('err', err);
+    $('#updTitle').textContent = title; $('#updText').textContent = text;
+    prog.hidden = pct === null && !busy; prog.classList.toggle('busy', busy);
+    if (pct !== null) { $('#updFill').style.width = Math.max(4, pct * 100) + '%'; $('#updPct').textContent = Math.round(pct * 100) + '%'; } else $('#updPct').textContent = '';
+    btn.hidden = later.hidden = !ready;
+  };
+  if (u.status !== 'downloading') { clearInterval(dlTimer); dlTimer = null; }
+  if (u.status === 'downloading') {
+    if (!dlTimer) dlTimer = setInterval(() => { dlLine++; if (!$('#updBar').hidden) $('#updText').textContent = DL_LINES[dlLine % DL_LINES.length]; }, 2500);
+    show(`มีชุดใหม่ v${u.latest} มาแล้ว!`, DL_LINES[dlLine % DL_LINES.length], { pct: u.progress ?? 0 });
+  } else if (u.status === 'verifying') show(`ขอลองใส่ชุดใหม่ v${u.latest} ดูก่อนนะ 👀`, 'ตรวจว่าพอดีไม่มีอะไรหลุด แล้วสำรองการตั้งค่าไว้ให้', { busy: true });
+  else if (u.status === 'ready' && !updLater) show(`ชุดใหม่ v${u.latest} พร้อมแล้ว! ✨`, 'ตรวจผ่านแล้ว + สำรองการตั้งค่าไว้ให้แล้ว · ถ้ากำลังไลฟ์ กด "ไว้ทีหลัง" ได้ เปิดแอปครั้งหน้าจะเป็นชุดใหม่เอง', { ready: true });
+  else if (u.status === 'error' && /ตรวจไม่ผ่าน/.test(u.detail || '')) show('ชุดใหม่ยังไม่พอดี เลยใช้ชุดเดิมไปก่อนนะ 🙏', u.detail || '', { err: true });
   else bar.hidden = true;
   const rb = $('#btnRollback'); rb.hidden = !u.previous; rb.textContent = `↩ ย้อนกลับเป็นเวอร์ชัน ${u.previous || ''}`;
   const bl = $('#backupList');
   bl.innerHTML = (u.backups || []).map(b => `<option value="${esc(b.id)}">${new Date(b.time).toLocaleString('th-TH')} · ${esc(b.label)} (v${esc(b.version)})</option>`).join('') || '<option value="">ยังไม่มีไฟล์สำรอง</option>';
 }
-$('#btnRestart').onclick = () => { send({ t: 'restartForUpdate' }); $('#updText').textContent = 'กำลังรีสตาร์ท…'; };
+$('#btnRestart').onclick = () => {
+  restartingNow = true;
+  showSplash('กำลังเปลี่ยนชุดใหม่ ✨', 'หน้าต่างจะปิดแล้วเปิดกลับมาเองใน 2–3 วินาทีนะ~');
+  setTimeout(() => send({ t: 'restartForUpdate' }), 1400);
+};
+$('#btnLater').onclick = () => { updLater = true; $('#updBar').hidden = true; toast('โอเค~ เปิดแอปครั้งหน้าจะเป็นชุดใหม่เองนะ 💖'); };
 $('#btnRollback').onclick = () => { if (confirm('ย้อนกลับไปเวอร์ชันก่อนหน้า? (สำรองการตั้งค่าไว้ให้ก่อน)')) send({ t: 'rollback' }); };
 $('#btnBackup').onclick = () => send({ t: 'backupNow' });
 $('#btnRestore').onclick = () => { const id = $('#backupList').value; if (id && confirm('กู้คืนการตั้งค่าชุดนี้? (การตั้งค่าตอนนี้จะถูกสำรองไว้ก่อน)')) send({ t: 'restoreBackup', id }); };
