@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>KuminBonk Overlay</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  canvas { position: fixed; inset: 0; }
+  #alerts { position: fixed; top: 4%; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; }
+  .alert {
+    display: flex; align-items: center; gap: 16px; padding: 14px 28px 14px 14px; max-width: 70vw;
+    background: #fff; border: 5px solid #ff7aa8; border-radius: 999px; box-shadow: 0 8px 0 #ff7aa8, 0 14px 30px rgba(0,0,0,.25);
+    font: 700 34px/1.25 "Prompt", "Leelawadee UI", "Tahoma", sans-serif; color: #4a2340;
+    animation: pop .5s cubic-bezier(.2,1.6,.4,1) both;
+  }
+  .alert.out { animation: out .4s ease-in both; }
+  .alert img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; flex: none; background: #ffe1ec; }
+  .alert img.gift { border-radius: 12px; background: none; }
+  @keyframes pop { from { transform: translateY(-40px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes out { to { transform: translateY(-30px) scale(.8); opacity: 0; } }
+  #status { position: fixed; left: 10px; bottom: 10px; font: 600 16px sans-serif; color: #fff; background: #d33a; padding: 6px 10px; border-radius: 8px; display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="alerts"></div>
+<div id="status">KuminBonk: ยังไม่ได้เปิดโปรแกรม</div>
+<script src="/sounds.js"></script>
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const BUILTIN = ['rose', 'heart', 'star', 'hammer', 'donut', 'slipper'];
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+addEventListener('resize', resize); resize();
+
+let settings = { size: 90, speed: 1, spin: 1, maxOnScreen: 60, sound: true, volume: 0.6, stagger: 90 };
+let head = { x: 0.5, y: 0.32 };
+let calib = null;
+const items = [], sparks = [], queue = [];
+const imgCache = new Map();
+
+function getImg(src) {
+  const url = BUILTIN.includes(src) ? `/assets/${src}.svg` : src;
+  if (!imgCache.has(url)) {
+    const im = new Image();
+    im.onerror = () => { im.failed = true; };
+    im.src = url;
+    imgCache.set(url, im);
+  }
+  return imgCache.get(url);
+}
+BUILTIN.forEach(getImg);
+
+function play(name) { if (settings.sound) KBSound.play(name, settings.volume); }
+
+// ---------- throwing ----------
+const G = 2600;
+function spawn(src, from, opts) {
+  if (items.length >= settings.maxOnScreen) { queue.push([src, from, opts]); return; }
+  const size = (opts.size || settings.size) * (0.85 + Math.random() * 0.3);
+  const tx = head.x * W + (Math.random() - 0.5) * size * 0.6;
+  const ty = head.y * H + (Math.random() - 0.5) * size * 0.4;
+  if (from === 'random') from = ['left', 'right', 'left', 'right', 'bottom'][Math.floor(Math.random() * 5)];
+  let x, y;
+  if (from === 'left') { x = -size; y = H * (0.25 + Math.random() * 0.6); }
+  else if (from === 'right') { x = W + size; y = H * (0.25 + Math.random() * 0.6); }
+  else if (from === 'top') { x = tx + (Math.random() - 0.5) * W * 0.3; y = -size; }
+  else { x = W * (0.1 + Math.random() * 0.8); y = H + size; }
+  const T = (from === 'top' ? 0.55 : 0.5 + Math.random() * 0.25) / (settings.speed || 1);
+  const vx = (tx - x) / T, vy = (ty - y) / T - 0.5 * G * T;
+  items.push({ img: getImg(src), round: opts.round, x, y, vx, vy, T, age: 0, hit: false, rot: Math.random() * 6, vr: (Math.random() < .5 ? -1 : 1) * (6 + Math.random() * 6) * settings.spin, size, alpha: 1, opts });
+}
+
+function onHit(it) {
+  it.hit = true;
+  const dir = it.vx > 0 ? -1 : 1; // which side the hit came from
+  if (it.opts.flinch) send({ t: 'hit', dir: it.vx === 0 ? 0 : dir, strength: it.opts.strength || 1, flinch: true });
+  play(it.opts.sound);
+  burst(it.x, it.y, it.opts.flinch ? '#ffd23f' : '#ff7aa8');
+  it.vx = -it.vx * 0.25 + (Math.random() - 0.5) * 300;
+  it.vy = -Math.abs(it.vy) * 0.25 - 500 - Math.random() * 300;
+  it.vr *= -1.5;
+}
+
+function burst(x, y, color) {
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + Math.random() * 0.4, s = 260 + Math.random() * 260;
+    sparks.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.35, age: 0, color });
+  }
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  ctx.clearRect(0, 0, W, H);
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    it.age += dt; it.vy += G * dt; it.x += it.vx * dt; it.y += it.vy * dt; it.rot += it.vr * dt;
+    if (!it.hit && it.age >= it.T) onHit(it);
+    if (it.hit && it.age > it.T + 0.9) it.alpha -= dt * 2.5;
+    if (it.y > H + 200 || it.alpha <= 0) { items.splice(i, 1); if (queue.length) spawn(...queue.shift()); continue; }
+    draw(it);
+  }
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const s = sparks[i]; s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt;
+    if (s.age > s.life) { sparks.splice(i, 1); continue; }
+    ctx.globalAlpha = 1 - s.age / s.life; ctx.fillStyle = s.color;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 7 * (1 - s.age / s.life) + 2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (calib) drawCross(calib.x * W, calib.y * H);
+  requestAnimationFrame(frame);
+}
+function draw(it) {
+  const s = it.size, im = it.img;
+  ctx.save(); ctx.globalAlpha = Math.max(0, it.alpha); ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+  if (im.complete && !im.failed && im.naturalWidth) {
+    if (it.round) { ctx.beginPath(); ctx.arc(0, 0, s / 2, 0, Math.PI * 2); ctx.clip(); }
+    const r = im.naturalWidth / im.naturalHeight || 1;
+    const w = r >= 1 ? s : s * r, h = r >= 1 ? s / r : s;
+    ctx.drawImage(im, -w / 2, -h / 2, w, h);
+    if (it.round) { ctx.lineWidth = 6; ctx.strokeStyle = '#fff'; ctx.stroke(); }
+  } else { ctx.fillStyle = '#ff7aa8'; ctx.beginPath(); ctx.arc(0, 0, s / 3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+function drawCross(x, y) {
+  ctx.save(); ctx.strokeStyle = '#ff2d7a'; ctx.lineWidth = 4; ctx.fillStyle = 'rgba(255,45,122,.15)';
+  ctx.beginPath(); ctx.arc(x, y, 60, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 90, y); ctx.lineTo(x + 90, y); ctx.moveTo(x, y - 90); ctx.lineTo(x, y + 90); ctx.stroke();
+  ctx.font = '700 26px sans-serif'; ctx.fillStyle = '#ff2d7a'; ctx.textAlign = 'center'; ctx.fillText('เล็งตรงนี้ (หัว)', x, y - 100);
+  ctx.restore();
+}
+requestAnimationFrame(frame);
+
+// ---------- alerts ----------
+const alertBox = document.getElementById('alerts');
+const alertQ = []; let alertBusy = false;
+function showAlert(a) { alertQ.push(a); if (!alertBusy) nextAlert(); }
+function nextAlert() {
+  const a = alertQ.shift(); if (!a) { alertBusy = false; return; }
+  alertBusy = true;
+  const el = document.createElement('div'); el.className = 'alert';
+  const pic = a.avatar || a.image;
+  if (pic) { const im = document.createElement('img'); im.src = pic; if (!a.avatar) im.className = 'gift'; im.onerror = () => im.remove(); el.appendChild(im); }
+  const tx = document.createElement('span'); tx.textContent = a.text; el.appendChild(tx);
+  alertBox.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); nextAlert(); }, 400); }, (a.seconds || 4) * 1000);
+}
+
+// ---------- socket ----------
+let ws;
+function send(m) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); }
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws?role=overlay`);
+  ws.onopen = () => { document.getElementById('status').style.display = 'none'; };
+  ws.onclose = () => { document.getElementById('status').style.display = 'block'; setTimeout(connect, 2000); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'settings') { Object.assign(settings, m.throwing || {}); if (m.head) head = { ...m.head }; }
+    else if (m.t === 'head') head = { x: m.x, y: m.y };
+    else if (m.t === 'calib') { head = { x: m.x, y: m.y }; calib = m.show ? { x: m.x, y: m.y } : null; }
+    else if (m.t === 'throw') {
+      const n = Math.min(m.count || 1, 200);
+      for (let i = 0; i < n; i++) setTimeout(() => spawn(m.src, m.from || 'random', { flinch: m.flinch, strength: m.strength, sound: m.sound, size: m.size, round: m.round ?? false }), i * (settings.stagger || 90));
+    }
+    else if (m.t === 'alert') showAlert(m);
+    else if (m.t === 'sound') play(m.sound);
+    else if (m.t === 'clear') { items.length = 0; queue.length = 0; sparks.length = 0; }
+  };
+}
+connect();
+</script>
+</body>
+</html>

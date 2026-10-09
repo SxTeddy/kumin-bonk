@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KuminBonk</title>
+<link rel="icon" href="/assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+<header>
+  <div class="brand"><img src="/assets/icon.svg" alt=""><div><b>KuminBonk</b><small>TikTok → VTube Studio</small></div></div>
+  <div class="pills">
+    <button class="pill sound-off" id="pSound" title="เสียงเอฟเฟกต์เล่นจากหน้านี้">🔇 กดเพื่อเปิดเสียง</button>
+    <span class="pill" id="pTik"><i></i>TikTok</span>
+    <span class="pill" id="pVts"><i></i>VTube Studio</span>
+    <span class="pill" id="pObs" style="display:none"><i></i>Overlay</span>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div id="updBar" class="updbar" hidden><span id="updText"></span><button id="btnRestart" class="primary small" hidden>รีสตาร์ทเพื่ออัปเดต</button></div>
+<nav id="tabs">
+  <button data-tab="home" class="on">🏠 หน้าหลัก</button>
+  <button data-tab="cats">🎭 หมวดของขวัญ</button>
+  <button data-tab="rules">🎁 กฎ</button>
+  <button data-tab="test">🧪 ทดสอบ</button>
+  <button data-tab="aim">🎯 เล็งหัว</button>
+  <button data-tab="settings">⚙️ ตั้งค่า</button>
+</nav>
+
+<main>
+  <!-- HOME -->
+  <section id="home" class="tab on">
+    <div class="grid2">
+      <div class="card">
+        <h2>เชื่อมต่อไลฟ์ TikTok</h2>
+        <label>ชื่อ TikTok (ไม่ต้องใส่ @)</label>
+        <div class="row">
+          <input id="tUser" placeholder="kumin01_" autocomplete="off">
+          <button class="primary" id="btnConnect">เชื่อมต่อ</button>
+          <button id="btnDisconnect">ตัดการเชื่อมต่อ</button>
+        </div>
+        <label class="check"><input type="checkbox" id="autoConnect"> เชื่อมต่ออัตโนมัติตอนเปิดโปรแกรม</label>
+        <p class="hint" id="tikDetail">ต้องเปิดไลฟ์ก่อน แล้วค่อยกดเชื่อมต่อ</p>
+      </div>
+      <div class="card">
+        <h2>เช็กลิสต์ก่อนไลฟ์</h2>
+        <ol class="steps">
+          <li id="ckVts">เปิด VTube Studio → ตั้งค่า → เปิด <b>Start API (allow plugins)</b> แล้วกด <b>Allow</b> เมื่อมีหน้าต่างถาม</li>
+          <li id="ckPerm">ตอน VTube Studio ถามว่าให้ KuminBonk <b>โหลดรูปเป็นไอเท็ม</b> ได้ไหม → กด <b>Allow</b> (ของที่ปาจะบินอยู่ในหน้าต่าง VTS เลย TikTok LIVE Studio จึงเห็นด้วย)</li>
+          <li id="ckSound">กดปุ่ม <b>🔇 กดเพื่อเปิดเสียง</b> ด้านบน แล้วเปิดหน้านี้ค้างไว้ เสียงป๊อก! จะออกลำโพงคอม (ใน TikTok LIVE Studio เปิดเสียงคอมพิวเตอร์ไว้ด้วย)</li>
+          <li>ไปแท็บ <b>🎯 เล็งหัว</b> ลากเป้าไปไว้ที่หัวตัวละคร (ดูเป้าสีชมพูในหน้าต่าง VTube Studio)</li>
+          <li>แท็บ <b>🧪 ทดสอบ</b> กดส่งกุหลาบดูว่าโดนหัวไหม</li>
+        </ol>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>เกิดอะไรขึ้นในไลฟ์</h2>
+        <ul class="feed" id="feed"><li class="empty">ยังไม่มีอะไร — ลองแท็บทดสอบดูก่อนได้</li></ul>
+      </div>
+      <div class="card">
+        <h2>บันทึกการทำงาน</h2>
+        <ul class="feed log" id="log"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section id="cats" class="tab">
+    <div class="toolbar">
+      <p>ของขวัญแต่ละชิ้นอยู่ในหมวดตามรูป ปรับแต่ละหมวดแยกกันได้ กดรูปของขวัญเพื่อย้ายหมวดหรือตั้งขนาดเฉพาะชิ้นนั้น</p>
+      <div class="row">
+        <label class="inline">อวดของขวัญใหญ่กลางจอเมื่อราคาตั้งแต่
+          <select id="showcaseMin"><option value="0">ปิด</option><option value="100">100</option><option value="500">500</option><option value="1000">1,000</option><option value="5000">5,000</option><option value="10000">10,000</option></select> เหรียญ</label>
+        <button id="btnCatsReset" class="ghost">คืนค่าทุกหมวด</button>
+      </div>
+    </div>
+    <div id="catList" class="catlist"></div>
+  </section>
+
+  <!-- RULES -->
+  <section id="rules" class="tab">
+    <div class="toolbar">
+      <p>แต่ละกฎ = <b>เมื่อเกิดอะไร</b> → <b>ให้ทำอะไรบ้าง</b> (ทำตามลำดับจากบนลงล่าง) บันทึกอัตโนมัติ</p>
+      <div class="row">
+        <button class="primary" id="btnAddRule">+ เพิ่มกฎใหม่</button>
+        <button id="btnRefreshVts" title="ดึงรายชื่อคีย์ลัด/ท่าทาง/ไอเท็มจาก VTube Studio">↻ ดึงข้อมูลจาก VTS</button>
+        <button id="btnResetRules" class="ghost">คืนค่าเริ่มต้น</button>
+      </div>
+    </div>
+    <div id="ruleList"></div>
+    <p class="saved" id="savedNote">บันทึกแล้ว ✓</p>
+  </section>
+
+  <!-- TEST -->
+  <section id="test" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <h2>จำลองของขวัญ</h2>
+        <div class="fields">
+          <div><label>ชื่อของขวัญ</label><input id="sGift" list="giftNames" value="กุหลาบ"></div>
+          <div><label>จำนวน</label><input id="sCount" type="number" min="1" value="5"></div>
+          <div><label>ราคา (เหรียญ)</label><input id="sDiamonds" type="number" min="1" value="1"></div>
+          <div><label>ชื่อคนส่ง</label><input id="sName" value="คนทดสอบ"></div>
+        </div>
+        <div class="row quick">
+          <button class="primary" id="btnSimGift">🎁 ส่งของขวัญ</button>
+          <button data-quick="Rose,1,1">🌹 กุหลาบ ×1</button>
+          <button data-quick="Rose,10,1">🌹 กุหลาบ ×10</button>
+          <button data-quick="Finger Heart,3,5">🫰 หัวใจนิ้ว ×3 (5)</button>
+          <button data-quick="Doughnut,1,30">🍩 โดนัท (30)</button>
+          <button data-quick="Hat and Mustache,1,99">🎩 หมวกกับหนวด (99)</button>
+          <button data-quick="Swan,1,699">🦢 หงส์ (699)</button>
+          <button data-quick="Galaxy,1,1000">🌌 กาแล็กซี (1,000)</button>
+          <button data-quick="Lion,1,29999">🦁 สิงโต (29,999)</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>จำลองอย่างอื่น</h2>
+        <div class="row quick">
+          <button data-sim="follow">➕ ฟอลโลว์</button>
+          <button data-sim="share">🔗 แชร์</button>
+          <button data-sim="like">❤️ ไลค์ ×100</button>
+          <button data-sim="join">👋 คนเข้าไลฟ์</button>
+        </div>
+        <label>พิมพ์แชต</label>
+        <div class="row"><input id="sChat" value="!bonk"><button id="btnSimChat">💬 ส่งแชต</button></div>
+        <hr>
+        <div class="row">
+          <button id="btnClear" class="ghost">ล้างของบนจอ</button>
+          
+        </div>
+        <p class="hint">ของจะบินในหน้าต่าง VTube Studio เสียงออกจากหน้านี้ (กดเปิดเสียงด้านบนก่อน)</p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>ลองดูท่าของขวัญแต่ละชิ้น</h2>
+      <p class="hint">กดรูปของขวัญเพื่อดูท่าในหน้าต่าง VTube Studio (ต้องเชื่อม VTS แล้ว) · จำนวน <input id="fxCount" type="number" min="1" max="99" value="1" style="width:70px"></p>
+      <div id="fxGallery"></div>
+    </div>
+  </section>
+
+  <!-- AIM -->
+  <section id="aim" class="tab">
+    <div class="grid2 aimgrid">
+      <div class="card">
+        <h2>เล็งหัวตัวละคร</h2>
+        <p>คลิกหรือลากในกรอบด้านล่าง ให้เป้าสีชมพูใน<b>หน้าต่าง VTube Studio</b> ไปอยู่ตรง<b>หัว</b>ตัวละคร แล้วกดบันทึก</p>
+        <p class="hint">กรอบนี้ = หน้าต่าง VTube Studio ทั้งหน้าต่าง</p>
+        <div id="pad"><div id="padDot"></div><div class="padlabel">หน้าต่าง VTube Studio</div></div>
+        <div class="row"><button class="primary" id="btnCalibSave">💾 บันทึกตำแหน่ง</button>
+          <label class="check"><input type="checkbox" id="followModel"> ขยับตามโมเดลอัตโนมัติ (ถ้าลากโมเดลใน VTS)</label></div>
+        <p class="hint" id="aimPos"></p>
+      </div>
+      <div class="card">
+        <h2>ปรับละเอียด</h2>
+        <div class="nudge">
+          <button data-n="0,-1">▲</button>
+          <div><button data-n="-1,0">◀</button><button data-n="1,0">▶</button></div>
+          <button data-n="0,1">▼</button>
+        </div>
+        <p class="hint">กดลูกศรทีละนิด หรือใช้ปุ่มลูกศรบนคีย์บอร์ดตอนอยู่หน้านี้</p>
+        <button id="btnTestAim">🌹 ปาทดสอบ 3 ดอก</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <h2>การปาของ</h2>
+        <label>ให้ของบินที่ไหน</label>
+        <select id="optTarget">
+          <option value="vts">ในหน้าต่าง VTube Studio (แนะนำสำหรับ TikTok LIVE Studio)</option>
+          <option value="overlay">Overlay (Browser/Link source ใน OBS หรือ LIVE Studio)</option>
+        </select>
+        <div class="sliders" id="throwSliders"></div>
+        <label class="check"><input type="checkbox" id="optSound"> เปิดเสียงเอฟเฟกต์</label>
+        <label class="check"><input type="checkbox" id="optEyes"> หลับตาตอนโดนตี</label>
+      </div>
+      <div class="card">
+        <h2>ข้อความขอบคุณบนจอ (ไม่บังคับ)</h2>
+        <p class="hint">การกระทำ "💬 ข้อความบนจอ" ต้องใช้ overlay: ใน TikTok LIVE Studio กด <b>เพิ่มแหล่งที่มา → ลิงก์ (Link)</b> แล้ววางลิงก์นี้ ขนาด 1920×1080 ถ้าลิงก์ขึ้นเป็นจุดเล็ก ๆ แปลว่า LIVE Studio มีบั๊ก ข้ามส่วนนี้ไปได้ ของที่ปายังบินใน VTS ตามปกติ</p>
+        <div class="row"><input id="obsUrl" readonly><button id="btnCopy">คัดลอก</button></div>
+        <h2 class="mt">การเชื่อมต่อ</h2>
+        <label>Euler Stream API key (ไม่ใส่ก็ได้ — ใส่เมื่อเชื่อมต่อบ่อยแล้วโดนจำกัด)</label>
+        <input id="optKey" placeholder="ว่างไว้ = ใช้แบบฟรี" autocomplete="off">
+        <label>พอร์ต VTube Studio API</label>
+        <input id="optVtsPort" type="number" value="8001">
+        <h2 class="mt">เสียงอ่านแชต (TTS)</h2>
+        <p class="hint">ใช้กับกฎที่มีการกระทำ "อ่านออกเสียง" เสียงจะออกจากแท็บนี้ ต้องเปิดหน้านี้ค้างไว้</p>
+        <label>เสียง</label>
+        <select id="ttsVoice"></select>
+        <button id="btnTtsTest">ลองฟัง</button>
+        <h2 class="mt">โปรแกรม</h2>
+        <p class="hint" id="verInfo">เวอร์ชัน –</p>
+        <button id="btnCheckUpd">ตรวจหาอัปเดต</button>
+        <p class="hint">ปิดหน้าต่างนี้ = ปิดโปรแกรม · มีทางลัด KuminBonk บนเดสก์ท็อปและในเมนู Start ให้แล้ว</p>
+        <button id="btnQuit" class="danger">⏻ ปิดโปรแกรม</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<datalist id="giftNames"></datalist>
+<div id="toast"></div>
+<div id="giftPop" class="pop" hidden></div>
+<script src="/sounds.js"></script>
+<script src="/dashboard.js"></script>
+</body>
+</html>
