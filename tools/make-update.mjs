@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const version = process.argv[2];
 if (!version) throw new Error('usage: node tools/make-update.mjs <version>');
-const files = { 'app.cjs': fs.readFileSync(path.join(ROOT, 'build', 'app.cjs')).toString('base64') };
+const files = { 'app.cjs': fs.readFileSync(path.join(ROOT, 'build', 'app.cjs')).toString('base64'), 'launch.cjs': fs.readFileSync(path.join(ROOT, 'installer', 'launch.cjs')).toString('base64') };
 const walk = d => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); const rel = path.relative(ROOT, p).replace(/\\/g, '/');
   if (rel.startsWith('public/gifts')) continue;
   if (fs.statSync(p).isDirectory()) walk(p); else files[rel] = fs.readFileSync(p).toString('base64'); } };

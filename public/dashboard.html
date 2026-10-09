@@ -199,7 +199,11 @@
         <button id="btnTtsTest">ลองฟัง</button>
         <h2 class="mt">โปรแกรม</h2>
         <p class="hint" id="verInfo">เวอร์ชัน –</p>
-        <button id="btnCheckUpd">ตรวจหาอัปเดต</button>
+        <div class="row"><button id="btnCheckUpd">ตรวจหาอัปเดต</button><button id="btnRollback" hidden>↩ ย้อนกลับเวอร์ชันก่อนหน้า</button></div>
+        <h2 class="mt">สำรองการตั้งค่า</h2>
+        <p class="hint">สำรองให้อัตโนมัติทุกครั้งก่อนอัปเดต / ย้อนเวอร์ชัน / กู้คืน (เก็บ 10 ชุดล่าสุด)</p>
+        <div class="row"><button id="btnBackup">💾 สำรองตอนนี้</button></div>
+        <div class="row"><select id="backupList"></select><button id="btnRestore">กู้คืนชุดนี้</button></div>
         <p class="hint">ปิดหน้าต่างนี้ = ปิดโปรแกรม · มีทางลัด KuminBonk บนเดสก์ท็อปและในเมนู Start ให้แล้ว</p>
         <button id="btnQuit" class="danger">⏻ ปิดโปรแกรม</button>
       </div>

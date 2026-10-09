@@ -16,8 +16,22 @@ import { CATALOG, GiftMatcher, STYLES } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 const DATA = DATA_DIR;
+
+// --selftest: used by the updater to check a downloaded version before switching to it.
+if (process.argv.includes('--selftest')) {
+  const checks = {
+    dashboard: !!readPublic('dashboard.html'), script: !!readPublic('dashboard.js'), sounds: !!readPublic('sounds.js'),
+    overlay: !!readPublic('overlay.html'), icon: !!readPublic('assets/icon.png'),
+    gifts: CATALOG.filter(g => readPublic(`gifts/${g.img}.png`)).length >= CATALOG.length - 5,
+    catalog: CATALOG.length > 200, styles: Object.keys(STYLES).length >= 20, rules: Array.isArray(DEFAULT_CONFIG.rules),
+    config: (() => { try { const f = path.join(DATA, 'config.json'); if (fs.existsSync(f)) JSON.parse(fs.readFileSync(f, 'utf8')); return true; } catch { return false; } })(),
+  };
+  const ok = Object.values(checks).every(Boolean);
+  process.stdout.write(JSON.stringify({ ok, version: VERSION, checks }));
+  process.exit(ok ? 0 : 1);
+}
 const CONFIG_FILE = path.join(DATA, 'config.json');
 
 // ---------- config ----------
@@ -87,7 +101,8 @@ function status() {
   };
 }
 const pushStatus = () => toDashboards({ t: 'status', ...status() });
-const updater = new Updater({ version: VERSION, log });
+const updater = new Updater({ version: VERSION, log, dataDir: DATA });
+updater.set({});
 updater.on('state', st => toDashboards({ t: 'update', ...st }));
 tiktok.on('status', pushStatus);
 vts.on('status', pushStatus);
@@ -195,6 +210,17 @@ async function onDashboard(ws, m) {
     case 'quit': return quit();
     case 'checkUpdate': return updater.check(true);
     case 'restartForUpdate': return restartApp();
+    case 'backupNow': { saveConfig(); updater.backup('สำรองเอง'); return updater.set({}); }
+    case 'restoreBackup': {
+      try { updater.restore(m.id); log('backup', 'กู้คืนการตั้งค่าแล้ว กำลังเปิดใหม่…'); }
+      catch (e) { return log('backup', e.message, 'warn'); }
+      config = loadConfig(); // never overwrite the restored file with what's in memory
+      return process.env.KB_INSTALL ? restartApp() : updater.set({});
+    }
+    case 'rollback': {
+      try { const v = updater.rollback(); log('update', `ย้อนกลับเป็นเวอร์ชัน ${v} กำลังเปิดใหม่…`); return restartApp(); }
+      catch (e) { return log('update', e.message, 'warn'); }
+    }
     case 'clearOverlay': return overlay.send({ t: 'clear' });
     case 'resetRules': config.rules = structuredClone(DEFAULT_CONFIG.rules); saveConfig(); send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES }); return;
   }
@@ -266,6 +292,8 @@ function quit() {
 }
 
 // Start again through the launcher so the newest downloaded version is used.
+// The launcher writes booting.txt before starting a version; removing it confirms this version works.
+function bootOk() { if (process.env.KB_INSTALL) setTimeout(() => { try { fs.rmSync(path.join(process.env.KB_INSTALL, 'booting.txt'), { force: true }); } catch {} }, 4000); }
 let restarting = false;
 function restartApp() {
   restarting = true;
@@ -298,12 +326,14 @@ server.on('error', async e => {
     try {
       const r = await fetch(`${URL_}/api/ping`, { signal: AbortSignal.timeout(2000) });
       if ((await r.text()) === 'kuminbonk') {
+        if (process.env.KB_INSTALL) { try { fs.rmSync(path.join(process.env.KB_INSTALL, 'booting.txt'), { force: true }); } catch {} }
         if (process.platform === 'win32') openAppWindow(URL_, DATA, { detached: true });
         else console.log(`KuminBonk เปิดอยู่แล้วที่ ${URL_}`);
         return setTimeout(() => process.exit(0), 500);
       }
     } catch {}
     logToFile(`port ${PORT} in use by another program`);
+    if (process.env.KB_INSTALL) { try { fs.rmSync(path.join(process.env.KB_INSTALL, 'booting.txt'), { force: true }); } catch {} }
     messageBox(`เปิด KuminBonk ไม่ได้: พอร์ต ${PORT} ถูกโปรแกรมอื่นใช้อยู่`);
     return setTimeout(() => process.exit(1), 4000);
   }
@@ -313,6 +343,7 @@ server.on('error', async e => {
 server.listen(PORT, '127.0.0.1', () => {
   if (!IS_APP) console.log(`\n  KuminBonk v${VERSION}\n  หน้าตั้งค่า: ${URL_}\n  (overlay ไม่บังคับ: ${URL_}/overlay)\n`);
   log('app', `เปิด KuminBonk v${VERSION}`);
+  bootOk();
   vts.start();
   updater.start();
   if (config.autoConnect && config.tiktokUsername) tiktok.connect(config.tiktokUsername, config.eulerApiKey);

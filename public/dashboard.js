@@ -61,12 +61,20 @@ function renderStatus(s) {
 // ---------- auto-update ----------
 function renderUpdate(u) {
   const bar = $('#updBar'), txt = $('#updText'), btn = $('#btnRestart');
-  $('#verInfo').textContent = `เวอร์ชัน ${u.current || ''}` + (u.status === 'off' ? ' · อัปเดตอัตโนมัติใช้ได้เมื่อติดตั้งด้วยตัวติดตั้ง' : u.status === 'uptodate' ? ' · ล่าสุดแล้ว ✓' : u.status === 'error' ? ` · ตรวจอัปเดตไม่ได้ (${u.detail || ''})` : '');
+  $('#verInfo').textContent = `เวอร์ชัน ${u.current || ''}` + (u.status === 'off' ? ' · อัปเดตอัตโนมัติใช้ได้เมื่อติดตั้งด้วยตัวติดตั้ง' : u.status === 'uptodate' ? ' · ล่าสุดแล้ว ✓' : u.status === 'skipped' ? ` · ข้ามเวอร์ชัน ${u.latest} ไว้ (กดตรวจหาอัปเดตเพื่อลองอีกครั้ง)` : u.status === 'error' ? ` · ตรวจอัปเดตไม่ได้ (${u.detail || ''})` : '');
   if (u.status === 'downloading') { bar.hidden = false; btn.hidden = true; txt.textContent = `⬇️ กำลังดาวน์โหลดเวอร์ชันใหม่ ${u.latest}…`; }
-  else if (u.status === 'ready') { bar.hidden = false; btn.hidden = false; txt.textContent = `✨ เวอร์ชันใหม่ ${u.latest} พร้อมแล้ว — จะใช้ตอนเปิดครั้งหน้า หรือรีสตาร์ทตอนนี้ (ถ้ากำลังไลฟ์ รอปิดไลฟ์ก่อนก็ได้)`; }
+  else if (u.status === 'verifying') { bar.hidden = false; btn.hidden = true; txt.textContent = `🔎 กำลังตรวจเวอร์ชัน ${u.latest} ก่อนใช้งาน…`; }
+  else if (u.status === 'ready') { bar.hidden = false; btn.hidden = false; txt.textContent = `✅ เวอร์ชันใหม่ ${u.latest} ตรวจผ่านแล้ว และสำรองการตั้งค่าไว้ให้แล้ว — จะใช้ตอนเปิดครั้งหน้า หรือรีสตาร์ทตอนนี้ (ถ้ากำลังไลฟ์ รอปิดไลฟ์ก่อนก็ได้)`; }
+  else if (u.status === 'error' && /ตรวจไม่ผ่าน/.test(u.detail || '')) { bar.hidden = false; btn.hidden = true; txt.textContent = `⚠️ ${u.detail}`; }
   else bar.hidden = true;
+  const rb = $('#btnRollback'); rb.hidden = !u.previous; rb.textContent = `↩ ย้อนกลับเป็นเวอร์ชัน ${u.previous || ''}`;
+  const bl = $('#backupList');
+  bl.innerHTML = (u.backups || []).map(b => `<option value="${esc(b.id)}">${new Date(b.time).toLocaleString('th-TH')} · ${esc(b.label)} (v${esc(b.version)})</option>`).join('') || '<option value="">ยังไม่มีไฟล์สำรอง</option>';
 }
 $('#btnRestart').onclick = () => { send({ t: 'restartForUpdate' }); $('#updText').textContent = 'กำลังรีสตาร์ท…'; };
+$('#btnRollback').onclick = () => { if (confirm('ย้อนกลับไปเวอร์ชันก่อนหน้า? (สำรองการตั้งค่าไว้ให้ก่อน)')) send({ t: 'rollback' }); };
+$('#btnBackup').onclick = () => send({ t: 'backupNow' });
+$('#btnRestore').onclick = () => { const id = $('#backupList').value; if (id && confirm('กู้คืนการตั้งค่าชุดนี้? (การตั้งค่าตอนนี้จะถูกสำรองไว้ก่อน)')) send({ t: 'restoreBackup', id }); };
 $('#btnCheckUpd').onclick = () => { send({ t: 'checkUpdate' }); $('#verInfo').textContent += ' · กำลังตรวจ…'; };
 
 // ---------- feed & log ----------

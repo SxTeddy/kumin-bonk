@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 
 export const REPO = 'SxTeddy/kumin-bonk';
 // Update files live in the repo's updates/ folder: latest.json + update-<version>.json.gz
@@ -18,17 +19,18 @@ export const newer = (a, b) => {
 };
 
 export class Updater extends EventEmitter {
-  constructor({ version, log }) {
+  constructor({ version, log, dataDir }) {
     super();
+    this.dataDir = dataDir;
     this.version = version;
     this.log = log;
     this.install = process.env.KB_INSTALL || '';
     this.enabled = !!this.install;
-    this.state = { status: this.enabled ? 'idle' : 'off', current: version };
+    this.state = { status: this.enabled ? 'idle' : 'off', current: version, previous: '', backups: [] };
     this.busy = false;
   }
 
-  set(s) { this.state = { ...this.state, ...s }; this.emit('state', this.state); }
+  set(s) { this.state = { ...this.state, ...s, previous: this.previous(), backups: this.backups().slice(0, 10) }; this.emit('state', this.state); }
 
   start() {
     if (!this.enabled) return;
@@ -51,6 +53,9 @@ export class Updater extends EventEmitter {
       const man = await this.get(`${BASE}/latest.json?t=${Date.now()}`);
       const latest = String(man.version || '').replace(/^v/, '');
       if (!latest || !newer(latest, this.version)) { this.set({ status: 'uptodate', latest }); return this.state; }
+      let skip = ''; try { skip = fs.readFileSync(path.join(this.install, 'skip.txt'), 'utf8').trim(); } catch {}
+      if (skip === latest && !manual) { this.set({ status: 'skipped', latest }); return this.state; }
+      if (manual) { try { fs.rmSync(path.join(this.install, 'skip.txt'), { force: true }); } catch {} }
       const dir = path.join(this.install, 'versions', latest);
       if (fs.existsSync(path.join(dir, '.complete'))) { this.activate(latest); this.set({ status: 'ready', latest, notes: man.notes || '' }); return this.state; }
       if (!man.file || !man.sha256 || /[\\/]/.test(man.file)) throw new Error('bad update manifest');
@@ -73,17 +78,78 @@ export class Updater extends EventEmitter {
       // gift pictures are not published online: carry them over from the version in use
       const curGifts = path.join(process.env.KB_ROOT || '', 'public', 'gifts');
       if (fs.existsSync(curGifts) && !fs.existsSync(path.join(tmp, 'public', 'gifts'))) fs.cpSync(curGifts, path.join(tmp, 'public', 'gifts'), { recursive: true });
+      // try the new version before using it
+      this.set({ status: 'verifying', latest });
+      const t = spawnSync(process.execPath, [path.join(tmp, 'app.cjs'), '--selftest'], { env: { ...process.env, KB_ROOT: tmp }, timeout: 60000, encoding: 'utf8', windowsHide: true });
+      let res = {}; try { res = JSON.parse(t.stdout || '{}'); } catch {}
+      if (t.status !== 0 || !res.ok || String(res.version) !== latest) {
+        fs.rmSync(tmp, { recursive: true, force: true });
+        const failed = Object.entries(res.checks || {}).filter(([, v]) => !v).map(([k]) => k).join(', ');
+        throw new Error(`เวอร์ชัน ${latest} ตรวจไม่ผ่าน${failed ? ` (${failed})` : ''} — ยังใช้เวอร์ชันเดิมต่อ`);
+      }
+      this.log('update', `ตรวจเวอร์ชัน ${latest} ผ่านแล้ว ✓ (${Object.keys(res.checks).length} รายการ)`);
       fs.writeFileSync(path.join(tmp, '.complete'), latest);
       fs.rmSync(dir, { recursive: true, force: true });
       fs.renameSync(tmp, dir);
+      this.backup(`ก่อนอัปเดตเป็น ${latest}`);
       this.activate(latest);
-      this.set({ status: 'ready', latest, notes: man.notes || '' });
+      try { if (fs.existsSync(path.join(dir, 'launch.cjs'))) fs.copyFileSync(path.join(dir, 'launch.cjs'), path.join(this.install, 'launch.cjs')); } catch {}
+      this.set({ status: 'ready', verified: true, latest, notes: man.notes || '' });
       this.log('update', `ดาวน์โหลดเวอร์ชัน ${latest} เสร็จแล้ว — จะใช้ตอนเปิดโปรแกรมครั้งหน้า หรือกด "รีสตาร์ท" ได้เลย`);
     } catch (e) {
       this.set({ status: 'error', detail: e.message });
-      if (manual) this.log('update', `ตรวจอัปเดตไม่ได้: ${e.message}`, 'warn');
+      if (manual || /ตรวจไม่ผ่าน/.test(e.message)) this.log('update', `ตรวจอัปเดตไม่ได้: ${e.message}`, 'warn');
     } finally { this.busy = false; }
     return this.state;
+  }
+
+  // ---- settings backups (%APPDATA%\KuminBonk\backups\<time>) ----
+  static FILES = ['config.json', 'gift-aliases.json', 'gifts-seen.json', 'vts-token.txt'];
+  get backupDir() { return path.join(this.dataDir, 'backups'); }
+  backup(label = 'สำรองเอง') {
+    try {
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const dir = path.join(this.backupDir, stamp);
+      fs.mkdirSync(dir, { recursive: true });
+      for (const f of Updater.FILES) { const src = path.join(this.dataDir, f); if (fs.existsSync(src)) fs.copyFileSync(src, path.join(dir, f)); }
+      fs.writeFileSync(path.join(dir, 'info.json'), JSON.stringify({ label, version: this.version, time: Date.now() }));
+      // keep the newest 10
+      const all = this.backups();
+      for (const b of all.slice(10)) fs.rmSync(path.join(this.backupDir, b.id), { recursive: true, force: true });
+      this.log('backup', `สำรองการตั้งค่าแล้ว (${label})`);
+      return stamp;
+    } catch (e) { this.log('backup', `สำรองการตั้งค่าไม่สำเร็จ: ${e.message}`, 'warn'); return null; }
+  }
+  backups() {
+    try {
+      return fs.readdirSync(this.backupDir).map(id => {
+        let info = {}; try { info = JSON.parse(fs.readFileSync(path.join(this.backupDir, id, 'info.json'), 'utf8')); } catch {}
+        return { id, label: info.label || '', version: info.version || '', time: info.time || 0 };
+      }).sort((a, b) => b.time - a.time);
+    } catch { return []; }
+  }
+  restore(id) {
+    const dir = path.join(this.backupDir, path.basename(String(id)));
+    if (!fs.existsSync(path.join(dir, 'info.json'))) throw new Error('ไม่พบไฟล์สำรองนี้');
+    this.backup('ก่อนกู้คืน');
+    for (const f of Updater.FILES) { const src = path.join(dir, f); if (fs.existsSync(src)) fs.copyFileSync(src, path.join(this.dataDir, f)); }
+  }
+
+  // ---- go back to the previous version ----
+  previous() {
+    if (!this.enabled) return '';
+    let prev = ''; try { prev = fs.readFileSync(path.join(this.install, 'prev.txt'), 'utf8').trim(); } catch {}
+    return prev && prev !== this.version && fs.existsSync(path.join(this.install, 'versions', prev, '.complete')) ? prev : '';
+  }
+  rollback() {
+    const prev = this.previous();
+    if (!prev) throw new Error('ไม่มีเวอร์ชันก่อนหน้าในเครื่อง');
+    this.backup(`ก่อนย้อนกลับเป็น ${prev}`);
+    fs.writeFileSync(path.join(this.install, 'prev.txt'), this.version);
+    fs.writeFileSync(path.join(this.install, 'current.txt'), prev);
+    // don't jump straight back up to the version we're leaving
+    fs.writeFileSync(path.join(this.install, 'skip.txt'), this.version);
+    return prev;
   }
 
   activate(ver) {
