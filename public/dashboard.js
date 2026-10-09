@@ -7,6 +7,7 @@ let config = null;
 let vtsLists = { hotkeys: [], expressions: [], items: [] };
 let seenGifts = [];
 let catalog = []; // Thai gift list {coins, th, en, img, style}
+let anchors = {}; // style -> where it lands relative to the head
 let styles = {};  // effect style id -> Thai description
 let catDefault = { enabled: true, size: 1, power: 1, speed: 1, max: 30, sound: 'auto', as: 'same' };
 
@@ -23,7 +24,7 @@ function connect() {
 function handle(m) {
   switch (m.t) {
     case 'state':
-      config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault;
+      config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.anchors) anchors = m.anchors;
       (m.logs || []).forEach(addLog);
       renderAll();
       break;
@@ -113,7 +114,7 @@ function addLog(m) {
 $$('#tabs button').forEach(b => b.onclick = () => {
   $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
   $$('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
-  if (b.dataset.tab === 'aim') send({ t: 'calibHead', x: config.head.x, y: config.head.y });
+  if (b.dataset.tab === 'aim') { renderAimFor(); showMarker(); }
   else if (aimShown) { send({ t: 'calibDone' }); }
   aimShown = b.dataset.tab === 'aim';
 });
@@ -136,7 +137,7 @@ function renderAll() {
   $('#optTarget').value = config.throwing.target || 'vts';
   $('#optEyes').checked = config.throwing.eyesClose;
   $('#followModel').checked = config.head.followModel;
-  renderSliders(); renderRules(); fillGiftList(); placeDot(); renderGallery(); renderCats();
+  renderSliders(); renderRules(); fillGiftList(); renderAimFor(); renderGallery(); renderCats();
 }
 
 function fillGiftList() {
@@ -393,7 +394,7 @@ function renderCats() {
     const c = catOf(st), list = (groups[st] || []).sort((a, b) => a.coins - b.coins);
     const el = document.createElement('div'); el.className = 'cat' + (c.enabled ? '' : ' off');
     const slider = (k, lab, min, max, step, fmt = v => '×' + v) => `<div class="ctl"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${c[k]}"><output>${fmt(c[k])}</output></div>`;
-    el.innerHTML = `<div class="cat-head"><label class="switch"><input type="checkbox" ${c.enabled ? 'checked' : ''}><span></span></label><b>${esc(label)}</b><small>${list.length} ชิ้น</small><button class="small" data-try>▶ ลอง</button></div>
+    el.innerHTML = `<div class="cat-head"><label class="switch"><input type="checkbox" ${c.enabled ? 'checked' : ''}><span></span></label><b>${esc(label)}</b><small>${list.length} ชิ้น</small><button class="small" data-aimcat title="ตั้งจุดที่ท่านี้ไปโดน เช่น ปาก คอ ตัว">🎯 เป้า${c.aim ? ' ✓' : ''}</button><button class="small" data-try>▶ ลอง</button></div>
       ${slider('size', 'ขนาดรูป', 0.4, 2.5, 0.1)}${slider('power', 'ความแรง', 0, 2, 0.1)}${slider('speed', 'ความเร็ว', 0.5, 2, 0.1)}${slider('max', 'สูงสุดต่อครั้ง', 1, 30, 1, v => v)}
       <div class="sel"><div><label>เสียง</label><select data-k="sound">${Object.entries(FX_SOUNDS).map(([k, v]) => `<option value="${k}" ${k === c.sound ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
       <div><label>ใช้ท่า</label><select data-k="as"><option value="same">ท่าของหมวดนี้</option>${Object.entries(styles).filter(([k]) => k !== st).map(([k, v]) => `<option value="${k}" ${k === c.as ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div></div>
@@ -401,6 +402,7 @@ function renderCats() {
     el.querySelector('.switch input').onchange = e => { setCat(st, 'enabled', e.target.checked); el.classList.toggle('off', !e.target.checked); };
     el.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { const v = Number(r.value); r.nextElementSibling.textContent = r.dataset.k === 'max' ? v : '×' + v; setCat(st, r.dataset.k, v); });
     el.querySelectorAll('select').forEach(sel => sel.onchange = () => setCat(st, sel.dataset.k, sel.value));
+    el.querySelector('[data-aimcat]').onclick = () => goAim('cat:' + st);
     el.querySelector('[data-try]').onclick = () => { const g = list[list.length - 1] || catalog.find(x => x.style === st); if (g) send({ t: 'previewStyle', gift: g.th, count: 1 }); };
     el.querySelectorAll('.gifts button').forEach(b => b.onclick = ev => openGiftPop(catalog.find(g => g.th === b.dataset.g), ev.currentTarget));
     box.appendChild(el);
@@ -411,20 +413,21 @@ function openGiftPop(g, anchor) {
   pop.innerHTML = `<div class="ph"><img src="/gifts/${g.img}.png" alt=""><div><b>${esc(g.th)}</b><br><small class="hint">${g.coins.toLocaleString()} เหรียญ</small></div></div>
     <label>ท่าของชิ้นนี้</label><select id="popStyle">${Object.entries(styles).map(([k, v]) => `<option value="${k}" ${k === (own.style || g.style) ? 'selected' : ''}>${esc(v)}${k === g.style ? ' (เดิม)' : ''}</option>`).join('')}</select>
     <div class="ctl" style="display:grid;grid-template-columns:92px 1fr 46px;gap:8px;align-items:center"><span>ขนาดชิ้นนี้</span><input id="popSize" type="range" min="0.4" max="2.5" step="0.1" value="${own.size || 1}"><output>×${own.size || 1}</output></div>
-    <div class="row"><button class="primary small" id="popTry">▶ ลอง</button><button class="small" id="popReset">คืนค่าเดิม</button><button class="small" id="popClose">ปิด</button></div>`;
+    <div class="row"><button class="primary small" id="popTry">▶ ลอง</button><button class="small" id="popAim">🎯 เป้า${own.aim ? ' ✓' : ''}</button><button class="small" id="popReset">คืนค่าเดิม</button><button class="small" id="popClose">ปิด</button></div>`;
   pop.hidden = false;
   const r = anchor.getBoundingClientRect();
   pop.style.left = Math.min(window.innerWidth - 296, Math.max(8, r.left - 120)) + 'px';
   pop.style.top = Math.min(window.innerHeight - pop.offsetHeight - 8, r.bottom + 6) + 'px';
   const put = () => {
     const st = $('#popStyle').value, sz = Number($('#popSize').value);
-    const o = {}; if (st !== g.style) o.style = st; if (sz !== 1) o.size = sz;
+    const o = {}; if (st !== g.style) o.style = st; if (sz !== 1) o.size = sz; if (fxCfg().gifts[g.th]?.aim) o.aim = fxCfg().gifts[g.th].aim;
     if (Object.keys(o).length) fxCfg().gifts[g.th] = o; else delete fxCfg().gifts[g.th];
     save();
   };
   $('#popStyle').onchange = () => { put(); renderCats(); };
   $('#popSize').oninput = e => { e.target.nextElementSibling.textContent = '×' + e.target.value; put(); };
   $('#popTry').onclick = () => send({ t: 'previewStyle', gift: g.th, count: 1 });
+  $('#popAim').onclick = () => goAim('gift:' + g.th);
   $('#popReset').onclick = () => { delete fxCfg().gifts[g.th]; save(); pop.hidden = true; renderCats(); };
   $('#popClose').onclick = () => { pop.hidden = true; renderCats(); };
 }
@@ -445,23 +448,114 @@ function renderGallery() {
 }
 
 // ---------- aim ----------
+// Target being edited: 'head' (main head point), 'cat:<style>' or 'gift:<thai name>'.
+// Category/gift targets are stored as offsets from the head: fx.cats[style].aim / fx.gifts[name].aim = {dx, dy}
+let aimFor = 'head';
 const pad = $('#pad');
-function placeDot() { $('#padDot').style.left = config.head.x * 100 + '%'; $('#padDot').style.top = config.head.y * 100 + '%'; $('#aimPos').textContent = `ตำแหน่ง: ${Math.round(config.head.x * 1920)}, ${Math.round(config.head.y * 1080)} (จาก 1920×1080)`; }
-function setHead(x, y) { config.head.x = Math.max(0, Math.min(1, x)); config.head.y = Math.max(0, Math.min(1, y)); placeDot(); send({ t: 'calibHead', x: config.head.x, y: config.head.y }); }
+const cl01 = v => Math.max(0, Math.min(1, v));
+const r3 = v => Math.round(v * 1000) / 1000;
+function aimInfo() {
+  // -> { style, store (object that holds .aim), base (head + anchor), off (current offset), own (true if set on this target) }
+  config.fx = config.fx || {}; config.fx.cats = config.fx.cats || {}; config.fx.gifts = config.fx.gifts || {};
+  if (aimFor.startsWith('cat:')) {
+    const st = aimFor.slice(4);
+    const store = config.fx.cats[st] || {};
+    return { st, store, off: store.aim || { dx: 0, dy: 0 }, own: !!store.aim, make: () => (config.fx.cats[st] ||= {}) };
+  }
+  const name = aimFor.slice(5); const g = catalog.find(x => x.th === name);
+  const st = g ? giftStyle(g) : 'bonk';
+  const store = config.fx.gifts[name] || {};
+  return { st, g, store, off: store.aim || config.fx.cats[st]?.aim || { dx: 0, dy: 0 }, own: !!store.aim, make: () => (config.fx.gifts[name] ||= {}) };
+}
+function aimPoint() {
+  const h = config.head; if (aimFor === 'head') return { x: h.x, y: h.y };
+  const i = aimInfo(); const a = anchors[i.st] || { dx: 0, dy: 0 };
+  return { x: cl01(h.x + a.dx + i.off.dx), y: cl01(h.y + a.dy + i.off.dy) };
+}
+function placeDot() {
+  const p = aimPoint(); const isHead = aimFor === 'head';
+  $('#padDot').style.left = p.x * 100 + '%'; $('#padDot').style.top = p.y * 100 + '%';
+  $('#padHead').hidden = isHead;
+  $('#padHead').style.left = config.head.x * 100 + '%'; $('#padHead').style.top = config.head.y * 100 + '%';
+  $('#aimPos').textContent = `ตำแหน่ง: ${Math.round(p.x * 1920)}, ${Math.round(p.y * 1080)} (จาก 1920×1080)` + (isHead ? '' : aimInfo().own ? ' · ตั้งเองแล้ว' : ' · ค่าเริ่มต้น');
+}
+function showMarker() {
+  const p = aimPoint();
+  send(aimFor === 'head' ? { t: 'calibHead', x: config.head.x, y: config.head.y } : { t: 'aimMarker', x: p.x, y: p.y });
+}
+function setAim(x, y) {
+  x = cl01(x); y = cl01(y);
+  if (aimFor === 'head') { config.head.x = x; config.head.y = y; }
+  else {
+    const i = aimInfo(); const a = anchors[i.st] || { dx: 0, dy: 0 };
+    i.make().aim = { dx: r3(x - config.head.x - a.dx), dy: r3(y - config.head.y - a.dy) };
+  }
+  placeDot(); showMarker();
+}
+function aimLabel(v) {
+  if (v === 'head') return '🎯 หัวตัวละคร (จุดหลัก)';
+  if (v.startsWith('cat:')) return 'หมวด: ' + (styles[v.slice(4)] || v.slice(4));
+  return 'ของขวัญ: ' + v.slice(5);
+}
+function renderAimFor() {
+  const sel = $('#aimFor');
+  const giftOpts = Object.entries(config.fx?.gifts || {}).filter(([, o]) => o.aim).map(([n]) => 'gift:' + n);
+  if (aimFor.startsWith('gift:') && !giftOpts.includes(aimFor)) giftOpts.unshift(aimFor);
+  sel.innerHTML = `<option value="head">${esc(aimLabel('head'))}</option>`
+    + `<optgroup label="หมวดของขวัญ">${Object.keys(styles).map(k => `<option value="cat:${esc(k)}">${esc(styles[k])}${config.fx?.cats?.[k]?.aim ? ' ✓' : ''}</option>`).join('')}</optgroup>`
+    + (giftOpts.length ? `<optgroup label="ของขวัญเฉพาะชิ้น">${giftOpts.map(v => `<option value="${esc(v)}">${esc(v.slice(5))}</option>`).join('')}</optgroup>` : '');
+  sel.value = aimFor;
+  $('#aimGiftList').innerHTML = catalog.map(g => `<option value="${esc(g.th)}">`).join('');
+  const isHead = aimFor === 'head';
+  $('#aimTitle').textContent = isHead ? 'เล็งหัวตัวละคร' : 'เป้า ' + aimLabel(aimFor);
+  $('#aimHelp').innerHTML = isHead
+    ? 'คลิกหรือลากในกรอบด้านล่าง ให้เป้าสีชมพูใน<b>หน้าต่าง VTube Studio</b> ไปอยู่ตรง<b>หัว</b>ตัวละคร แล้วกดบันทึก'
+    : 'ลากเป้าไปตรงจุดที่อยากให้ของขวัญนี้ไปโดน (เช่น ปาก คอ ตัว) แล้วกดบันทึก · จุดจาง ๆ คือหัว';
+  $('#btnAimReset').hidden = isHead || !aimInfo().own;
+  $('#followWrap').hidden = !isHead;
+  $('#btnTestAim').textContent = isHead ? '🌹 ปาทดสอบ 3 ดอก' : '▶ ลองท่านี้';
+  const chip = (v, txt, done) => `<button data-aim="${esc(v)}" class="${v === aimFor ? 'on' : ''} ${done ? 'done' : ''}">${esc(txt)}${done ? ' ✓' : ''}</button>`;
+  const giftsSet = Object.entries(config.fx?.gifts || {}).filter(([, o]) => o.aim).map(([n]) => n);
+  $('#aimList').innerHTML = chip('head', '🎯 หัว (จุดหลัก)', false)
+    + Object.keys(styles).map(k => chip('cat:' + k, styles[k], !!config.fx?.cats?.[k]?.aim)).join('')
+    + (giftsSet.length ? '<div class="aimsub">ของขวัญที่ตั้งเฉพาะชิ้น</div>' + giftsSet.map(n => chip('gift:' + n, n, true)).join('') : '');
+  $$('#aimList [data-aim]').forEach(b => b.onclick = () => pickAim(b.dataset.aim));
+  placeDot();
+}
+function pickAim(v) {
+  // drop empty override objects left behind by browsing
+  for (const o of [config.fx?.gifts, config.fx?.cats]) for (const k in (o || {})) if (o[k] && !Object.keys(o[k]).length) delete o[k];
+  aimFor = v; renderAimFor(); if (aimShown) showMarker();
+}
+$('#aimFor').onchange = e => pickAim(e.target.value);
+function goAim(v) { $('#giftPop').hidden = true; aimFor = v; $('#tabs button[data-tab="aim"]').click(); window.scrollTo(0, 0); }
+$('#aimGift').onchange = e => { const g = catalog.find(x => x.th === e.target.value.trim()); if (g) { pickAim('gift:' + g.th); e.target.value = ''; } else toast('ไม่พบของขวัญชื่อนี้'); };
 let dragging = false;
-const padMove = e => { const r = pad.getBoundingClientRect(); setHead((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height); };
+const padMove = e => { const r = pad.getBoundingClientRect(); setAim((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height); };
 pad.onpointerdown = e => { dragging = true; pad.setPointerCapture(e.pointerId); padMove(e); };
 pad.onpointermove = e => { if (dragging) padMove(e); };
 pad.onpointerup = () => { dragging = false; };
-$$('[data-n]').forEach(b => b.onclick = () => { const [dx, dy] = b.dataset.n.split(',').map(Number); setHead(config.head.x + dx * 0.005, config.head.y + dy * 0.009); });
+const nudge = (dx, dy) => { const p = aimPoint(); setAim(p.x + dx * 0.005, p.y + dy * 0.009); };
+$$('[data-n]').forEach(b => b.onclick = () => { const [dx, dy] = b.dataset.n.split(',').map(Number); nudge(dx, dy); });
 document.addEventListener('keydown', e => {
-  if (!$('#aim').classList.contains('on') || e.target.tagName === 'INPUT') return;
+  if (!$('#aim').classList.contains('on') || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   const m = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-  if (m) { e.preventDefault(); setHead(config.head.x + m[0] * 0.005, config.head.y + m[1] * 0.009); }
+  if (m) { e.preventDefault(); nudge(m[0], m[1]); }
 });
-$('#btnCalibSave').onclick = () => { send({ t: 'calibDone' }); save(); toast('บันทึกตำแหน่งหัวแล้ว'); setTimeout(() => send({ t: 'calibHead', x: config.head.x, y: config.head.y }), 300); };
+$('#btnCalibSave').onclick = () => {
+  if (aimFor === 'head') { send({ t: 'calibDone' }); save(); toast('บันทึกตำแหน่งหัวแล้ว'); setTimeout(showMarker, 300); return; }
+  save(); renderAimFor(); renderCats(); toast('บันทึกเป้าของ ' + aimLabel(aimFor).replace(/^.*?: /, '') + ' แล้ว');
+};
+$('#btnAimReset').onclick = () => { const i = aimInfo(); delete i.store.aim; pickAim(aimFor); save(); renderCats(); showMarker(); toast('กลับไปใช้ค่าเริ่มต้นแล้ว'); };
 $('#followModel').onchange = e => { config.head.followModel = e.target.checked; save(); };
-$('#btnTestAim').onclick = () => send({ t: 'testAction', action: { type: 'throw', image: 'rose', amount: 3, max: 3, from: 'random', flinch: true, sound: 'bonk' } });
+$('#btnTestAim').onclick = () => {
+  if (aimFor === 'head') return send({ t: 'testAction', action: { type: 'throw', image: 'rose', amount: 3, max: 3, from: 'random', flinch: true, sound: 'bonk' } });
+  save();
+  if (aimFor.startsWith('gift:')) return send({ t: 'previewStyle', gift: aimFor.slice(5), count: 1 });
+  const st = aimFor.slice(4);
+  const g = catalog.find(x => giftStyle(x) === st && !config.fx?.gifts?.[x.th]?.aim) || catalog.find(x => x.style === st);
+  send(g ? { t: 'previewStyle', gift: g.th, count: 1 } : { t: 'previewStyle', style: st, count: 1 });
+};
 
 // ---------- settings ----------
 const SLIDERS = [

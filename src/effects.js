@@ -13,11 +13,20 @@ export const sizeFor = coins => clamp(0.75 + 0.22 * Math.log10(Math.max(1, coins
 
 export class Effects {
   constructor({ vts, images, getHead, sound, log, getConfig }) {
-    Object.assign(this, { vts, images, getHead, log, getConfig });
+    Object.assign(this, { vts, images, log, getConfig });
+    this.baseHead = getHead;
+    this.aim = null; // per-category / per-gift target offset {dx, dy} while a job runs
     this._sound = sound;
     this.soundMode = 'auto';
     this.queue = [];
     this.running = false;
+  }
+
+  // head point moved by the aim offset of the gift/category being played
+  getHead(aim = this.aim) {
+    const h = this.baseHead();
+    if (!aim || (!aim.dx && !aim.dy)) return h;
+    return { x: clamp(h.x + (Number(aim.dx) || 0), 0, 1), y: clamp(h.y + (Number(aim.dy) || 0), 0, 1) };
   }
 
   // style: one of STYLES; img: picture source ('gift:g001', 'rose', URL); count: how many were sent; power: 0.8..2.4
@@ -26,14 +35,14 @@ export class Effects {
     this._sound(this.soundMode && this.soundMode !== 'auto' ? this.soundMode : name);
   }
 
-  play(style, { img = 'heart', count = 1, power = 1, label = '', coins = 1, size = 1, speed = 1, sound = 'auto', showcaseMin = 1000 } = {}) {
+  play(style, { img = 'heart', count = 1, power = 1, label = '', coins = 1, size = 1, speed = 1, sound = 'auto', showcaseMin = 1000, aim = null } = {}) {
     if (!this.vts.ready) return;
     const show = showcaseMin > 0 && coins >= showcaseMin;
-    if (style === 'bonk' && !show) return this.bonk(img, count, power, sizeFor(coins) * size, speed, sound);
-    const same = this.queue.find(q => q.style === style && q.img === img);
+    if (style === 'bonk' && !show) return this.bonk(img, count, power, sizeFor(coins) * size, speed, sound, aim);
+    const same = this.queue.find(q => q.style === style && q.img === img && JSON.stringify(q.aim) === JSON.stringify(aim));
     if (same) { same.count += count; return; }
     if (this.queue.length >= 8) return this.vts.flinch(side(), 0.8, true); // too busy: just react
-    this.queue.push({ style, img, count, power, label, coins, size, speed, sound, show });
+    this.queue.push({ style, img, count, power, label, coins, size, speed, sound, show, aim });
     if (!this.running) this._drain();
   }
 
@@ -45,11 +54,13 @@ export class Effects {
       try {
         const pic = await this.images.get(job.img, 'heart');
         this.cur = { img: pic, scale: sizeFor(job.coins) * (job.size || 1) }; // the gift picture is drawn at this scale
-        SPEED = Math.max(0.3, job.speed || 1); this.soundMode = job.sound || 'auto';
+        SPEED = Math.max(0.3, job.speed || 1); this.soundMode = job.sound || 'auto'; this.aim = job.aim || null;
         if (job.show) await this.showcase(pic, job.coins);
-        await Promise.race([fn.call(this, pic, job.count, clamp(job.power, 0.6, 2.5), job), sleep(HEAVY_TIMEOUT)]);
-        this.cur = null; SPEED = 1; this.soundMode = 'auto';
-      } catch (e) { this.log('fx', `เอฟเฟกต์ ${job.style} ผิดพลาด: ${e.message}`, 'warn'); }
+        const power = clamp(job.power, 0.6, 2.5);
+        const run = fn === this.bonk ? this.bonk(pic, job.count, power, this.cur.scale, job.speed, job.sound, job.aim) : fn.call(this, pic, job.count, power, job);
+        await Promise.race([run, sleep(HEAVY_TIMEOUT)]);
+        this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null;
+      } catch (e) { this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null; this.log('fx', `เอฟเฟกต์ ${job.style} ผิดพลาด: ${e.message}`, 'warn'); }
     }
     this.running = false;
   }
@@ -111,13 +122,13 @@ export class Effects {
   ring(h, n, r = 0.14) { return i => ({ x: h.x + Math.cos((i / n) * Math.PI * 2) * r * 0.56, y: h.y + Math.sin((i / n) * Math.PI * 2) * r }); }
 
   // ---------- styles ----------
-  async bonk(img, count, power, scale = this.cur?.scale || 1, speed = 1, sound = this.soundMode) {
+  async bonk(img, count, power, scale = this.cur?.scale || 1, speed = 1, sound = this.soundMode, aim = this.aim) {
     const cfg = this.getConfig().throwing;
     const hit = sound === 'none' ? null : (sound && sound !== 'auto' ? sound : 'bonk');
     const pic = typeof img === 'string' ? await this.images.get(img, 'rose') : img;
     const n = clamp(count, 1, 30);
     for (let i = 0; i < n; i++) {
-      this.vts.throwItem({ img: pic, head: this.getHead(), from: 'random', size: clamp((cfg.size || 90) / 500 * scale, 0.05, 0.6), speed: (cfg.speed || 1) * speed, spin: cfg.spin, flinch: true, strength: 0.6 + power * 0.4, eyes: this.eyes, onHit: () => hit && this._sound(hit) });
+      this.vts.throwItem({ img: pic, head: this.getHead(aim), from: 'random', size: clamp((cfg.size || 90) / 500 * scale, 0.05, 0.6), speed: (cfg.speed || 1) * speed, spin: cfg.spin, flinch: true, strength: 0.6 + power * 0.4, eyes: this.eyes, onHit: () => hit && this._sound(hit) });
       await sleep(cfg.stagger || 90);
     }
   }

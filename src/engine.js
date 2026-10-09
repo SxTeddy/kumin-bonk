@@ -143,6 +143,7 @@ export class Engine {
           img, count, power, coins, label: e?.th || ctx.gift || '',
           size: cat.size * (Number(own.size) || 1), speed: cat.speed, sound: cat.sound,
           showcaseMin: fx.showcaseMin ?? 1000,
+          aim: own.aim || cat.aim || null,                                 // per-gift / per-category target offset
         });
         return;
       }

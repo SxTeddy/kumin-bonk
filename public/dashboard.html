@@ -148,12 +148,19 @@
   <section id="aim" class="tab">
     <div class="grid2 aimgrid">
       <div class="card">
-        <h2>เล็งหัวตัวละคร</h2>
-        <p>คลิกหรือลากในกรอบด้านล่าง ให้เป้าสีชมพูใน<b>หน้าต่าง VTube Studio</b> ไปอยู่ตรง<b>หัว</b>ตัวละคร แล้วกดบันทึก</p>
+        <h2 id="aimTitle">เล็งหัวตัวละคร</h2>
+        <div class="aimfor">
+          <label>เป้าสำหรับ</label>
+          <select id="aimFor"></select>
+          <input id="aimGift" list="aimGiftList" placeholder="🔍 หรือพิมพ์ชื่อของขวัญ">
+          <datalist id="aimGiftList"></datalist>
+        </div>
+        <p id="aimHelp">คลิกหรือลากในกรอบด้านล่าง ให้เป้าสีชมพูใน<b>หน้าต่าง VTube Studio</b> ไปอยู่ตรง<b>หัว</b>ตัวละคร แล้วกดบันทึก</p>
         <p class="hint">กรอบนี้ = หน้าต่าง VTube Studio ทั้งหน้าต่าง</p>
-        <div id="pad"><div id="padDot"></div><div class="padlabel">หน้าต่าง VTube Studio</div></div>
+        <div id="pad"><div id="padHead" hidden></div><div id="padDot"></div><div class="padlabel">หน้าต่าง VTube Studio</div></div>
         <div class="row"><button class="primary" id="btnCalibSave">💾 บันทึกตำแหน่ง</button>
-          <label class="check"><input type="checkbox" id="followModel"> ขยับตามโมเดลอัตโนมัติ (ถ้าลากโมเดลใน VTS)</label></div>
+          <button id="btnAimReset" hidden>↺ กลับค่าเริ่มต้น</button>
+          <label class="check" id="followWrap"><input type="checkbox" id="followModel"> ขยับตามโมเดลอัตโนมัติ (ถ้าลากโมเดลใน VTS)</label></div>
         <p class="hint" id="aimPos"></p>
       </div>
       <div class="card">
@@ -165,6 +172,10 @@
         </div>
         <p class="hint">กดลูกศรทีละนิด หรือใช้ปุ่มลูกศรบนคีย์บอร์ดตอนอยู่หน้านี้</p>
         <button id="btnTestAim">🌹 ปาทดสอบ 3 ดอก</button>
+        <h2 style="margin-top:18px">ตั้งเป้าแยกตามหมวดของขวัญ</h2>
+        <p class="hint">ตั้งหัวให้ตรงก่อน แล้วกดหมวดด้านล่าง (เช่น ขนมเข้าปาก → ปาก, คล้องคอ → คอ, รถชน → ตัว) หรือของขวัญชิ้นเดียว แล้วลากจุดไปตรงที่อยากให้โดน
+          จุดจาง ๆ คือหัว · ถ้าขยับหัว/โมเดล เป้าของหมวดจะเลื่อนตามไปด้วย · ของขวัญที่ตั้งเฉพาะชิ้นจะใช้ค่าของชิ้นนั้นก่อนหมวด</p>
+        <div id="aimList" class="aimlist"></div>
       </div>
     </div>
   </section>

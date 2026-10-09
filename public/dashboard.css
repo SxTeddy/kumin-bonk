@@ -1,3 +1,4 @@
+[hidden] { display: none !important; }
 :root {
   --bg: #fff6f9; --card: #ffffff; --ink: #3b2236; --muted: #8a6f83; --line: #f3d9e4;
   --pink: #ff4f8b; --pink-soft: #ffe1ec; --mint: #2fbf8f; --amber: #f2a33a; --red: #e5484d;
@@ -173,3 +174,13 @@ label.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0; c
 .pop select { width: 100%; }
 
 .updbar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 8px 24px; background: #fff3c4; color: #5c4300; font-size: 14px; border-bottom: 2px solid #f2d27a; }
+
+.aimfor { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 10px; }
+.aimfor select, .aimfor input { flex: 1 1 180px; min-width: 0; }
+#padHead { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px dashed #ff6fa8; opacity: .55; pointer-events: none; }
+#padHead::after { content: 'หัว'; position: absolute; left: 14px; top: -4px; font-size: 11px; color: #ff6fa8; white-space: nowrap; }
+.aimlist { display: flex; flex-wrap: wrap; gap: 6px; }
+.aimlist button { font-size: 12px; padding: 4px 8px; }
+.aimlist button.on { background: var(--pink); color: #fff; border-color: var(--pink); }
+.aimlist button.done:not(.on) { border-color: var(--pink); }
+.aimsub { flex-basis: 100%; font-size: 12px; opacity: .7; margin-top: 6px; }

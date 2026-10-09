@@ -12,11 +12,11 @@ import { TikTokSource } from './tiktok.js';
 import { VTS } from './vts.js';
 import { Engine, CAT_DEFAULT } from './engine.js';
 import { Images } from './images.js';
-import { CATALOG, GiftMatcher, STYLES } from './gifts.js';
+import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.1';
+const VERSION = '1.4.2';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -187,6 +187,13 @@ async function onDashboard(ws, m) {
       if (vts.ready && vts.canCustomImages) vts.showCalib(images.builtin('target'), config.head);
       return;
     }
+    case 'aimMarker': { // show the VTS target at a category/gift aim point (head point itself is unchanged)
+      calibrating = true; liveHead = null;
+      const at = { x: clamp01(m.x), y: clamp01(m.y) };
+      overlay.send({ t: 'calib', ...at, show: true });
+      if (vts.ready && vts.canCustomImages) vts.showCalib(images.builtin('target'), at);
+      return;
+    }
     case 'calibDone': {
       const p = vts.ready ? (await vts.refreshModel())?.modelPosition : null;
       config.head.modelX = p ? p.positionX : null;
@@ -272,7 +279,7 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => { overlays.delete(ws); pushStatus(); });
   } else {
     dashboards.add(ws);
-    send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, logs });
+    send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, anchors: ANCHOR, logs });
     send(ws, { t: 'status', ...status() });
     send(ws, { t: 'update', ...updater.state });
     ws.on('message', raw => { let m; try { m = JSON.parse(raw); } catch { return; } onDashboard(ws, m).catch(e => log('app', e.message, 'warn')); });

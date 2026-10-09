@@ -379,6 +379,15 @@ const PICKED = new Map();
 for (const [style, names] of Object.entries(PICK)) for (const n of names) if (!n.endsWith('-x')) PICKED.set(n, style);
 const MUSIC_WORDS = ['เพลง', 'ดนตรี', 'กลอง', 'กีตาร์', 'ขลุ่ย', 'ไวโอลิน', 'เชลโล', 'เปียโน', 'แซก', 'แอคคอร์เดียน', 'คีย์บอร์ด', 'ดีเจ', 'ไมค์', 'ทำนอง', 'จังหวะ', 'ร็อค', 'ร็อก', 'ป็อป', 'ซอ', 'พิณ', 'ฟลุต', 'คลาริเน็ต', 'แตร', 'ทรัมเป็ต', 'อูคูเลเล่', 'โซแปง', 'เต้น', 'ร้อง', 'บากลาม่า', 'เซมซีเมีย', 'ไซเรน', 'ฟรีสไตล์', 'เสียง', 'ถั่ว', 'Gran', 'ขยับบนเวที', 'ตัวตลก', 'เห็ด', 'ทำงานหนัก', 'ไล่ตามความฝัน', 'อยู่ในความควบคุม', 'นักดีด'];
 
+// Where each style lands, relative to the head point (screen units, y down).
+// The aim tab shows head + anchor + the user's own offset for that category/gift.
+export const ANCHOR = {
+  wear: { dx: 0, dy: -0.14 }, neck: { dx: 0, dy: 0.15 }, eat: { dx: 0, dy: 0.07 }, drive: { dx: 0, dy: 0.3 },
+  flyby: { dx: 0, dy: -0.2 }, animal: { dx: 0, dy: -0.15 }, pat: { dx: 0.02, dy: -0.17 }, ball: { dx: 0, dy: -0.12 },
+  party: { dx: 0, dy: -0.22 }, magic: { dx: 0, dy: -0.24 }, zap: { dx: 0, dy: -0.12 }, flower: { dx: 0.04, dy: 0.26 },
+  meteor: { dx: 0, dy: -0.05 }, ice: { dx: 0, dy: -0.05 }, punch: { dx: 0, dy: 0.05 },
+};
+
 export function styleOf(name) {
   if (PICKED.has(name)) return PICKED.get(name);
   if (MUSIC_WORDS.some(w => name.includes(w))) return 'music';
