@@ -29,6 +29,8 @@ export const DEFAULT_CONFIG = {
     mode: 'auto',            // 'one' = one voice, 'auto' = voice by language, 'perUser' = each viewer gets their own voice
     voice: '',               // main voice ('' = best Thai voice)
     langVoices: {},          // language code -> voice name
+    favVoices: [],           // starred voices: the pool for 'perUser'
+    style: 'normal',         // voice style preset (pitch/rate)
     rate: 1, pitch: 1, volume: 1,
     readWhat: 'both',        // 'both' = name + message, 'text' = message only, 'name' = name only
     template: '{name} บอกว่า {text}',

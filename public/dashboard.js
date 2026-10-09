@@ -738,7 +738,26 @@ function detectLang(t) {
 let voices = [];
 const ct = () => config?.chatTts || {};
 const langOf = v => (v.lang || '').toLowerCase().replace('_', '-').split('-')[0].replace('tl', 'fil');
+const isMulti = v => /multilingual/i.test(v.name);
+const TAG = { th: 'th-TH', en: 'en-US', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR', vi: 'vi-VN', id: 'id-ID', ms: 'ms-MY', fil: 'fil-PH', lo: 'lo-LA', km: 'km-KH', my: 'my-MM', hi: 'hi-IN', ar: 'ar-SA', ru: 'ru-RU', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', sv: 'sv-SE' };
 function voicesFor(lang) { return voices.filter(v => langOf(v) === lang); }
+// voices for the "one voice per viewer" pool: starred voices that speak this language (multilingual ones speak all)
+function poolFor(lang) {
+  const fav = (ct().favVoices || []).map(n => voices.find(v => v.name === n)).filter(Boolean);
+  const ok = fav.filter(v => langOf(v) === lang || isMulti(v));
+  return ok.length ? ok : voicesFor(lang);
+}
+// voice "styles": the same voice made higher, lower, faster or slower
+const STYLES_V = {
+  normal: { label: '🙂 ปกติ', pitch: 1, rate: 1 },
+  cute: { label: '🐿️ เสียงเล็กน่ารัก', pitch: 1.55, rate: 1.1 },
+  kid: { label: '👶 เด็กน้อย', pitch: 1.85, rate: 1.05 },
+  big: { label: '🐻 เสียงใหญ่', pitch: 0.6, rate: 0.9 },
+  grandpa: { label: '👴 คุณปู่', pitch: 0.7, rate: 0.8 },
+  fast: { label: '⚡ เร็วปรื๋อ', pitch: 1.1, rate: 1.6 },
+  slow: { label: '🐢 ช้า ๆ', pitch: 0.95, rate: 0.7 },
+  robot: { label: '🤖 หุ่นยนต์', pitch: 0.5, rate: 1.15 },
+};
 function voiceRank(v) { return (/natural|online|neural/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1); }
 function bestVoice(lang) { return voicesFor(lang).sort((a, b) => voiceRank(b) - voiceRank(a))[0]; }
 function mainVoice() { return voices.find(v => v.name === ct().voice) || bestVoice('th') || voices[0]; }
@@ -747,7 +766,7 @@ const hash = s => { let h = 2166136261; for (const c of String(s)) h = Math.imul
 
 function loadVoices() {
   voices = speechSynthesis.getVoices();
-  renderChatVoices();
+  renderChatVoices(); renderVoiceLib();
 }
 if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
@@ -813,14 +832,14 @@ function prepare(name, user, text) {
 const ctQueue = []; let ctBusy = false, ctCur = null;
 function pickVoice(item, userKey) {
   const c = ct(), mode = c.mode || 'auto';
-  if (mode === 'one') return { voice: mainVoice(), pitch: 1 };
+  if (mode === 'one') return { voice: mainVoice(), pitch: 1, rate: 1 };
   const byLang = item.part === 'name' && mode !== 'perUser' ? mainVoice() : voiceForLang(item.lang);
   if (mode === 'perUser' && userKey) {
-    const list = voicesFor(item.lang).length ? voicesFor(item.lang) : [mainVoice()].filter(Boolean);
-    const h = hash(userKey);
-    return { voice: list[h % list.length] || byLang || mainVoice(), pitch: 0.8 + (hash(userKey + '#pitch') % 9) * 0.06 };
+    const list = poolFor(item.lang).length ? poolFor(item.lang) : [mainVoice()].filter(Boolean);
+    const h = hash(userKey), hp = hash(userKey + '#pitch');
+    return { voice: list[h % list.length] || byLang || mainVoice(), pitch: 0.75 + (hp % 11) * 0.06, rate: 0.9 + ((hp >>> 4) % 5) * 0.06 };
   }
-  return { voice: byLang || mainVoice(), pitch: 1 };
+  return { voice: byLang || mainVoice(), pitch: 1, rate: 1 };
 }
 function enqueue(entry) {
   const max = Number(ct().maxQueue) || 6;
@@ -836,9 +855,9 @@ function nextSpeak() {
   const speakPart = () => {
     const p = parts.shift(); if (!p) return done();
     const u = new SpeechSynthesisUtterance(p.text);
-    const { voice, pitch } = pickVoice(p, ctCur.userKey);
-    if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = p.lang;
-    u.rate = Number(c.rate) || 1; u.pitch = Math.max(0.1, Math.min(2, (Number(c.pitch) || 1) * pitch)); u.volume = c.volume ?? 1;
+    const { voice, pitch, rate = 1 } = pickVoice(p, ctCur.userKey);
+    if (voice) { u.voice = voice; u.lang = isMulti(voice) ? (TAG[p.lang] || p.lang) : voice.lang; } else u.lang = TAG[p.lang] || p.lang;
+    u.rate = Math.max(0.3, Math.min(3, (Number(c.rate) || 1) * rate)); u.pitch = Math.max(0.1, Math.min(2, (Number(c.pitch) || 1) * pitch)); u.volume = c.volume ?? 1;
     let ended = false; const fin = () => { if (!ended) { ended = true; clearTimeout(guard); speakPart(); } };
     u.onend = fin; u.onerror = fin;
     const guard = setTimeout(fin, 4000 + p.text.length * 220 / (u.rate || 1)); // never get stuck
@@ -891,10 +910,46 @@ function renderChatVoices() {
   const nLang = new Set(voices.map(langOf)).size;
   $('#ctLangHint').textContent = `เครื่องนี้มี ${voices.length} เสียง ใน ${nLang} ภาษา · แอปดูตัวอักษรในข้อความแล้วเลือกเสียงภาษานั้นให้เอง (ใช้ตอนเลือก "ตามภาษา" หรือ "คนละเสียง")`;
   $('#ctLangs').innerHTML = Object.entries(LANGS).map(([k, label]) => {
-    const list = voicesFor(k);
-    return `<div class="lg"><span>${label}</span>${list.length ? `<select data-lang="${k}">${voiceOptions(list, c.langVoices?.[k], 'อัตโนมัติ')}</select>` : '<small>ไม่มีเสียงภาษานี้ในเครื่อง</small>'}<small>${list.length} เสียง</small></div>`;
+    const list = [...voicesFor(k), ...(voicesFor(k).length ? voices.filter(v => isMulti(v) && langOf(v) !== k) : [])];
+    return `<div class="lg"><span>${label}</span>${list.length ? `<select data-lang="${k}">${voiceOptions(list, c.langVoices?.[k], 'อัตโนมัติ')}</select>` : '<small>ไม่มีเสียงภาษานี้ในเครื่อง</small>'}<small>${voicesFor(k).length} เสียง</small></div>`;
   }).join('');
   $$('#ctLangs select').forEach(sel => sel.onchange = () => setCt('langVoices', { ...(ct().langVoices || {}), [sel.dataset.lang]: sel.value }));
+}
+// --- voice library ---
+const prettyVoice = v => v.name.replace(/^Microsoft /, '').replace(/ Online \(Natural\)/, '').replace(/ - .*$/, '');
+function sampleText(v) { const l = langOf(v); return isMulti(v) ? 'สวัสดีค่ะ Hello! ขอบคุณที่มาดูไลฟ์นะ' : ({ th: 'สวัสดีค่ะ ขอบคุณที่มาดูไลฟ์นะคะ', ja: 'こんにちは、配信に来てくれてありがとう！', ko: '안녕하세요, 방송에 와줘서 고마워요!', zh: '你好，谢谢你来看直播！', vi: 'Xin chào, cảm ơn bạn đã xem live!' }[l] || 'Hello! Thanks for watching the live!'); }
+function previewVoice(v) {
+  enableSound(); speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(sampleText(v)); u.voice = v; u.lang = isMulti(v) ? 'th-TH' : v.lang;
+  u.rate = (Number(ct().rate) || 1); u.pitch = Number(ct().pitch) || 1; u.volume = ct().volume ?? 1;
+  speechSynthesis.speak(u);
+}
+function renderVoiceLib() {
+  if (!config || !$('#voiceLib')) return;
+  const c = ct(), fav = new Set(c.favVoices || []);
+  const langs = [...new Set(voices.map(langOf))].sort((a, b) => (a === 'th' ? -1 : b === 'th' ? 1 : (LANGS[a] ? 0 : 1) - (LANGS[b] ? 0 : 1) || a.localeCompare(b)));
+  const sel = $('#libLang'); const cur = sel.value || 'th+multi';
+  sel.innerHTML = `<option value="th+multi">ไทย + พูดได้หลายภาษา</option><option value="all">ทุกภาษา (${voices.length})</option><option value="multi">🌐 พูดได้หลายภาษา</option>` + langs.map(l => `<option value="${l}">${LANGS[l] || l} (${voicesFor(l).length})</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'th+multi';
+  const q = $('#libQ').value.trim().toLowerCase(), onlyFav = $('#libFav').checked, lf = sel.value;
+  const list = voices.filter(v => (lf === 'all' || (lf === 'multi' ? isMulti(v) : lf === 'th+multi' ? (langOf(v) === 'th' || isMulti(v)) : langOf(v) === lf))
+    && (!q || v.name.toLowerCase().includes(q)) && (!onlyFav || fav.has(v.name)));
+  $('#libCount').textContent = `มีทั้งหมด ${voices.length} เสียง · ติดดาว ${fav.size}`;
+  $('#voiceLib').innerHTML = list.slice(0, 300).map((v, i) => `<div class="vc ${v.name === c.voice ? 'main' : ''}"><div><b title="${esc(v.name)}">${isMulti(v) ? '🌐 ' : ''}${esc(prettyVoice(v))}</b><small>${esc(LANGS[langOf(v)] || v.lang)} · ${esc(v.lang)}</small></div>
+    <button data-play="${i}" title="ฟัง">▶</button><button class="star ${fav.has(v.name) ? 'on' : ''}" data-fav="${i}" title="ติดดาว">⭐</button><button data-main="${i}" title="ใช้เป็นเสียงหลัก">${v.name === c.voice ? '✓ หลัก' : 'ใช้'}</button></div>`).join('') || '<p class="hint">ไม่พบเสียง</p>';
+  $$('#voiceLib [data-play]').forEach(b => b.onclick = () => previewVoice(list[+b.dataset.play]));
+  $$('#voiceLib [data-fav]').forEach(b => b.onclick = () => { const n = list[+b.dataset.fav].name; const f = new Set(ct().favVoices || []); f.has(n) ? f.delete(n) : f.add(n); setCt('favVoices', [...f]); renderVoiceLib(); });
+  $$('#voiceLib [data-main]').forEach(b => b.onclick = () => { setCt('voice', list[+b.dataset.main].name); renderChat(); toast('ตั้งเป็นเสียงหลักแล้ว'); });
+}
+$('#libLang').onchange = renderVoiceLib; $('#libQ').oninput = renderVoiceLib; $('#libFav').onchange = renderVoiceLib;
+function renderStyles() {
+  const cur = ct().style || 'normal';
+  $('#ctStyles').innerHTML = Object.entries(STYLES_V).map(([k, st]) => `<span class="chip ${k === cur ? 'on' : ''}" data-st="${k}">${st.label}</span>`).join('');
+  $$('#ctStyles [data-st]').forEach(ch => ch.onclick = () => {
+    const st = STYLES_V[ch.dataset.st];
+    config.chatTts = { ...ct(), style: ch.dataset.st, pitch: st.pitch, rate: st.rate }; save(); renderChat();
+    const v = mainVoice(); if (v) previewVoice(v);
+  });
 }
 const MODE_HINT = { one: 'อ่านทุกข้อความด้วยเสียงหลักเสียงเดียว', auto: 'ภาษาไทยใช้เสียงไทย ภาษาอังกฤษใช้เสียงอังกฤษ ญี่ปุ่นใช้เสียงญี่ปุ่น ฯลฯ อ่านได้ทุกภาษาที่เครื่องมีเสียง', perUser: 'คนดูแต่ละคนได้เสียงของตัวเอง (สุ่มเสียงและความสูงต่ำแบบคงที่ต่อคน) และยังเลือกตามภาษาให้ด้วย' };
 function renderChat() {
@@ -913,12 +968,12 @@ function renderChat() {
   $('#ctBanned').innerHTML = chips(c.banned, 'ban'); $('#ctUsers').innerHTML = chips(c.blockedUsers, '');
   $$('#ctBanned b').forEach(b => b.onclick = () => { const a = [...ct().banned]; a.splice(+b.dataset.i, 1); setCt('banned', a); renderChat(); });
   $$('#ctUsers b').forEach(b => b.onclick = () => { const a = [...ct().blockedUsers]; a.splice(+b.dataset.i, 1); setCt('blockedUsers', a); renderChat(); });
-  renderChatVoices();
+  renderChatVoices(); renderStyles(); renderVoiceLib();
 }
 $('#ctOn').onchange = e => { setCt('enabled', e.target.checked); if (!e.target.checked) stopAll(); toast(e.target.checked ? 'เปิดอ่านแชตแล้ว 🔊' : 'ปิดอ่านแชตแล้ว'); };
 $$('#ctMode button').forEach(b => b.onclick = () => { setCt('mode', b.dataset.m); renderChat(); });
 $('#ctVoice').onchange = e => setCt('voice', e.target.value);
-for (const [id, k] of [['ctRate', 'rate'], ['ctPitch', 'pitch'], ['ctVol', 'volume']]) $('#' + id).oninput = e => { e.target.nextElementSibling.textContent = Number(e.target.value).toFixed(2); setCt(k, Number(e.target.value)); };
+for (const [id, k] of [['ctRate', 'rate'], ['ctPitch', 'pitch'], ['ctVol', 'volume']]) $('#' + id).oninput = e => { e.target.nextElementSibling.textContent = Number(e.target.value).toFixed(2); config.chatTts = { ...ct(), [k]: Number(e.target.value), ...(k !== 'volume' ? { style: 'custom' } : {}) }; save(); if (k !== 'volume') $$('#ctStyles .chip').forEach(c => c.classList.remove('on')); };
 $$('#ctWhat button').forEach(b => b.onclick = () => { setCt('readWhat', b.dataset.w); renderChat(); });
 $('#ctTemplate').onchange = e => setCt('template', e.target.value.includes('{text}') ? e.target.value : '{name} บอกว่า {text}');
 $('#ctBanMode').onchange = e => setCt('bannedMode', e.target.value);

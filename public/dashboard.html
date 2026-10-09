@@ -224,7 +224,9 @@
         <p class="hint" id="ctModeHint"></p>
         <label>เสียงหลัก</label>
         <select id="ctVoice"></select>
-        <div class="sliders" style="margin-top:10px">
+        <label>สไตล์เสียง</label>
+        <div class="chips" id="ctStyles"></div>
+        <div class="sliders" style="margin-top:6px">
           <div class="slider"><label>ความเร็ว</label><input type="range" id="ctRate" min="0.5" max="2" step="0.05"><output></output></div>
           <div class="slider"><label>ระดับเสียง (สูง-ต่ำ)</label><input type="range" id="ctPitch" min="0.5" max="2" step="0.05"><output></output></div>
           <div class="slider"><label>ความดัง</label><input type="range" id="ctVol" min="0" max="1" step="0.05"><output></output></div>
@@ -263,6 +265,12 @@
         <div class="row" style="margin-top:8px"><label style="margin:0">ยาวสุด</label><input type="number" id="ctMaxLen" min="20" max="400" style="width:90px"><span class="hint" style="margin:0">ตัวอักษร</span>
           <label style="margin:0 0 0 10px">คิวสูงสุด</label><input type="number" id="ctMaxQ" min="1" max="50" style="width:80px"><span class="hint" style="margin:0">ข้อความ</span></div>
       </div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">🎚️ คลังเสียง</h2><span class="hint" id="libCount" style="margin:0"></span></div>
+      <p class="hint">กด ▶ ฟังเสียงตัวอย่าง · กด ⭐ เก็บเข้า "ชุดเสียงคนละเสียง" (โหมด 🎭 คนละเสียง จะสุ่มเสียงจากที่ติดดาวให้คนดูแต่ละคน) · เสียงที่มีป้าย 🌐 พูดได้หลายภาษา (รวมภาษาไทย)</p>
+      <div class="row"><select id="libLang"></select><input id="libQ" placeholder="🔍 ค้นหาชื่อเสียง" style="flex:1"><label class="check" style="margin:0"><input type="checkbox" id="libFav"> เฉพาะที่ติดดาว</label></div>
+      <div class="voicelib" id="voiceLib"></div>
     </div>
     <div class="grid2">
       <div class="card">
