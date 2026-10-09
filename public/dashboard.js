@@ -35,7 +35,7 @@ function handle(m) {
       break;
     case 'status': renderStatus(m); break;
     case 'log': addLog(m); break;
-    case 'event': addFeed(m); if (m.ev.type === 'gift' && !seenGifts.some(g => g.name === m.ev.gift.name)) { seenGifts.push(m.ev.gift); fillGiftList(); } break;
+    case 'event': addFeed(m); if (m.ev.type === 'chat') readChat(m.ev.user?.nickname || m.ev.user?.username, m.ev.user?.username, m.ev.text); if (m.ev.type === 'gift' && !seenGifts.some(g => g.name === m.ev.gift.name)) { seenGifts.push(m.ev.gift); fillGiftList(); } break;
     case 'fired': break;
     case 'vtsLists': vtsLists = m; if (config) renderRules(); break;
     case 'tts': speak(m.text); break;
@@ -235,6 +235,7 @@ function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.ad
 
 // ---------- render ----------
 function renderAll() {
+  renderChat();
   $('#tUser').value = config.tiktokUsername || '';
   $('#autoConnect').checked = !!config.autoConnect;
   $('#obsUrl').value = `${location.origin}/overlay`;
@@ -689,25 +690,241 @@ $('#optEyes').onchange = e => { config.throwing.eyesClose = e.target.checked; sa
 $('#optKey').onchange = e => { config.eulerApiKey = e.target.value.trim(); save(); };
 $('#optVtsPort').onchange = e => { config.vtsPort = Number(e.target.value) || 8001; save(); };
 
-// ---------- TTS ----------
+// ---------- chat reader (TTS) ----------
+const LANGS = { th: 'ไทย', en: 'อังกฤษ', ja: 'ญี่ปุ่น', zh: 'จีน', ko: 'เกาหลี', vi: 'เวียดนาม', id: 'อินโดนีเซีย', ms: 'มาเลย์', fil: 'ฟิลิปปินส์', lo: 'ลาว', km: 'เขมร', my: 'พม่า', hi: 'ฮินดี', ar: 'อาหรับ', ru: 'รัสเซีย', es: 'สเปน', pt: 'โปรตุเกส', fr: 'ฝรั่งเศส', de: 'เยอรมัน', it: 'อิตาลี', sv: 'สวีเดน' };
+const STOP = {
+  id: ['yang', 'dan', 'ini', 'itu', 'aku', 'kamu', 'tidak', 'apa', 'ada', 'sama', 'banget', 'kak', 'dong', 'nya'],
+  ms: ['saya', 'awak', 'tak', 'boleh', 'lah', 'sangat', 'terima kasih'],
+  fil: ['ang', 'ng', 'mga', 'po', 'salamat', 'ako', 'ikaw', 'naman', 'lang', 'sa'],
+  es: ['que', 'el', 'la', 'los', 'hola', 'gracias', 'por', 'muy', 'es', 'como', 'pero', 'yo'],
+  pt: ['você', 'obrigado', 'obrigada', 'não', 'muito', 'que', 'tudo', 'bem', 'eu'],
+  fr: ['je', 'tu', 'est', 'les', 'bonjour', 'merci', 'pas', 'le', 'la', 'trop', 'c\'est'],
+  de: ['ich', 'du', 'und', 'nicht', 'danke', 'ist', 'das', 'hallo', 'sehr'],
+  it: ['ciao', 'grazie', 'sono', 'non', 'che', 'molto', 'bella'],
+  sv: ['jag', 'du', 'och', 'inte', 'tack', 'hej', 'är', 'det', 'mycket'],
+  en: ['the', 'you', 'is', 'are', 'i', 'and', 'hi', 'hello', 'love', 'thanks', 'what', 'so', 'my', 'this', 'lol'],
+};
+function detectLang(t) {
+  if (/[฀-๿]/.test(t)) return 'th';
+  if (/[぀-ヿ]/.test(t)) return 'ja';
+  if (/[가-힯ᄀ-ᇿ]/.test(t)) return 'ko';
+  if (/[一-鿿]/.test(t)) return 'zh';
+  if (/[຀-໿]/.test(t)) return 'lo';
+  if (/[ក-៿]/.test(t)) return 'km';
+  if (/[က-႟]/.test(t)) return 'my';
+  if (/[ऀ-ॿ]/.test(t)) return 'hi';
+  if (/[؀-ۿ]/.test(t)) return 'ar';
+  if (/[Ѐ-ӿ]/.test(t)) return 'ru';
+  if (/[ăđơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(t)) return 'vi';
+  const words = t.toLowerCase().split(/[^\p{L}']+/u).filter(Boolean);
+  let best = 'en', score = 0;
+  for (const [lg, list] of Object.entries(STOP)) { const n = words.filter(w => list.includes(w)).length; if (n > score) { score = n; best = lg; } }
+  if (/[ñ¿¡]/.test(t)) return 'es';
+  if (/[ãõç]/.test(t)) return 'pt';
+  if (/[äöüß]/.test(t) && best !== 'sv') return 'de';
+  if (/[åä]/.test(t)) return 'sv';
+  return best;
+}
 let voices = [];
+const ct = () => config?.chatTts || {};
+const langOf = v => (v.lang || '').toLowerCase().replace('_', '-').split('-')[0].replace('tl', 'fil');
+function voicesFor(lang) { return voices.filter(v => langOf(v) === lang); }
+function voiceRank(v) { return (/natural|online|neural/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1); }
+function bestVoice(lang) { return voicesFor(lang).sort((a, b) => voiceRank(b) - voiceRank(a))[0]; }
+function mainVoice() { return voices.find(v => v.name === ct().voice) || bestVoice('th') || voices[0]; }
+function voiceForLang(lang) { const n = ct().langVoices?.[lang]; return (n && voices.find(v => v.name === n)) || bestVoice(lang) || null; }
+const hash = s => { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.codePointAt(0), 16777619); return h >>> 0; };
+
 function loadVoices() {
   voices = speechSynthesis.getVoices();
-  const saved = (() => { try { return localStorage.getItem('kbVoice'); } catch { return null; } })();
-  const th = voices.filter(v => v.lang.startsWith('th'));
-  const list = [...th, ...voices.filter(v => !v.lang.startsWith('th'))];
-  $('#ttsVoice').innerHTML = list.map(v => `<option value="${esc(v.name)}" ${v.name === saved ? 'selected' : ''}>${esc(v.name)} (${v.lang})</option>`).join('') || '<option>ไม่พบเสียงในเครื่อง</option>';
+  renderChatVoices();
 }
 if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
-$('#ttsVoice').onchange = e => { try { localStorage.setItem('kbVoice', e.target.value); } catch {} };
-function speak(text) {
-  if (!('speechSynthesis' in window) || !text) return;
-  const u = new SpeechSynthesisUtterance(text);
-  const v = voices.find(v => v.name === $('#ttsVoice').value);
-  if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'th-TH';
-  speechSynthesis.speak(u);
+
+// --- filters ---
+const norm = s => String(s || '').toLowerCase().normalize('NFKC').replace(/[\s​-‍﻿._\-*~|'"`!?,]+/g, '');
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function hasBanned(text) { const n = norm(text); return (ct().banned || []).find(w => w && n.includes(norm(w))); }
+function cleanBanned(text, mode) {
+  for (const w of ct().banned || []) {
+    if (!w) continue;
+    const re = new RegExp(escRe(w).split('').join('[\\s._\\-*~|]*'), 'giu');
+    text = text.replace(re, mode === 'beep' ? ' ปี๊บ ' : ' ');
+  }
+  return text.replace(/\s+/g, ' ').trim();
 }
-$('#btnTtsTest').onclick = () => speak('สวัสดีค่ะ ขอบคุณสำหรับกุหลาบนะ');
+function tidy(text) {
+  const c = ct();
+  if (c.laugh) {
+    text = text.replace(/5{3,}\+*/g, ' ฮ่า ๆ ').replace(/(?:ha){3,}|(?:ฮ่า){3,}/gi, ' ฮ่า ๆ ').replace(/w{4,}/gi, ' ฮ่า ๆ ');
+    text = text.replace(/(.)\1{3,}/gu, '$1$1$1');
+  }
+  return text.replace(/\s+/g, ' ').trim();
+}
+// returns { say: [{text, lang}], why } — why = reason it was skipped
+function prepare(name, user, text) {
+  const c = ct();
+  const who = String(name || '');
+  if ((c.blockedUsers || []).some(b => { const n = norm(b).replace(/^@/, ''); return n && (norm(who) === n || norm(user) === n); })) return { why: 'คนที่ไม่อ่าน' };
+  let t = String(text || '').trim();
+  if (!t) return { why: 'ข้อความว่าง' };
+  if (c.skipCommands && t.startsWith('!')) return { why: 'คำสั่ง !' };
+  if (c.skipLinks && /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|ly|gg|io|me|co|th)\b)/i.test(t)) return { why: 'มีลิงก์' };
+  if (c.skipEmojiOnly && !/[\p{L}\p{N}]/u.test(t)) return { why: 'มีแต่อีโมจิ' };
+  const bad = hasBanned(t) || hasBanned(who);
+  if (bad) {
+    if ((c.bannedMode || 'skip') === 'skip') return { why: 'คำต้องห้าม' };
+    t = cleanBanned(t, c.bannedMode);
+  }
+  const nameSay = bad && hasBanned(who) ? '' : who;
+  t = tidy(t);
+  const max = Number(c.maxLen) || 120;
+  if ([...t].length > max) t = [...t].slice(0, max).join('') + ' …';
+  if (!t) return { why: 'ไม่เหลือข้อความ' };
+  const lang = detectLang(t);
+  const tpl = c.readName && nameSay ? (c.template || '{name} บอกว่า {text}') : '{text}';
+  const [before, after = ''] = tpl.split('{text}');
+  const say = [];
+  const pre = before.replaceAll('{name}', nameSay).trim();
+  if (pre) say.push({ text: pre, lang: detectLang(pre) === 'th' || /[฀-๿]/.test(tpl) ? 'th' : detectLang(pre), part: 'name' });
+  say.push({ text: t, lang, part: 'text' });
+  const post = after.replaceAll('{name}', nameSay).trim(); if (post) say.push({ text: post, lang: 'th', part: 'name' });
+  return { say, lang };
+}
+
+// --- queue ---
+const ctQueue = []; let ctBusy = false, ctCur = null;
+function pickVoice(item, userKey) {
+  const c = ct(), mode = c.mode || 'auto';
+  if (mode === 'one') return { voice: mainVoice(), pitch: 1 };
+  const byLang = item.part === 'name' && mode !== 'perUser' ? mainVoice() : voiceForLang(item.lang);
+  if (mode === 'perUser' && userKey) {
+    const list = voicesFor(item.lang).length ? voicesFor(item.lang) : [mainVoice()].filter(Boolean);
+    const h = hash(userKey);
+    return { voice: list[h % list.length] || byLang || mainVoice(), pitch: 0.8 + (hash(userKey + '#pitch') % 9) * 0.06 };
+  }
+  return { voice: byLang || mainVoice(), pitch: 1 };
+}
+function enqueue(entry) {
+  const max = Number(ct().maxQueue) || 6;
+  while (ctQueue.length >= max) { const old = ctQueue.shift(); markFeed(old, 'ข้าม: คิวเต็ม'); }
+  ctQueue.push(entry); showQueue(); if (!ctBusy) nextSpeak();
+}
+function nextSpeak() {
+  ctCur = ctQueue.shift(); showQueue();
+  if (!ctCur) { ctBusy = false; return; }
+  ctBusy = true; markFeed(ctCur, '🔊 กำลังอ่าน', 'now');
+  const parts = ctCur.say.slice(); const c = ct();
+  const done = () => { markFeed(ctCur, '✓ อ่านแล้ว', 'read'); setTimeout(nextSpeak, 150); };
+  const speakPart = () => {
+    const p = parts.shift(); if (!p) return done();
+    const u = new SpeechSynthesisUtterance(p.text);
+    const { voice, pitch } = pickVoice(p, ctCur.userKey);
+    if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = p.lang;
+    u.rate = Number(c.rate) || 1; u.pitch = Math.max(0.1, Math.min(2, (Number(c.pitch) || 1) * pitch)); u.volume = c.volume ?? 1;
+    let ended = false; const fin = () => { if (!ended) { ended = true; clearTimeout(guard); speakPart(); } };
+    u.onend = fin; u.onerror = fin;
+    const guard = setTimeout(fin, 4000 + p.text.length * 220 / (u.rate || 1)); // never get stuck
+    speechSynthesis.speak(u);
+  };
+  speakPart();
+}
+function stopAll() { ctQueue.length = 0; speechSynthesis.cancel(); ctBusy = false; showQueue(); }
+function showQueue() { const el = $('#ctQueue'); if (el) el.textContent = ctQueue.length ? `รออ่าน ${ctQueue.length} ข้อความ` : ''; }
+
+// --- feed of the chat tab ---
+let ctId = 0;
+function addChatFeed(name, text, status) {
+  const ul = $('#ctFeed'); ul.querySelector('.empty')?.remove();
+  const li = document.createElement('li'); li.dataset.id = ++ctId;
+  li.innerHTML = `<span class="who">${esc(name || '?')}</span><span class="msg">${esc(text)}</span><span class="st">${esc(status)}</span>`;
+  ul.prepend(li); while (ul.children.length > 60) ul.lastChild.remove();
+  return ctId;
+}
+function markFeed(entry, status, cls = '') {
+  if (!entry) return;
+  const li = $(`#ctFeed li[data-id="${entry.id}"]`); if (!li) return;
+  li.className = cls; li.querySelector('.st').textContent = status;
+}
+// called for every chat message from the live (and for the "read aloud" rule action)
+function readChat(name, user, text, { force = false } = {}) {
+  if (!('speechSynthesis' in window)) return;
+  if (!force && !ct().enabled) return;
+  const r = prepare(name, user, text);
+  const id = addChatFeed(name, text, r.why ? `ข้าม: ${r.why}` : `รอ · ${LANGS[r.lang] || r.lang}`);
+  if (r.why) return;
+  enqueue({ id, say: r.say, userKey: user || name });
+}
+function speak(text) { // rule action "อ่านออกเสียง": already formatted text, still filtered
+  const r = prepare('', '', text);
+  const id = addChatFeed('กฎ', text, r.why ? `ข้าม: ${r.why}` : 'รอ');
+  if (!r.why) enqueue({ id, say: r.say, userKey: '' });
+}
+
+// --- settings UI ---
+function setCt(k, v) { config.chatTts = { ...ct(), [k]: v }; save(); }
+function voiceOptions(list, sel, auto) {
+  return (auto ? `<option value="">${auto}</option>` : '') + list.map(v => `<option value="${esc(v.name)}" ${v.name === sel ? 'selected' : ''}>${esc(v.name.replace(/^Microsoft /, ''))} (${esc(v.lang)})</option>`).join('');
+}
+function renderChatVoices() {
+  if (!config || !$('#ctVoice')) return;
+  const c = ct();
+  const th = voices.filter(v => langOf(v) === 'th');
+  $('#ctVoice').innerHTML = voiceOptions([...th, ...voices.filter(v => langOf(v) !== 'th')], c.voice, 'อัตโนมัติ (เสียงไทยที่ดีที่สุด)') || '<option>ไม่พบเสียงในเครื่อง</option>';
+  const nLang = new Set(voices.map(langOf)).size;
+  $('#ctLangHint').textContent = `เครื่องนี้มี ${voices.length} เสียง ใน ${nLang} ภาษา · แอปดูตัวอักษรในข้อความแล้วเลือกเสียงภาษานั้นให้เอง (ใช้ตอนเลือก "ตามภาษา" หรือ "คนละเสียง")`;
+  $('#ctLangs').innerHTML = Object.entries(LANGS).map(([k, label]) => {
+    const list = voicesFor(k);
+    return `<div class="lg"><span>${label}</span>${list.length ? `<select data-lang="${k}">${voiceOptions(list, c.langVoices?.[k], 'อัตโนมัติ')}</select>` : '<small>ไม่มีเสียงภาษานี้ในเครื่อง</small>'}<small>${list.length} เสียง</small></div>`;
+  }).join('');
+  $$('#ctLangs select').forEach(sel => sel.onchange = () => setCt('langVoices', { ...(ct().langVoices || {}), [sel.dataset.lang]: sel.value }));
+}
+const MODE_HINT = { one: 'อ่านทุกข้อความด้วยเสียงหลักเสียงเดียว', auto: 'ภาษาไทยใช้เสียงไทย ภาษาอังกฤษใช้เสียงอังกฤษ ญี่ปุ่นใช้เสียงญี่ปุ่น ฯลฯ อ่านได้ทุกภาษาที่เครื่องมีเสียง', perUser: 'คนดูแต่ละคนได้เสียงของตัวเอง (สุ่มเสียงและความสูงต่ำแบบคงที่ต่อคน) และยังเลือกตามภาษาให้ด้วย' };
+function renderChat() {
+  if (!config) return;
+  const c = ct();
+  $('#ctOn').checked = !!c.enabled;
+  $$('#ctMode button').forEach(b => b.classList.toggle('on', b.dataset.m === (c.mode || 'auto')));
+  $('#ctModeHint').textContent = MODE_HINT[c.mode || 'auto'];
+  for (const [id, k] of [['ctRate', 'rate'], ['ctPitch', 'pitch'], ['ctVol', 'volume']]) { const r = $('#' + id); r.value = c[k] ?? 1; r.nextElementSibling.textContent = Number(r.value).toFixed(2); }
+  $('#ctReadName').checked = c.readName !== false; $('#ctTemplate').value = c.template || '{name} บอกว่า {text}';
+  $('#ctBanMode').value = c.bannedMode || 'skip';
+  $('#ctSkipCmd').checked = c.skipCommands !== false; $('#ctSkipLink').checked = c.skipLinks !== false; $('#ctSkipEmoji').checked = c.skipEmojiOnly !== false; $('#ctLaugh').checked = c.laugh !== false;
+  $('#ctMaxLen').value = c.maxLen || 120; $('#ctMaxQ').value = c.maxQueue || 6;
+  const chips = (arr, cls) => (arr || []).map((w, i) => `<span class="chip ${cls}">${esc(w)}<b data-i="${i}" title="ลบ">×</b></span>`).join('') || '<span class="hint" style="margin:0">ยังไม่มี</span>';
+  $('#ctBanned').innerHTML = chips(c.banned, 'ban'); $('#ctUsers').innerHTML = chips(c.blockedUsers, '');
+  $$('#ctBanned b').forEach(b => b.onclick = () => { const a = [...ct().banned]; a.splice(+b.dataset.i, 1); setCt('banned', a); renderChat(); });
+  $$('#ctUsers b').forEach(b => b.onclick = () => { const a = [...ct().blockedUsers]; a.splice(+b.dataset.i, 1); setCt('blockedUsers', a); renderChat(); });
+  renderChatVoices();
+}
+$('#ctOn').onchange = e => { setCt('enabled', e.target.checked); if (!e.target.checked) stopAll(); toast(e.target.checked ? 'เปิดอ่านแชตแล้ว 🔊' : 'ปิดอ่านแชตแล้ว'); };
+$$('#ctMode button').forEach(b => b.onclick = () => { setCt('mode', b.dataset.m); renderChat(); });
+$('#ctVoice').onchange = e => setCt('voice', e.target.value);
+for (const [id, k] of [['ctRate', 'rate'], ['ctPitch', 'pitch'], ['ctVol', 'volume']]) $('#' + id).oninput = e => { e.target.nextElementSibling.textContent = Number(e.target.value).toFixed(2); setCt(k, Number(e.target.value)); };
+$('#ctReadName').onchange = e => setCt('readName', e.target.checked);
+$('#ctTemplate').onchange = e => setCt('template', e.target.value.includes('{text}') ? e.target.value : '{name} บอกว่า {text}');
+$('#ctBanMode').onchange = e => setCt('bannedMode', e.target.value);
+$('#ctSkipCmd').onchange = e => setCt('skipCommands', e.target.checked);
+$('#ctSkipLink').onchange = e => setCt('skipLinks', e.target.checked);
+$('#ctSkipEmoji').onchange = e => setCt('skipEmojiOnly', e.target.checked);
+$('#ctLaugh').onchange = e => setCt('laugh', e.target.checked);
+$('#ctMaxLen').onchange = e => setCt('maxLen', Math.max(20, Math.min(400, Number(e.target.value) || 120)));
+$('#ctMaxQ').onchange = e => setCt('maxQueue', Math.max(1, Math.min(50, Number(e.target.value) || 6)));
+const addWords = (inp, key) => {
+  const words = $(inp).value.split(/[,\n]/).map(w => w.trim()).filter(Boolean);
+  if (!words.length) return;
+  const cur = ct()[key] || [];
+  setCt(key, [...cur, ...words.filter(w => !cur.some(c => norm(c) === norm(w)))]);
+  $(inp).value = ''; renderChat(); toast(`เพิ่ม ${words.length} รายการแล้ว`);
+};
+$('#ctBanAdd').onclick = () => addWords('#ctBanIn', 'banned');
+$('#ctBanIn').onkeydown = e => { if (e.key === 'Enter') addWords('#ctBanIn', 'banned'); };
+$('#ctUserAdd').onclick = () => addWords('#ctUserIn', 'blockedUsers');
+$('#ctUserIn').onkeydown = e => { if (e.key === 'Enter') addWords('#ctUserIn', 'blockedUsers'); };
+$('#ctTestBtn').onclick = () => { enableSound(); readChat('คนทดสอบ', 'tester' + Math.floor(Math.random() * 5), $('#ctTest').value || 'สวัสดีค่ะ ขอบคุณที่มาดูไลฟ์นะ', { force: true }); };
+$('#ctTest').onkeydown = e => { if (e.key === 'Enter') $('#ctTestBtn').click(); };
+$('#ctSkip').onclick = () => speechSynthesis.cancel();
+$('#ctStop').onclick = () => { stopAll(); toast('หยุดอ่านแล้ว'); };
 
 // Browsers only allow sound after a click on the page.
 let soundOn = false;

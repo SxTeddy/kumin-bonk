@@ -313,3 +313,20 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .theme .pv s { position: absolute; right: 10px; bottom: 9px; width: 16px; height: 16px; border-radius: 50%; }
 .theme b { font-size: 14px; }
 .theme small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+/* chat reader */
+.seg { display: flex; gap: 0; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; width: max-content; max-width: 100%; flex-wrap: wrap; }
+.seg button { border: 0; border-radius: 0; background: var(--surface); padding: 8px 12px; }
+.seg button + button { border-left: 2px solid var(--line); }
+.seg button.on { background: var(--pink); color: var(--on-accent); }
+.chip.ban { background: color-mix(in srgb, var(--red) 15%, var(--card)); }
+.langs { display: grid; gap: 8px; }
+.langs .lg { display: grid; grid-template-columns: 120px 1fr auto; gap: 8px; align-items: center; }
+.langs .lg span { font-size: 14px; }
+.langs .lg small { color: var(--muted); }
+.langs select { width: 100%; }
+#ctFeed li .st { margin-left: auto; font-size: 12px; color: var(--muted); text-align: right; }
+#ctFeed li.read .st { color: var(--mint); }
+#ctFeed li.now { outline: 2px solid var(--pink); }
+#ctFeed li .who { font-weight: 600; white-space: nowrap; }
+#ctFeed li .msg { min-width: 0; overflow-wrap: anywhere; }

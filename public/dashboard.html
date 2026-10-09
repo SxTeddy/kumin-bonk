@@ -57,6 +57,7 @@
   <button data-tab="rules">🎁 กฎ</button>
   <button data-tab="test">🧪 ทดสอบ</button>
   <button data-tab="aim">🎯 เล็งหัว</button>
+  <button data-tab="chat">💬 อ่านแชต</button>
   <button data-tab="settings">⚙️ ตั้งค่า</button>
 </nav>
 
@@ -209,6 +210,68 @@
     </div>
   </section>
 
+  <!-- CHAT READER -->
+  <section id="chat" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><h2 style="margin:0">💬 อ่านแชตไลฟ์ออกเสียง</h2>
+          <label class="switch" title="เปิด/ปิดอ่านแชต"><input type="checkbox" id="ctOn"><span></span></label></div>
+        <p class="hint">อ่านทุกข้อความที่คนดูพิมพ์ในไลฟ์ เสียงออกลำโพงคอม (ใน TikTok LIVE Studio เปิดจับเสียงคอมพิวเตอร์ไว้) · ต้องเปิดหน้าต่างแอปค้างไว้</p>
+        <label>แบบเสียง</label>
+        <div class="seg" id="ctMode">
+          <button data-m="one">🎙️ เสียงเดียว</button><button data-m="auto">🌏 ตามภาษา</button><button data-m="perUser">🎭 คนละเสียง</button>
+        </div>
+        <p class="hint" id="ctModeHint"></p>
+        <label>เสียงหลัก</label>
+        <select id="ctVoice"></select>
+        <div class="sliders" style="margin-top:10px">
+          <div class="slider"><label>ความเร็ว</label><input type="range" id="ctRate" min="0.5" max="2" step="0.05"><output></output></div>
+          <div class="slider"><label>ระดับเสียง (สูง-ต่ำ)</label><input type="range" id="ctPitch" min="0.5" max="2" step="0.05"><output></output></div>
+          <div class="slider"><label>ความดัง</label><input type="range" id="ctVol" min="0" max="1" step="0.05"><output></output></div>
+        </div>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="ctReadName"> อ่านชื่อคนพิมพ์ด้วย</label>
+        <input id="ctTemplate" placeholder="{name} บอกว่า {text}" style="width:100%;margin-top:6px">
+        <p class="hint">{name} = ชื่อคนดู · {text} = ข้อความ</p>
+        <h2 class="mt">ลองฟัง</h2>
+        <div class="row"><input id="ctTest" placeholder="พิมพ์อะไรก็ได้ ภาษาไหนก็ได้ เช่น Hello / こんにちは / 안녕" style="flex:1"><button class="primary" id="ctTestBtn">▶ อ่าน</button></div>
+        <div class="row" style="margin-top:8px"><button id="ctSkip">⏭ ข้ามข้อความนี้</button><button id="ctStop">⏹ หยุดทั้งหมด</button><span class="hint" id="ctQueue" style="margin:0"></span></div>
+      </div>
+      <div class="card">
+        <h2>🚫 คำต้องห้าม</h2>
+        <p class="hint">ข้อความที่มีคำเหล่านี้จะไม่ถูกอ่าน (เช็กทั้งชื่อและข้อความ ไม่สนตัวพิมพ์เล็กใหญ่/ช่องว่าง)</p>
+        <div class="row"><input id="ctBanIn" placeholder="พิมพ์คำแล้วกดเพิ่ม (หลายคำคั่นด้วย , ได้)" style="flex:1"><button class="primary" id="ctBanAdd">+ เพิ่ม</button></div>
+        <div class="chips" id="ctBanned" style="margin-top:10px"></div>
+        <label>เจอคำต้องห้ามแล้ว</label>
+        <select id="ctBanMode">
+          <option value="skip">ไม่อ่านข้อความนั้นเลย</option>
+          <option value="remove">อ่าน แต่ตัดคำนั้นออก</option>
+          <option value="beep">อ่าน แต่แทนคำนั้นด้วย "ปี๊บ"</option>
+        </select>
+        <h2 class="mt">🙈 ไม่อ่านคนเหล่านี้</h2>
+        <div class="row"><input id="ctUserIn" placeholder="ชื่อ หรือ @ไอดี คนดู" style="flex:1"><button id="ctUserAdd">+ เพิ่ม</button></div>
+        <div class="chips" id="ctUsers" style="margin-top:10px"></div>
+        <h2 class="mt">ตัวกรองอื่น ๆ</h2>
+        <label class="check"><input type="checkbox" id="ctSkipCmd"> ไม่อ่านคำสั่งที่ขึ้นต้นด้วย ! (เช่น !bonk)</label>
+        <label class="check"><input type="checkbox" id="ctSkipLink"> ไม่อ่านข้อความที่มีลิงก์</label>
+        <label class="check"><input type="checkbox" id="ctSkipEmoji"> ไม่อ่านข้อความที่มีแต่อีโมจิ</label>
+        <label class="check"><input type="checkbox" id="ctLaugh"> อ่าน 555 เป็น "ฮ่า ๆ" และตัดตัวอักษรซ้ำยาว ๆ</label>
+        <div class="row" style="margin-top:8px"><label style="margin:0">ยาวสุด</label><input type="number" id="ctMaxLen" min="20" max="400" style="width:90px"><span class="hint" style="margin:0">ตัวอักษร</span>
+          <label style="margin:0 0 0 10px">คิวสูงสุด</label><input type="number" id="ctMaxQ" min="1" max="50" style="width:80px"><span class="hint" style="margin:0">ข้อความ</span></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>🌏 เสียงของแต่ละภาษา</h2>
+        <p class="hint" id="ctLangHint">ใช้ตอนเลือกแบบ "ตามภาษา" หรือ "คนละเสียง" — แอปดูตัวอักษรในข้อความแล้วเลือกเสียงภาษานั้นให้เอง</p>
+        <div id="ctLangs" class="langs"></div>
+      </div>
+      <div class="card">
+        <h2>ล่าสุด</h2>
+        <ul class="feed" id="ctFeed"><li class="empty">ยังไม่มีแชต</li></ul>
+      </div>
+    </div>
+  </section>
+
   <!-- SETTINGS -->
   <section id="settings" class="tab">
     <div class="card" style="margin-bottom:18px">
@@ -236,11 +299,8 @@
         <input id="optKey" placeholder="ว่างไว้ = ใช้แบบฟรี" autocomplete="off">
         <label>พอร์ต VTube Studio API</label>
         <input id="optVtsPort" type="number" value="8001">
-        <h2 class="mt">เสียงอ่านแชต (TTS)</h2>
-        <p class="hint">ใช้กับกฎที่มีการกระทำ "อ่านออกเสียง" เสียงจะออกจากแท็บนี้ ต้องเปิดหน้านี้ค้างไว้</p>
-        <label>เสียง</label>
-        <select id="ttsVoice"></select>
-        <button id="btnTtsTest">ลองฟัง</button>
+        <h2 class="mt">เสียงอ่านแชต</h2>
+        <p class="hint">ย้ายไปอยู่แท็บ 💬 อ่านแชต แล้ว (กฎ "อ่านออกเสียง" ก็ใช้เสียงจากแท็บนั้น)</p>
         <h2 class="mt">โปรแกรม</h2>
         <p class="hint" id="verInfo">เวอร์ชัน –</p>
         <p class="hint">KuminBonk สร้างโดย <b>HXZ !</b> · © 2026 HXZ ! · <a href="/legal/LICENSE.txt" target="_blank" rel="noopener">เงื่อนไขการใช้งาน</a> · <a href="/legal/THIRD-PARTY-NOTICES.txt" target="_blank" rel="noopener">ไลบรารีที่ใช้</a></p>

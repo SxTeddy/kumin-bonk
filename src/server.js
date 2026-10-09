@@ -17,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.9';
+const VERSION = '1.4.10';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -40,7 +40,7 @@ let config = loadConfig();
 function loadConfig() {
   try {
     const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    return { ...structuredClone(DEFAULT_CONFIG), ...c, head: { ...DEFAULT_CONFIG.head, ...c.head }, throwing: { ...DEFAULT_CONFIG.throwing, ...c.throwing }, fx: { ...DEFAULT_CONFIG.fx, ...c.fx } };
+    return { ...structuredClone(DEFAULT_CONFIG), ...c, head: { ...DEFAULT_CONFIG.head, ...c.head }, throwing: { ...DEFAULT_CONFIG.throwing, ...c.throwing }, fx: { ...DEFAULT_CONFIG.fx, ...c.fx }, chatTts: { ...DEFAULT_CONFIG.chatTts, ...c.chatTts } };
   } catch { return structuredClone(DEFAULT_CONFIG); }
 }
 function saveConfig() {
@@ -149,7 +149,7 @@ async function onDashboard(ws, m) {
     case 'saveConfig': {
       const next = m.config;
       if (!next || !Array.isArray(next.rules)) return;
-      config = { ...config, ...next, head: { ...config.head, ...next.head }, throwing: { ...config.throwing, ...next.throwing }, fx: { ...config.fx, ...next.fx } };
+      config = { ...config, ...next, head: { ...config.head, ...next.head }, throwing: { ...config.throwing, ...next.throwing }, fx: { ...config.fx, ...next.fx }, chatTts: { ...config.chatTts, ...next.chatTts } };
       saveConfig();
       vts.setPort(Number(config.vtsPort) || 8001);
       overlay.send(overlaySettings());

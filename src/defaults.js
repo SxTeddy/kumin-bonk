@@ -23,6 +23,19 @@ export const DEFAULT_CONFIG = {
     stagger: 90,       // ms between items in one burst
   },
   fx: { showcaseMin: 1000, cats: {}, gifts: {} }, // per-category / per-gift effect settings
+  // Live chat reader (text-to-speech in the app window)
+  chatTts: {
+    enabled: false,
+    mode: 'auto',            // 'one' = one voice, 'auto' = voice by language, 'perUser' = each viewer gets their own voice
+    voice: '',               // main voice ('' = best Thai voice)
+    langVoices: {},          // language code -> voice name
+    rate: 1, pitch: 1, volume: 1,
+    readName: true, template: '{name} บอกว่า {text}',
+    maxLen: 120, maxQueue: 6,
+    skipCommands: true, skipLinks: true, skipEmojiOnly: true, laugh: true,
+    banned: [], bannedMode: 'skip',   // 'skip' = don't read the message, 'remove' = read without the word, 'beep' = say "ปี๊บ"
+    blockedUsers: [],
+  },
   rulesVersion: 4,
   rules: [
     {
