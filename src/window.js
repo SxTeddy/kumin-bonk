@@ -19,7 +19,7 @@ export function openAppWindow(url, dataDir, { detached = false } = {}) {
   const exe = findBrowser();
   if (!exe) { exec(`start "" "${url}"`, { windowsHide: true }); return null; }
   const child = spawn(exe, [
-    `--app=${url}`,
+    `--app=${url}/?app=1`,
     `--user-data-dir=${path.join(dataDir, 'window')}`,
     '--window-size=1320,900',
     '--autoplay-policy=no-user-gesture-required',

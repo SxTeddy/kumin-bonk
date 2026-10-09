@@ -17,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.11';
+const VERSION = '1.4.12';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -287,6 +287,9 @@ wss.on('connection', (ws, req) => {
     });
     ws.on('close', () => { overlays.delete(ws); pushStatus(); });
   } else {
+    // Only one app window: when a new one opens (e.g. after an update), the older one closes itself.
+    ws.isApp = new URL(req.url, 'http://x').searchParams.get('app') === '1';
+    if (ws.isApp) for (const d of dashboards) if (d.isApp) send(d, { t: 'closeWindow' });
     dashboards.add(ws);
     send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, anchors: ANCHOR, logs, justUpdated, firstRun });
     justUpdated = ''; firstRun = false;

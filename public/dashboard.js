@@ -13,12 +13,12 @@ let styles = {};  // effect style id -> Thai description
 let catDefault = { enabled: true, size: 1, power: 1, speed: 1, max: 30, sound: 'auto', as: 'same' };
 
 // ---------- socket ----------
-let ws;
+let ws, closedByNewer = false;
 function send(m) { if (ws?.readyState === 1) ws.send(JSON.stringify(m)); }
 function connect() {
-  ws = new WebSocket(`ws://${location.host}/ws?role=dashboard`);
+  ws = new WebSocket(`ws://${location.host}/ws?role=dashboard${/[?&]app=1/.test(location.search) ? '&app=1' : ''}`);
   ws.onopen = () => { if (restartingNow) return location.reload(); send({ t: 'vtsLists' }); }; // after an update restart: load the new version's page
-  ws.onclose = () => { if (restartingNow) return setTimeout(connect, 1500); setPill('pTik', 'bad', 'TikTok'); setPill('pVts', 'bad', 'VTube Studio'); toast('โปรแกรมปิดอยู่ — เปิด KuminBonk แล้วรีเฟรชหน้านี้'); setTimeout(connect, 2000); };
+  ws.onclose = () => { if (closedByNewer) return; if (restartingNow) return setTimeout(connect, 1500); setPill('pTik', 'bad', 'TikTok'); setPill('pVts', 'bad', 'VTube Studio'); toast('โปรแกรมปิดอยู่ — เปิด KuminBonk แล้วรีเฟรชหน้านี้'); setTimeout(connect, 2000); };
   ws.onmessage = e => handle(JSON.parse(e.data));
 }
 
@@ -42,6 +42,7 @@ function handle(m) {
     case 'sound': if (soundOn) KBSound.play(m.sound, m.volume); break;
     case 'saved': flashSaved(); break;
     case 'update': renderUpdate(m); break;
+    case 'closeWindow': closedByNewer = true; window.close(); break; // a newer app window took over
     case 'restarting': if (!restartingNow) { restartingNow = true; showSplash('กำลังเปลี่ยนชุดใหม่ ✨', 'รอแป๊บนึงนะ เดี๋ยวกลับมา~'); } $('#updBar').hidden = true; break;
   }
 }
@@ -134,8 +135,15 @@ async function showWhatsNew(ver) {
   $('#yayNotes').innerHTML = notes.length ? notes.map(n => `<li>${mdLine(n)}</li>`).join('') : '<li>แก้ไขและปรับปรุงให้ดีขึ้น 💖</li>';
   $('#yay').hidden = false; confetti($('#yay .confetti'));
   try { KBSound.play?.('fanfare'); } catch {}
+  autoClose(10);
 }
-$('#btnYay').onclick = () => { $('#yay').hidden = true; };
+let yayTimer = null;
+function autoClose(sec) { // the "updated!" card goes away by itself
+  clearInterval(yayTimer); let left = sec; const btn = $('#btnYay'), label = btn.textContent;
+  btn.textContent = `${label} (${left})`;
+  yayTimer = setInterval(() => { left--; if (left <= 0 || $('#yay').hidden) { clearInterval(yayTimer); $('#yay').hidden = true; btn.textContent = label; } else btn.textContent = `${label} (${left})`; }, 1000);
+}
+$('#btnYay').onclick = () => { clearInterval(yayTimer); $('#yay').hidden = true; $('#btnYay').textContent = $('#btnYay').textContent.replace(/ \(\d+\)$/, ''); };
 // first time ever: a welcome card with the 3 things to do
 function showWelcome() {
   $('#yayTitle').textContent = 'ยินดีต้อนรับสู่ KuminBonk! 💖';
