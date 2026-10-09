@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/dashboard.css">
+<script src="/i18n.js"></script>
 <script>try { document.documentElement.dataset.theme = localStorage.getItem("kbTheme") || "pink"; } catch (e) {}</script>
 </head>
 <body>
@@ -59,6 +60,7 @@
   <button data-tab="aim">🎯 เล็งหัว</button>
   <button data-tab="chat">💬 อ่านแชต</button>
   <button data-tab="settings">⚙️ ตั้งค่า</button>
+  <button data-tab="lang">🌐 ภาษา</button>
 </nav>
 
 <main>
@@ -288,6 +290,15 @@
         <h2>ล่าสุด</h2>
         <ul class="feed" id="ctFeed"><li class="empty">ยังไม่มีแชต</li></ul>
       </div>
+    </div>
+  </section>
+
+  <!-- LANGUAGE -->
+  <section id="lang" class="tab">
+    <div class="card">
+      <h2>🌐 เลือกภาษาของแอป</h2>
+      <p class="hint">เปลี่ยนภาษาของเมนูและปุ่มทั้งหมดในแอป · ชื่อของขวัญและข้อความบางส่วนจากโปรแกรมยังเป็นภาษาไทย</p>
+      <div class="langpick" id="langPick" data-noi18n></div>
     </div>
   </section>
 

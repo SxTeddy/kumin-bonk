@@ -346,3 +346,9 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .lockbox { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--soft-bg); border: 2px dashed var(--line); font-size: 14px; }
 .lockbox.on { border-style: solid; border-color: var(--mint); }
 .lockbox.wait { border-color: var(--pink); animation: blink 1.2s infinite; }
+
+/* language picker */
+.langpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin-top: 12px; }
+.langpick button { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; text-align: left; font-size: 15px; }
+.langpick button .fl { font-size: 12px; font-weight: 700; letter-spacing: .5px; min-width: 34px; text-align: center; padding: 5px 6px; border-radius: 9px; background: var(--pink-soft); color: var(--text, inherit); }
+.langpick button.on { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-soft); font-weight: 600; }

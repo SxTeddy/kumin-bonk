@@ -28,6 +28,7 @@ function handle(m) {
       config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.anchors) anchors = m.anchors;
       (m.logs || []).forEach(addLog);
       if (config.theme && config.theme !== curTheme()) applyTheme(config.theme);
+      if (config.lang && window.KBI18N && config.lang !== KBI18N.lang) { KBI18N.setLang(config.lang); renderLangs(); }
       renderAll();
       hideSplash();
       if (m.justUpdated) setTimeout(() => showWhatsNew(m.justUpdated), 800);
@@ -117,6 +118,18 @@ function renderThemes() {
   box.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { applyTheme(b.dataset.theme, true); toast('เปลี่ยนธีมเป็น ' + THEMES[b.dataset.theme].name + ' แล้ว'); });
 }
 applyTheme(curTheme());
+
+// ---------- language ----------
+function renderLangs() {
+  const box = $('#langPick'); if (!box || !window.KBI18N) return;
+  box.innerHTML = KBI18N.LANGS.map(([k, name, fl]) => `<button data-lang="${k}" class="${k === KBI18N.lang ? 'on' : ''}"><span class="fl">${fl}</span><span>${name}</span></button>`).join('');
+  box.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => {
+    KBI18N.setLang(b.dataset.lang); renderLangs();
+    if (config) { config.lang = b.dataset.lang; save(); }
+    toast('เปลี่ยนภาษาแล้ว ✓');
+  });
+}
+renderLangs();
 let splashT0 = Date.now(), restartingNow = false;
 setTimeout(() => { if (!$('#splash').classList.contains('gone') && !restartingNow) $('#splashSub').textContent = 'ยังเชื่อมกับโปรแกรมไม่ได้… ถ้านานเกินไป ลองปิดแล้วเปิด KuminBonk ใหม่นะ'; }, 10000);
 function showSplash(title, sub) { $('#splashTitle').textContent = title; $('#splashSub').textContent = sub; $('#splash').classList.remove('gone'); }
