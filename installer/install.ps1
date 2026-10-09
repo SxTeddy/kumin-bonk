@@ -106,13 +106,11 @@ function Get-WithProgress($url, $out, $from, $to) {
   } finally { $fs.Close(); $in.Close(); $res.Close() }
 }
 
+# The installer starts hidden (no black window). If the pink window can't be shown, bring the console back instead.
+try { Add-Type -Name ConsoleWin -Namespace KuminBonk -MemberDefinition '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow(); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);' } catch {}
+function Show-Console($show) { try { [KuminBonk.ConsoleWin]::ShowWindow([KuminBonk.ConsoleWin]::GetConsoleWindow(), $(if ($show) { 5 } else { 0 })) | Out-Null } catch {} }
 try { $ui = New-CuteWindow } catch { $ui = $null }
-if ($ui) {
-  try {
-    Add-Type -Name ConsoleWin -Namespace KuminBonk -MemberDefinition '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow(); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);'
-    [KuminBonk.ConsoleWin]::ShowWindow([KuminBonk.ConsoleWin]::GetConsoleWindow(), 0) | Out-Null
-  } catch {}
-}
+Show-Console (-not $ui)
 
 try {
   Write-Host ''
@@ -209,7 +207,9 @@ try {
       $ui.btn.Visible = $true; $state.canClose = $true
       while ($ui.form.Visible) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 40 }
     } catch {}
-    exit 2   # the window already showed the error: don't keep the console open
+    exit 2   # the window already showed the error
   }
+  Show-Console $true
+  Read-Host '  กด Enter เพื่อปิด' | Out-Null
   exit 1
 }
