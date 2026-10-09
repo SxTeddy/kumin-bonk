@@ -30,7 +30,8 @@ export const DEFAULT_CONFIG = {
     voice: '',               // main voice ('' = best Thai voice)
     langVoices: {},          // language code -> voice name
     rate: 1, pitch: 1, volume: 1,
-    readName: true, template: '{name} บอกว่า {text}',
+    readWhat: 'both',        // 'both' = name + message, 'text' = message only, 'name' = name only
+    template: '{name} บอกว่า {text}',
     maxLen: 120, maxQueue: 6,
     skipCommands: true, skipLinks: true, skipEmojiOnly: true, laugh: true,
     banned: [], bannedMode: 'skip',   // 'skip' = don't read the message, 'remove' = read without the word, 'beep' = say "ปี๊บ"

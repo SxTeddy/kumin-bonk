@@ -17,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.10';
+const VERSION = '1.4.11';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -138,6 +138,7 @@ setInterval(async () => {
   if (overlays.size) overlay.send({ t: 'head', ...liveHead });
 }, 1000);
 let calibrating = false;
+let adoptedWindow = false; // the window of the previous version is still open after an update restart
 
 function overlaySettings() {
   return { t: 'settings', throwing: config.throwing, head: { x: config.head.x, y: config.head.y } };
@@ -292,7 +293,7 @@ wss.on('connection', (ws, req) => {
     send(ws, { t: 'status', ...status() });
     send(ws, { t: 'update', ...updater.state });
     ws.on('message', raw => { let m; try { m = JSON.parse(raw); } catch { return; } onDashboard(ws, m).catch(e => log('app', e.message, 'warn')); });
-    ws.on('close', () => dashboards.delete(ws));
+    ws.on('close', () => { dashboards.delete(ws); if (adoptedWindow) setTimeout(() => { if (adoptedWindow && dashboards.size === 0 && !restarting) quit(); }, 8000); });
   }
 });
 
@@ -315,11 +316,12 @@ function restartApp() {
   restarting = true;
   if (!process.env.KB_INSTALL) return log('update', 'รีสตาร์ทอัตโนมัติได้เฉพาะแอปที่ติดตั้งแล้ว', 'warn');
   log('update', 'กำลังรีสตาร์ทเพื่อใช้เวอร์ชันใหม่…');
-  try { appWindow?.kill(); } catch {}
+  // Keep the app window open: it shows a "changing outfit" screen and reloads itself when the new version is up.
+  toDashboards({ t: 'restarting' });
   vts.stop(); tiktok.disconnect(true).catch(() => {});
   for (const ws of [...dashboards, ...overlays]) { try { ws.terminate(); } catch {} }
   server.close(() => {
-    spawn(process.execPath, [path.join(process.env.KB_INSTALL, 'launch.cjs')], { cwd: process.env.KB_INSTALL, detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    spawn(process.execPath, [path.join(process.env.KB_INSTALL, 'launch.cjs')], { cwd: process.env.KB_INSTALL, detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, KB_RESTARTED: '1' } }).unref();
     setTimeout(() => process.exit(0), 300);
   });
   setTimeout(() => process.exit(0), 5000);
@@ -363,7 +365,12 @@ server.listen(PORT, '127.0.0.1', () => {
   vts.start();
   updater.start();
   if (config.autoConnect && config.tiktokUsername) tiktok.connect(config.tiktokUsername, config.eulerApiKey);
-  if (process.platform === 'win32' && !process.env.KB_NO_BROWSER) {
+  const restarted = process.env.KB_RESTARTED; delete process.env.KB_RESTARTED;
+  if (process.platform === 'win32' && !process.env.KB_NO_BROWSER && restarted) {
+    // After an update restart the old window reconnects by itself; open a new one only if it doesn't.
+    adoptedWindow = true;
+    setTimeout(() => { if (dashboards.size === 0) { adoptedWindow = false; appWindow = openAppWindow(URL_, DATA); watchWindow(appWindow); } }, 7000);
+  } else if (process.platform === 'win32' && !process.env.KB_NO_BROWSER) {
     appWindow = openAppWindow(URL_, DATA);
     watchWindow(appWindow);
     if (IS_SEA) {

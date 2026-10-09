@@ -229,9 +229,14 @@
           <div class="slider"><label>ระดับเสียง (สูง-ต่ำ)</label><input type="range" id="ctPitch" min="0.5" max="2" step="0.05"><output></output></div>
           <div class="slider"><label>ความดัง</label><input type="range" id="ctVol" min="0" max="1" step="0.05"><output></output></div>
         </div>
-        <label class="check" style="margin-top:10px"><input type="checkbox" id="ctReadName"> อ่านชื่อคนพิมพ์ด้วย</label>
-        <input id="ctTemplate" placeholder="{name} บอกว่า {text}" style="width:100%;margin-top:6px">
-        <p class="hint">{name} = ชื่อคนดู · {text} = ข้อความ</p>
+        <label>อ่านอะไร</label>
+        <div class="seg" id="ctWhat">
+          <button data-w="both">👤💬 ชื่อ + ข้อความ</button><button data-w="text">💬 ข้อความอย่างเดียว</button><button data-w="name">👤 ชื่ออย่างเดียว</button>
+        </div>
+        <div id="ctTplBox">
+          <input id="ctTemplate" placeholder="{name} บอกว่า {text}" style="width:100%;margin-top:8px">
+          <p class="hint">{name} = ชื่อคนดู · {text} = ข้อความ</p>
+        </div>
         <h2 class="mt">ลองฟัง</h2>
         <div class="row"><input id="ctTest" placeholder="พิมพ์อะไรก็ได้ ภาษาไหนก็ได้ เช่น Hello / こんにちは / 안녕" style="flex:1"><button class="primary" id="ctTestBtn">▶ อ่าน</button></div>
         <div class="row" style="margin-top:8px"><button id="ctSkip">⏭ ข้ามข้อความนี้</button><button id="ctStop">⏹ หยุดทั้งหมด</button><span class="hint" id="ctQueue" style="margin:0"></span></div>

@@ -17,7 +17,7 @@ let ws;
 function send(m) { if (ws?.readyState === 1) ws.send(JSON.stringify(m)); }
 function connect() {
   ws = new WebSocket(`ws://${location.host}/ws?role=dashboard`);
-  ws.onopen = () => send({ t: 'vtsLists' });
+  ws.onopen = () => { if (restartingNow) return location.reload(); send({ t: 'vtsLists' }); }; // after an update restart: load the new version's page
   ws.onclose = () => { if (restartingNow) return setTimeout(connect, 1500); setPill('pTik', 'bad', 'TikTok'); setPill('pVts', 'bad', 'VTube Studio'); toast('โปรแกรมปิดอยู่ — เปิด KuminBonk แล้วรีเฟรชหน้านี้'); setTimeout(connect, 2000); };
   ws.onmessage = e => handle(JSON.parse(e.data));
 }
@@ -42,6 +42,7 @@ function handle(m) {
     case 'sound': if (soundOn) KBSound.play(m.sound, m.volume); break;
     case 'saved': flashSaved(); break;
     case 'update': renderUpdate(m); break;
+    case 'restarting': if (!restartingNow) { restartingNow = true; showSplash('กำลังเปลี่ยนชุดใหม่ ✨', 'รอแป๊บนึงนะ เดี๋ยวกลับมา~'); } $('#updBar').hidden = true; break;
   }
 }
 
@@ -175,8 +176,9 @@ function renderUpdate(u) {
   bl.innerHTML = (u.backups || []).map(b => `<option value="${esc(b.id)}">${new Date(b.time).toLocaleString('th-TH')} · ${esc(b.label)} (v${esc(b.version)})</option>`).join('') || '<option value="">ยังไม่มีไฟล์สำรอง</option>';
 }
 $('#btnRestart').onclick = () => {
-  restartingNow = true;
-  showSplash('กำลังเปลี่ยนชุดใหม่ ✨', 'หน้าต่างจะปิดแล้วเปิดกลับมาเองใน 2–3 วินาทีนะ~');
+  restartingNow = true; $('#updBar').hidden = true;
+  setTimeout(() => location.reload(), 30000); // safety net
+  showSplash('กำลังเปลี่ยนชุดใหม่ ✨', 'รอแป๊บนึงนะ เดี๋ยวกลับมาเป็นชุดใหม่~');
   setTimeout(() => send({ t: 'restartForUpdate' }), 1400);
 };
 $('#btnLater').onclick = () => { updLater = true; $('#updBar').hidden = true; toast('โอเค~ เปิดแอปครั้งหน้าจะเป็นชุดใหม่เองนะ 💖'); };
@@ -762,10 +764,17 @@ function tidy(text) {
   return text.replace(/\s+/g, ' ').trim();
 }
 // returns { say: [{text, lang}], why } — why = reason it was skipped
+const readWhat = () => ct().readWhat || (ct().readName === false ? 'text' : 'both');
 function prepare(name, user, text) {
-  const c = ct();
+  const c = ct(), what = readWhat();
   const who = String(name || '');
   if ((c.blockedUsers || []).some(b => { const n = norm(b).replace(/^@/, ''); return n && (norm(who) === n || norm(user) === n); })) return { why: 'คนที่ไม่อ่าน' };
+  if (what === 'name') {
+    if (!who.trim()) return { why: 'ไม่มีชื่อ' };
+    if (hasBanned(who)) return { why: 'ชื่อมีคำต้องห้าม' };
+    const lang = detectLang(who);
+    return { say: [{ text: tidy(who), lang, part: 'text' }], lang };
+  }
   let t = String(text || '').trim();
   if (!t) return { why: 'ข้อความว่าง' };
   if (c.skipCommands && t.startsWith('!')) return { why: 'คำสั่ง !' };
@@ -782,7 +791,7 @@ function prepare(name, user, text) {
   if ([...t].length > max) t = [...t].slice(0, max).join('') + ' …';
   if (!t) return { why: 'ไม่เหลือข้อความ' };
   const lang = detectLang(t);
-  const tpl = c.readName && nameSay ? (c.template || '{name} บอกว่า {text}') : '{text}';
+  const tpl = what === 'both' && nameSay ? (c.template || '{name} บอกว่า {text}') : '{text}';
   const [before, after = ''] = tpl.split('{text}');
   const say = [];
   const pre = before.replaceAll('{name}', nameSay).trim();
@@ -887,7 +896,8 @@ function renderChat() {
   $$('#ctMode button').forEach(b => b.classList.toggle('on', b.dataset.m === (c.mode || 'auto')));
   $('#ctModeHint').textContent = MODE_HINT[c.mode || 'auto'];
   for (const [id, k] of [['ctRate', 'rate'], ['ctPitch', 'pitch'], ['ctVol', 'volume']]) { const r = $('#' + id); r.value = c[k] ?? 1; r.nextElementSibling.textContent = Number(r.value).toFixed(2); }
-  $('#ctReadName').checked = c.readName !== false; $('#ctTemplate').value = c.template || '{name} บอกว่า {text}';
+  $$('#ctWhat button').forEach(b => b.classList.toggle('on', b.dataset.w === readWhat()));
+  $('#ctTplBox').hidden = readWhat() !== 'both'; $('#ctTemplate').value = c.template || '{name} บอกว่า {text}';
   $('#ctBanMode').value = c.bannedMode || 'skip';
   $('#ctSkipCmd').checked = c.skipCommands !== false; $('#ctSkipLink').checked = c.skipLinks !== false; $('#ctSkipEmoji').checked = c.skipEmojiOnly !== false; $('#ctLaugh').checked = c.laugh !== false;
   $('#ctMaxLen').value = c.maxLen || 120; $('#ctMaxQ').value = c.maxQueue || 6;
@@ -901,7 +911,7 @@ $('#ctOn').onchange = e => { setCt('enabled', e.target.checked); if (!e.target.c
 $$('#ctMode button').forEach(b => b.onclick = () => { setCt('mode', b.dataset.m); renderChat(); });
 $('#ctVoice').onchange = e => setCt('voice', e.target.value);
 for (const [id, k] of [['ctRate', 'rate'], ['ctPitch', 'pitch'], ['ctVol', 'volume']]) $('#' + id).oninput = e => { e.target.nextElementSibling.textContent = Number(e.target.value).toFixed(2); setCt(k, Number(e.target.value)); };
-$('#ctReadName').onchange = e => setCt('readName', e.target.checked);
+$$('#ctWhat button').forEach(b => b.onclick = () => { setCt('readWhat', b.dataset.w); renderChat(); });
 $('#ctTemplate').onchange = e => setCt('template', e.target.value.includes('{text}') ? e.target.value : '{name} บอกว่า {text}');
 $('#ctBanMode').onchange = e => setCt('bannedMode', e.target.value);
 $('#ctSkipCmd').onchange = e => setCt('skipCommands', e.target.checked);
