@@ -223,7 +223,7 @@
         </div>
         <p class="hint" id="ctModeHint"></p>
         <label>เสียงหลัก</label>
-        <select id="ctVoice"></select>
+        <div class="row"><select id="ctVoice" style="flex:1"></select><button id="ctVoiceClear" class="small" hidden>✕ ยกเลิก</button></div>
         <label>สไตล์เสียง</label>
         <div class="chips" id="ctStyles"></div>
         <p class="hint" id="ctStyleHint" style="margin-top:0"></p>
@@ -269,9 +269,9 @@
     </div>
     <div class="card" style="margin-bottom:18px">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">🎚️ คลังเสียง</h2><span class="hint" id="libCount" style="margin:0"></span></div>
-      <p class="hint">กด ▶ ฟังเสียงตัวอย่าง · กด ⭐ เก็บเข้า "ชุดเสียงคนละเสียง" (โหมด 🎭 คนละเสียง จะสุ่มเสียงจากที่ติดดาวให้คนดูแต่ละคน) · เสียงที่มีป้าย 🌐 พูดได้หลายภาษา (รวมภาษาไทย)</p>
+      <p class="hint">กด ▶ ฟังเสียงตัวอย่าง · กด ⭐ เก็บเข้า "ชุดเสียงคนละเสียง" (กดอีกครั้ง = เอาออก) · กด "ใช้" ตั้งเป็นเสียงหลัก (กด ✕ ยกเลิก เพื่อเลิกใช้) (โหมด 🎭 คนละเสียง จะสุ่มเสียงจากที่ติดดาวให้คนดูแต่ละคน) · เสียงที่มีป้าย 🌐 พูดได้หลายภาษา (รวมภาษาไทย)</p>
       <div class="row"><select id="libLang"></select><input id="libQ" placeholder="🔍 ค้นหาชื่อเสียง" style="flex:1"><label class="check" style="margin:0"><input type="checkbox" id="libFav"> เฉพาะที่ติดดาว</label>
-        <button id="libStarAll" class="small">⭐ ติดดาวเสียงไทย + หลายภาษาทั้งหมด</button><button id="libStarNone" class="small ghost">ล้างดาว</button></div>
+        <button id="libStarAll" class="small">⭐ ติดดาวเสียงไทย + หลายภาษาทั้งหมด</button><button id="libStarNone" class="small">✕ ล้างดาวทั้งหมด</button><button id="ctReset" class="small danger">↺ คืนค่าเสียงทั้งหมด</button></div>
       <div class="voicelib" id="voiceLib"></div>
     </div>
     <div class="grid2">

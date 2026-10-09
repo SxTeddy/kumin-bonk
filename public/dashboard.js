@@ -946,10 +946,11 @@ function renderVoiceLib() {
     && (!q || v.name.toLowerCase().includes(q)) && (!onlyFav || fav.has(v.name)));
   $('#libCount').textContent = `มีทั้งหมด ${voices.length} เสียง · ติดดาว ${fav.size}`;
   $('#voiceLib').innerHTML = list.slice(0, 300).map((v, i) => `<div class="vc ${v.name === c.voice ? 'main' : ''}"><div><b title="${esc(v.name)}">${isMulti(v) ? '🌐 ' : ''}${esc(prettyVoice(v))}</b><small>${esc(LANGS[langOf(v)] || v.lang)} · ${esc(v.lang)}</small></div>
-    <button data-play="${i}" title="ฟัง">▶</button><button class="star ${fav.has(v.name) ? 'on' : ''}" data-fav="${i}" title="ติดดาว">⭐</button><button data-main="${i}" title="ใช้เป็นเสียงหลัก">${v.name === c.voice ? '✓ หลัก' : 'ใช้'}</button></div>`).join('') || '<p class="hint">ไม่พบเสียง</p>';
+    <button data-play="${i}" title="ฟัง">▶</button><button class="star ${fav.has(v.name) ? 'on' : ''}" data-fav="${i}" title="ติดดาว">⭐</button>${v.name === c.voice ? `<button class="primary" data-unmain="1" title="เลิกใช้เป็นเสียงหลัก (กลับไปเลือกอัตโนมัติ)">✕ ยกเลิก</button>` : `<button data-main="${i}" title="ใช้เป็นเสียงหลัก">ใช้</button>`}</div>`).join('') || '<p class="hint">ไม่พบเสียง</p>';
   $$('#voiceLib [data-play]').forEach(b => b.onclick = () => previewVoice(list[+b.dataset.play]));
   $$('#voiceLib [data-fav]').forEach(b => b.onclick = () => { const n = list[+b.dataset.fav].name; const f = new Set(ct().favVoices || []); f.has(n) ? f.delete(n) : f.add(n); setCt('favVoices', [...f]); renderVoiceLib(); });
   $$('#voiceLib [data-main]').forEach(b => b.onclick = () => { setCt('voice', list[+b.dataset.main].name); renderChat(); toast('ตั้งเป็นเสียงหลักแล้ว'); });
+  $$('#voiceLib [data-unmain]').forEach(b => b.onclick = () => { setCt('voice', ''); renderChat(); toast('ยกเลิกแล้ว กลับไปใช้เสียงไทยอัตโนมัติ'); });
 }
 $('#libStarAll').onclick = () => { const add = voices.filter(v => langOf(v) === 'th' || isMulti(v)).map(v => v.name); setCt('favVoices', [...new Set([...(ct().favVoices || []), ...add])]); renderVoiceLib(); toast(`ติดดาว ${add.length} เสียงแล้ว`); };
 $('#libStarNone').onclick = () => { setCt('favVoices', []); renderVoiceLib(); };
@@ -958,10 +959,12 @@ function renderStyles() {
   const cur = ct().style || 'normal';
   const mv = mainVoice();
   $('#ctStyleHint').textContent = isOnline(mv) ? 'หมายเหตุ: เสียง Online (Natural) ของ Microsoft ปรับเสียงสูง-ต่ำไม่ได้ (Windows ไม่รองรับ) สไตล์จะเปลี่ยนได้แค่ความเร็ว · ถ้าอยากได้เสียงที่ต่างกันจริง ๆ ให้เลือกเสียงอื่นในคลังเสียงด้านล่าง หรือใช้โหมด 🎭 คนละเสียง' : '';
-  $('#ctStyles').innerHTML = Object.entries(STYLES_V).map(([k, st]) => `<span class="chip ${k === cur ? 'on' : ''}" data-st="${k}">${st.label}</span>`).join('');
+  $('#ctStyles').innerHTML = Object.entries(STYLES_V).map(([k, st]) => `<span class="chip ${k === cur ? 'on' : ''}" data-st="${k}" title="${k === cur && k !== 'normal' ? 'กดอีกครั้งเพื่อยกเลิก' : ''}">${st.label}${k === cur && k !== 'normal' ? ' ✕' : ''}</span>`).join('');
   $$('#ctStyles [data-st]').forEach(ch => ch.onclick = () => {
-    const st = STYLES_V[ch.dataset.st];
-    config.chatTts = { ...ct(), style: ch.dataset.st, pitch: st.pitch, rate: st.rate }; save(); renderChat();
+    const key = ch.dataset.st === cur && cur !== 'normal' ? 'normal' : ch.dataset.st; // tap the selected style again = cancel
+    const st = STYLES_V[key];
+    config.chatTts = { ...ct(), style: key, pitch: st.pitch, rate: st.rate }; save(); renderChat();
+    if (key === 'normal' && ch.dataset.st !== 'normal') toast('ยกเลิกสไตล์แล้ว กลับเป็นเสียงปกติ');
     const v = mainVoice(); if (v) previewVoice(v);
   });
 }
@@ -983,10 +986,16 @@ function renderChat() {
   $$('#ctBanned b').forEach(b => b.onclick = () => { const a = [...ct().banned]; a.splice(+b.dataset.i, 1); setCt('banned', a); renderChat(); });
   $$('#ctUsers b').forEach(b => b.onclick = () => { const a = [...ct().blockedUsers]; a.splice(+b.dataset.i, 1); setCt('blockedUsers', a); renderChat(); });
   renderChatVoices(); renderStyles(); renderVoiceLib();
+  $('#ctVoiceClear').hidden = !c.voice;
 }
 $('#ctOn').onchange = e => { setCt('enabled', e.target.checked); if (!e.target.checked) stopAll(); toast(e.target.checked ? 'เปิดอ่านแชตแล้ว 🔊' : 'ปิดอ่านแชตแล้ว'); };
 $$('#ctMode button').forEach(b => b.onclick = () => { setCt('mode', b.dataset.m); renderChat(); });
-$('#ctVoice').onchange = e => setCt('voice', e.target.value);
+$('#ctVoice').onchange = e => { setCt('voice', e.target.value); renderChat(); };
+$('#ctVoiceClear').onclick = () => { setCt('voice', ''); renderChat(); toast('ยกเลิกเสียงหลักแล้ว กลับไปใช้อัตโนมัติ'); };
+$('#ctReset').onclick = () => {
+  if (!confirm('คืนค่าเสียงทั้งหมดเป็นค่าเริ่มต้น? (เสียงหลัก เสียงแต่ละภาษา ดาว สไตล์ ความเร็ว — คำต้องห้ามและรายชื่อไม่หาย)')) return;
+  config.chatTts = { ...ct(), voice: '', langVoices: {}, favVoices: [], style: 'normal', rate: 1, pitch: 1, volume: 1 }; save(); userVoice.clear(); renderChat(); toast('คืนค่าเสียงแล้ว');
+};
 for (const [id, k] of [['ctRate', 'rate'], ['ctPitch', 'pitch'], ['ctVol', 'volume']]) $('#' + id).oninput = e => { e.target.nextElementSibling.textContent = Number(e.target.value).toFixed(2); config.chatTts = { ...ct(), [k]: Number(e.target.value), ...(k !== 'volume' ? { style: 'custom' } : {}) }; save(); if (k !== 'volume') $$('#ctStyles .chip').forEach(c => c.classList.remove('on')); };
 $$('#ctWhat button').forEach(b => b.onclick = () => { setCt('readWhat', b.dataset.w); renderChat(); });
 $('#ctTemplate').onchange = e => setCt('template', e.target.value.includes('{text}') ? e.target.value : '{name} บอกว่า {text}');
