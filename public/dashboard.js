@@ -745,8 +745,18 @@ function voicesFor(lang) { return voices.filter(v => langOf(v) === lang); }
 function poolFor(lang) {
   const fav = (ct().favVoices || []).map(n => voices.find(v => v.name === n)).filter(Boolean);
   const ok = fav.filter(v => langOf(v) === lang || isMulti(v));
-  return ok.length ? ok : voicesFor(lang);
+  if (ok.length) return ok;
+  // no stars yet: every voice of this language + every multilingual voice (they can read any language)
+  return [...voicesFor(lang), ...voices.filter(v => isMulti(v) && langOf(v) !== lang)];
 }
+// each new viewer gets the next voice in the pool, so people really sound different (remembered per viewer)
+const userVoice = new Map(); let nextVoiceIdx = 0;
+function voiceForUser(userKey, pool) {
+  let v = userVoice.get(userKey);
+  if (!v || !pool.includes(v)) { v = pool[nextVoiceIdx++ % pool.length]; userVoice.set(userKey, v); }
+  return v;
+}
+const isOnline = v => /online|natural/i.test(v?.name || '');
 // voice "styles": the same voice made higher, lower, faster or slower
 const STYLES_V = {
   normal: { label: '🙂 ปกติ', pitch: 1, rate: 1 },
@@ -836,8 +846,8 @@ function pickVoice(item, userKey) {
   const byLang = item.part === 'name' && mode !== 'perUser' ? mainVoice() : voiceForLang(item.lang);
   if (mode === 'perUser' && userKey) {
     const list = poolFor(item.lang).length ? poolFor(item.lang) : [mainVoice()].filter(Boolean);
-    const h = hash(userKey), hp = hash(userKey + '#pitch');
-    return { voice: list[h % list.length] || byLang || mainVoice(), pitch: 0.75 + (hp % 11) * 0.06, rate: 0.9 + ((hp >>> 4) % 5) * 0.06 };
+    const hp = hash(userKey + '#pitch');
+    return { voice: voiceForUser(userKey, list) || byLang || mainVoice(), pitch: 0.75 + (hp % 11) * 0.06, rate: 0.88 + ((hp >>> 4) % 6) * 0.06 };
   }
   return { voice: byLang || mainVoice(), pitch: 1, rate: 1 };
 }
@@ -941,9 +951,13 @@ function renderVoiceLib() {
   $$('#voiceLib [data-fav]').forEach(b => b.onclick = () => { const n = list[+b.dataset.fav].name; const f = new Set(ct().favVoices || []); f.has(n) ? f.delete(n) : f.add(n); setCt('favVoices', [...f]); renderVoiceLib(); });
   $$('#voiceLib [data-main]').forEach(b => b.onclick = () => { setCt('voice', list[+b.dataset.main].name); renderChat(); toast('ตั้งเป็นเสียงหลักแล้ว'); });
 }
+$('#libStarAll').onclick = () => { const add = voices.filter(v => langOf(v) === 'th' || isMulti(v)).map(v => v.name); setCt('favVoices', [...new Set([...(ct().favVoices || []), ...add])]); renderVoiceLib(); toast(`ติดดาว ${add.length} เสียงแล้ว`); };
+$('#libStarNone').onclick = () => { setCt('favVoices', []); renderVoiceLib(); };
 $('#libLang').onchange = renderVoiceLib; $('#libQ').oninput = renderVoiceLib; $('#libFav').onchange = renderVoiceLib;
 function renderStyles() {
   const cur = ct().style || 'normal';
+  const mv = mainVoice();
+  $('#ctStyleHint').textContent = isOnline(mv) ? 'หมายเหตุ: เสียง Online (Natural) ของ Microsoft ปรับเสียงสูง-ต่ำไม่ได้ (Windows ไม่รองรับ) สไตล์จะเปลี่ยนได้แค่ความเร็ว · ถ้าอยากได้เสียงที่ต่างกันจริง ๆ ให้เลือกเสียงอื่นในคลังเสียงด้านล่าง หรือใช้โหมด 🎭 คนละเสียง' : '';
   $('#ctStyles').innerHTML = Object.entries(STYLES_V).map(([k, st]) => `<span class="chip ${k === cur ? 'on' : ''}" data-st="${k}">${st.label}</span>`).join('');
   $$('#ctStyles [data-st]').forEach(ch => ch.onclick = () => {
     const st = STYLES_V[ch.dataset.st];
@@ -994,7 +1008,7 @@ $('#ctBanAdd').onclick = () => addWords('#ctBanIn', 'banned');
 $('#ctBanIn').onkeydown = e => { if (e.key === 'Enter') addWords('#ctBanIn', 'banned'); };
 $('#ctUserAdd').onclick = () => addWords('#ctUserIn', 'blockedUsers');
 $('#ctUserIn').onkeydown = e => { if (e.key === 'Enter') addWords('#ctUserIn', 'blockedUsers'); };
-$('#ctTestBtn').onclick = () => { enableSound(); readChat('คนทดสอบ', 'tester' + Math.floor(Math.random() * 5), $('#ctTest').value || 'สวัสดีค่ะ ขอบคุณที่มาดูไลฟ์นะ', { force: true }); };
+$('#ctTestBtn').onclick = () => { enableSound(); readChat('คนทดสอบ', 'tester' + Date.now(), $('#ctTest').value || 'สวัสดีค่ะ ขอบคุณที่มาดูไลฟ์นะ', { force: true }); };
 $('#ctTest').onkeydown = e => { if (e.key === 'Enter') $('#ctTestBtn').click(); };
 $('#ctSkip').onclick = () => speechSynthesis.cancel();
 $('#ctStop').onclick = () => { stopAll(); toast('หยุดอ่านแล้ว'); };
