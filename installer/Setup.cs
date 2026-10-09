@@ -51,7 +51,7 @@ class SetupForm : Form {
   readonly System.Windows.Forms.Timer timer;
   int tick, line;
   bool rotate = true, canClose;
-  string version = "?", dest, exe;
+  string version = "?", dest, exe, node;
 
   public SetupForm() {
     using (var g = CreateGraphics()) k = g.DpiX / 96f;
@@ -131,11 +131,12 @@ class SetupForm : Form {
       using (var r = new StreamReader(Res("version.txt"))) version = r.ReadToEnd().Trim();
       Ui(() => Text = "ติดตั้ง KuminBonk v" + version);
       dest = Env("KB_SETUP_DEST") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "KuminBonk");
-      exe = Path.Combine(dest, "KuminBonk.exe");
+      exe = Path.Combine(dest, "KuminBonk.exe");            // small starter (no console window)
+      node = Path.Combine(dest, "node", "node.exe");       // official Node.js, never modified
 
       Step("ปิด KuminBonk ที่เปิดอยู่ (ถ้ามี)...", 0.02);
-      foreach (var p in Process.GetProcessesByName("KuminBonk")) {
-        try { if (string.Equals(p.MainModule.FileName, exe, StringComparison.OrdinalIgnoreCase)) { p.Kill(); p.WaitForExit(3000); } } catch { }
+      foreach (var p in Process.GetProcessesByName("KuminBonk").Concat(Process.GetProcessesByName("node"))) {
+        try { if (p.MainModule.FileName.StartsWith(dest + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) { p.Kill(); p.WaitForExit(3000); } } catch { }
       }
 
       Step("คัดลอกไฟล์โปรแกรม...", 0.04);
@@ -161,8 +162,11 @@ class SetupForm : Form {
       File.WriteAllText(Path.Combine(dest, "current.txt"), version);
       string oldApp = Path.Combine(dest, "app"); if (Directory.Exists(oldApp)) Directory.Delete(oldApp, true); // layout of v1.3
 
+      // the starter (replaces the KuminBonk.exe of older versions)
+      using (var r = Res("launcher.exe")) using (var o = File.Create(exe)) r.CopyTo(o);
+
       bool needNode = true;
-      if (File.Exists(exe)) { try { if ((FileVersionInfo.GetVersionInfo(exe).ProductVersion ?? "").StartsWith("22.")) needNode = false; } catch { } }
+      if (File.Exists(node)) { try { if ((FileVersionInfo.GetVersionInfo(node).ProductVersion ?? "").StartsWith("22.")) needNode = false; } catch { } }
       if (needNode) {
         Step("ดาวน์โหลดตัวรันโปรแกรม (Node.js) จาก nodejs.org...", 0.1);
         GetNode();
@@ -174,7 +178,7 @@ class SetupForm : Form {
       Step("ติดตั้งเสร็จแล้ว!", 1);
       Ui(() => { rotate = false; title.Text = "ติดตั้งเสร็จแล้ว!"; sub.Text = "กำลังเปิด KuminBonk ให้นะ ♥"; });
       if (IsWindows && Env("KB_SETUP_NOLAUNCH") == null)
-        Process.Start(new ProcessStartInfo(exe, "launch.cjs") { WorkingDirectory = dest, UseShellExecute = false });
+        Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = dest, UseShellExecute = false });
       Thread.Sleep(2500);
       Ui(() => { canClose = true; Close(); });
     } catch (Exception ex) {
@@ -189,7 +193,8 @@ class SetupForm : Form {
 
   void GetNode() {
     try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; } catch { } // TLS 1.2
-    string tmp = exe + ".download";
+    Directory.CreateDirectory(Path.GetDirectoryName(node));
+    string tmp = node + ".download";
     string[] bases = (Env("KB_SETUP_NODE_BASE") ?? "https://nodejs.org/dist/v22.22.0;https://nodejs.org/dist/latest-v22.x").Split(';');
     foreach (var b in bases) {
       try {
@@ -200,17 +205,10 @@ class SetupForm : Form {
         using (var sha = SHA256.Create()) using (var f = File.OpenRead(tmp)) got = BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "").ToLowerInvariant();
         if (want == null || want != got) { Step("ไฟล์ไม่ตรงกับลายเซ็นของ nodejs.org ลองแหล่งถัดไป...", 0.1); continue; }
         Step("ตรวจไฟล์ถูกต้องแล้ว (SHA-256 ตรงกับ nodejs.org)", 0.9);
-        // mark it as a windowed app so no black console window appears
-        byte[] bytes = File.ReadAllBytes(tmp);
-        int pe = BitConverter.ToInt32(bytes, 0x3c);
-        if (bytes[pe] != 'P' || bytes[pe + 1] != 'E') throw new Exception("node.exe ไม่ใช่ไฟล์โปรแกรม Windows");
-        bytes[pe + 24 + 68] = 2; bytes[pe + 24 + 69] = 0;
-        File.WriteAllBytes(tmp, bytes);
-        if (File.Exists(exe)) File.Delete(exe);
-        File.Move(tmp, exe);
+        if (File.Exists(node)) File.Delete(node);
+        File.Move(tmp, node);
         return;
-      } catch (Exception ex) {
-        if (ex.Message.StartsWith("node.exe")) throw;
+      } catch (Exception) {
         Step("ดาวน์โหลดจาก " + b + " ไม่ได้ ลองแหล่งถัดไป...", 0.1);
       }
     }
@@ -250,7 +248,6 @@ class SetupForm : Form {
       object lnk = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { Path.Combine(dir, "KuminBonk.lnk") });
       var t = lnk.GetType();
       t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, lnk, new object[] { exe });
-      t.InvokeMember("Arguments", BindingFlags.SetProperty, null, lnk, new object[] { "launch.cjs" });
       t.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, lnk, new object[] { dest });
       t.InvokeMember("IconLocation", BindingFlags.SetProperty, null, lnk, new object[] { Path.Combine(dest, "icon.ico") + ",0" });
       t.InvokeMember("Description", BindingFlags.SetProperty, null, lnk, new object[] { "KuminBonk - ของขวัญ TikTok สู่ VTube Studio" });

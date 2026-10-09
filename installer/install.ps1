@@ -5,7 +5,8 @@ $ProgressPreference = 'SilentlyContinue'
 $Host.UI.RawUI.WindowTitle = 'ติดตั้ง KuminBonk'
 $src  = $PSScriptRoot
 $dest = Join-Path $env:LOCALAPPDATA 'Programs\KuminBonk'
-$exe  = Join-Path $dest 'KuminBonk.exe'
+$exe  = Join-Path $dest 'KuminBonk.exe'          # small starter, no console window
+$node = Join-Path $dest 'node\node.exe'           # official Node.js, never modified
 $appVersion = '__VERSION__'
 
 # ---------- cute installer window (falls back to the console if anything about it fails) ----------
@@ -119,7 +120,7 @@ try {
   Write-Host '  ======================================' -ForegroundColor Magenta
 
   Step 'ปิด KuminBonk ที่เปิดอยู่ (ถ้ามี)...' 0.02
-  Get-Process -Name KuminBonk -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } | Stop-Process -Force -ErrorAction SilentlyContinue
+  Get-Process -Name KuminBonk, node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$dest\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
   Start-Sleep -Milliseconds 500
 
   Step 'คัดลอกไฟล์โปรแกรม...' 0.05
@@ -131,14 +132,15 @@ try {
   Set-Content -Path (Join-Path $vdir '.complete') -Value $appVersion -NoNewline
   Set-Content -Path (Join-Path $dest 'current.txt') -Value $appVersion -NoNewline
   if (Test-Path (Join-Path $dest 'app')) { Remove-Item -Recurse -Force (Join-Path $dest 'app') }  # layout of v1.3
-  Copy-Item -Force (Join-Path $src 'icon.ico'), (Join-Path $src 'uninstall.ps1'), (Join-Path $src 'launch.cjs') $dest
+  Copy-Item -Force (Join-Path $src 'icon.ico'), (Join-Path $src 'uninstall.ps1'), (Join-Path $src 'launch.cjs'), (Join-Path $src 'KuminBonk.exe') $dest
 
   $needNode = $true
-  if (Test-Path $exe) { if ((Get-Item $exe).VersionInfo.ProductVersion -like '22.*') { $needNode = $false } }
+  if (Test-Path $node) { if ((Get-Item $node).VersionInfo.ProductVersion -like '22.*') { $needNode = $false } }
   if ($needNode) {
     Step 'ดาวน์โหลด Node.js (ตัวรันโปรแกรม ~30 MB) จาก nodejs.org ... รอสักครู่' 0.1
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $tmp = "$exe.download"
+    New-Item -ItemType Directory -Force -Path (Split-Path $node) | Out-Null
+    $tmp = "$node.download"
     $ok = $false
     foreach ($base in @('https://nodejs.org/dist/v22.22.0', 'https://nodejs.org/dist/latest-v22.x')) {
       try {
@@ -154,12 +156,7 @@ try {
     }
     if (-not $ok) { if (Test-Path $tmp) { Remove-Item $tmp -Force }; throw 'ดาวน์โหลด Node.js ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่' }
     Step 'ตรวจไฟล์ถูกต้องแล้ว (SHA-256 ตรงกับ nodejs.org)' 0.88
-    # Mark it as a windowed app so no black console window appears.
-    $b = [IO.File]::ReadAllBytes($tmp)
-    $pe = [BitConverter]::ToInt32($b, 0x3c)
-    $b[$pe + 24 + 68] = 2; $b[$pe + 24 + 69] = 0
-    [IO.File]::WriteAllBytes($tmp, $b)
-    Move-Item -Force $tmp $exe
+    Move-Item -Force $tmp $node
   }
 
   Step 'สร้างทางลัดบนเดสก์ท็อปและเมนู Start...' 0.92
@@ -167,7 +164,6 @@ try {
   foreach ($d in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) {
     $s = $ws.CreateShortcut((Join-Path $d 'KuminBonk.lnk'))
     $s.TargetPath = $exe
-    $s.Arguments = 'launch.cjs'
     $s.WorkingDirectory = $dest
     $s.IconLocation = (Join-Path $dest 'icon.ico') + ',0'
     $s.Description = 'KuminBonk - ของขวัญ TikTok สู่ VTube Studio'
@@ -189,7 +185,7 @@ try {
 
   Step 'ติดตั้งเสร็จแล้ว! กำลังเปิด KuminBonk ...' 1
   if ($ui) { $state.rotate = $false; $ui.title.Text = 'ติดตั้งเสร็จแล้ว!'; $ui.sub.Text = 'กำลังเปิด KuminBonk ให้นะ ' + [char]0x2665; Ui-Pump }
-  Start-Process -FilePath $exe -ArgumentList 'launch.cjs' -WorkingDirectory $dest
+  Start-Process -FilePath $exe -WorkingDirectory $dest
   $until = (Get-Date).AddSeconds(3)
   while ((Get-Date) -lt $until) { Ui-Pump; Start-Sleep -Milliseconds 30 }
   if ($ui) { $state.canClose = $true; $ui.timer.Stop(); $ui.form.Close() }

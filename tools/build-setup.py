@@ -17,12 +17,17 @@ with zipfile.ZipFile(payload, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     un = open(os.path.join(ROOT, 'installer', 'uninstall.ps1'), encoding='utf-8').read().replace('__VERSION__', VER)
     z.writestr('uninstall.ps1', '﻿'.encode('utf-8') + un.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
 open(os.path.join(tmp, 'version.txt'), 'w').write(VER)
+# the small KuminBonk.exe starter (also used by tools/package.py)
+launcher = os.path.join(ROOT, 'build', 'KuminBonk-launcher.exe')
+subprocess.run(['mcs', '-target:winexe', '-platform:x64', '-optimize+', '-nologo', '-out:' + launcher,
+    '-win32icon:' + os.path.join(ROOT, 'public', 'assets', 'icon.ico'), '-r:System.Windows.Forms',
+    os.path.join(ROOT, 'installer', 'Launcher.cs')], check=True)
 os.makedirs(os.path.join(ROOT, 'dist'), exist_ok=True)
 out = os.path.join(ROOT, 'dist', f'KuminBonk-v{VER}-ติดตั้ง.exe')
 subprocess.run(['mcs', '-target:winexe', '-platform:x64', '-optimize+', '-nologo', '-out:' + out,
     '-win32icon:' + os.path.join(ROOT, 'public', 'assets', 'icon.ico'),
     '-resource:' + payload + ',payload.zip', '-resource:' + os.path.join(ROOT, 'public', 'assets', 'icon.png') + ',icon.png',
-    '-resource:' + os.path.join(tmp, 'version.txt') + ',version.txt',
+    '-resource:' + os.path.join(tmp, 'version.txt') + ',version.txt', '-resource:' + launcher + ',launcher.exe',
     '-r:System.Windows.Forms', '-r:System.Drawing', '-r:System.IO.Compression',
     os.path.join(ROOT, 'installer', 'Setup.cs')], check=True)
 print(out, round(os.path.getsize(out) / 1e6, 1), 'MB')

@@ -17,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.6';
+const VERSION = '1.4.7';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -319,7 +319,7 @@ function restartApp() {
   vts.stop(); tiktok.disconnect(true).catch(() => {});
   for (const ws of [...dashboards, ...overlays]) { try { ws.terminate(); } catch {} }
   server.close(() => {
-    spawn(process.execPath, [path.join(process.env.KB_INSTALL, 'launch.cjs')], { cwd: process.env.KB_INSTALL, detached: true, stdio: 'ignore' }).unref();
+    spawn(process.execPath, [path.join(process.env.KB_INSTALL, 'launch.cjs')], { cwd: process.env.KB_INSTALL, detached: true, stdio: 'ignore', windowsHide: true }).unref();
     setTimeout(() => process.exit(0), 300);
   });
   setTimeout(() => process.exit(0), 5000);

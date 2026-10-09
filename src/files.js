@@ -8,7 +8,8 @@ import sea from 'node:sea';
 
 export const IS_SEA = (() => { try { return sea.isSea(); } catch { return false; } })();
 // Installed app: KuminBonk.exe (Node runtime) running app\app.cjs — no console window.
-export const IS_APP = IS_SEA || path.basename(process.execPath).toLowerCase() === 'kuminbonk.exe';
+// (since v1.4.7 the installer runs the official node\node.exe through a small KuminBonk.exe starter, so KB_INSTALL marks it too)
+export const IS_APP = IS_SEA || !!process.env.KB_INSTALL || path.basename(process.execPath).toLowerCase() === 'kuminbonk.exe';
 
 const DEV_ROOT = process.env.KB_ROOT || [path.dirname(process.argv[1] || '.'), process.cwd(), path.resolve(path.dirname(process.argv[1] || '.'), '..')]
   .find(d => fs.existsSync(path.join(d, 'public', 'dashboard.html'))) || process.cwd();
