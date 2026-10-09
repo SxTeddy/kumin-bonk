@@ -27,6 +27,7 @@ function handle(m) {
     case 'state':
       config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.anchors) anchors = m.anchors;
       (m.logs || []).forEach(addLog);
+      if (config.theme && config.theme !== curTheme()) applyTheme(config.theme);
       renderAll();
       hideSplash();
       if (m.justUpdated) setTimeout(() => showWhatsNew(m.justUpdated), 800);
@@ -65,17 +66,52 @@ function renderStatus(s) {
 
 // ---------- auto-update ----------
 // cute bits shared by the splash screen, the update card and the "updated!" card
-const FLOATIES = ['heart', 'star', 'sparkle', 'rose', 'note', 'confetti'];
+// ---------- themes ----------
+const THEMES = {
+  pink:     { name: '🌸 ชมพูพาสเทล', note: 'น่ารักสดใส หัวใจลอยฟุ้ง (ค่าเริ่มต้น)', bg: '#fff6f9', card: '#fff', accent: '#ff4f8b', floaties: ['heart', 'rose', 'star', 'heart', 'note'] },
+  cloud:    { name: '☁️ ขาวคลาวด์', note: 'ขาวสะอาดตา มินิมอล การ์ดลอยนุ่ม ๆ', bg: '#f6f6fa', card: '#fff', accent: '#7c6cf2', floaties: ['sparkle', 'star', 'petal', 'sparkle'] },
+  midnight: { name: '🌙 ดำมิดไนท์', note: 'ดำสนิท ไฟนีออนชมพูเรืองแสง มีดาวระยิบ', bg: '#0c0b10', card: '#15131c', accent: '#ff3d8b', floaties: ['star', 'sparkle', 'zap', 'star'] },
+  ocean:    { name: '🌊 น้ำเงินทะเลลึก', note: 'น้ำเงินเข้มใต้ทะเล แสงฟ้า ฟองอากาศลอยขึ้น', bg: '#07142b', card: '#0e2142', accent: '#38d6ff', bubbles: true },
+};
+const curTheme = () => THEMES[document.documentElement.dataset.theme] ? document.documentElement.dataset.theme : 'pink';
 function fillFloaties() {
-  const box = $('#splash .floaties'); if (!box || box.childElementCount) return;
+  const box = $('#splash .floaties'); if (!box) return;
+  box.innerHTML = '';
+  const t = THEMES[curTheme()];
   for (let i = 0; i < 14; i++) {
-    const im = document.createElement('img'); im.src = `/assets/${FLOATIES[i % FLOATIES.length]}.svg`; im.alt = '';
-    im.style.left = (4 + Math.random() * 92) + '%'; im.style.width = (18 + Math.random() * 18) + 'px';
-    im.style.animationDuration = (5 + Math.random() * 5) + 's'; im.style.animationDelay = (-Math.random() * 8) + 's';
-    box.appendChild(im);
+    let el;
+    if (t.bubbles) { el = document.createElement('span'); el.className = 'bub'; const d = 10 + Math.random() * 26; el.style.width = el.style.height = d + 'px'; }
+    else { el = document.createElement('img'); el.src = `/assets/${t.floaties[i % t.floaties.length]}.svg`; el.alt = ''; el.style.width = (18 + Math.random() * 18) + 'px'; }
+    el.style.left = (4 + Math.random() * 92) + '%';
+    el.style.animationDuration = (5 + Math.random() * 5) + 's'; el.style.animationDelay = (-Math.random() * 8) + 's';
+    box.appendChild(el);
   }
 }
-fillFloaties();
+function fillBubbles() {
+  const box = $('#bubbles'); box.innerHTML = '';
+  if (!THEMES[curTheme()].bubbles) return;
+  for (let i = 0; i < 16; i++) {
+    const b = document.createElement('i'); const d = 6 + Math.random() * 20;
+    b.style.width = b.style.height = d + 'px'; b.style.left = Math.random() * 100 + '%';
+    b.style.animationDuration = (12 + Math.random() * 14) + 's'; b.style.animationDelay = (-Math.random() * 20) + 's';
+    box.appendChild(b);
+  }
+}
+function applyTheme(t, persist = false) {
+  if (!THEMES[t]) t = 'pink';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('kbTheme', t); } catch {}
+  fillFloaties(); fillBubbles(); renderThemes();
+  if (persist && config) { config.theme = t; save(); }
+}
+function renderThemes() {
+  const box = $('#themes'); if (!box) return;
+  box.innerHTML = Object.entries(THEMES).map(([k, t]) => `<button class="theme ${k === curTheme() ? 'on' : ''}" data-theme="${k}">
+    <div class="pv" style="background:${t.bg}"><i style="background:${t.card}"></i><u style="background:${t.accent}"></u><s style="background:${t.accent};opacity:.5"></s></div>
+    <b>${t.name}</b><small>${t.note}</small></button>`).join('');
+  box.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { applyTheme(b.dataset.theme, true); toast('เปลี่ยนธีมเป็น ' + THEMES[b.dataset.theme].name + ' แล้ว'); });
+}
+applyTheme(curTheme());
 let splashT0 = Date.now(), restartingNow = false;
 setTimeout(() => { if (!$('#splash').classList.contains('gone') && !restartingNow) $('#splashSub').textContent = 'ยังเชื่อมกับโปรแกรมไม่ได้… ถ้านานเกินไป ลองปิดแล้วเปิด KuminBonk ใหม่นะ'; }, 10000);
 function showSplash(title, sub) { $('#splashTitle').textContent = title; $('#splashSub').textContent = sub; $('#splash').classList.remove('gone'); }

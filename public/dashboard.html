@@ -9,8 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/dashboard.css">
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("kbTheme") || "pink"; } catch (e) {}</script>
 </head>
 <body>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
 <div id="splash" class="splash">
   <div class="floaties" aria-hidden="true"></div>
   <div class="mascot"><img src="/assets/icon.svg" alt=""><span class="shadow"></span></div>
@@ -209,6 +211,10 @@
 
   <!-- SETTINGS -->
   <section id="settings" class="tab">
+    <div class="card" style="margin-bottom:18px">
+      <h2>🎨 ธีม</h2>
+      <div class="themes" id="themes"></div>
+    </div>
     <div class="grid2">
       <div class="card">
         <h2>การปาของ</h2>
