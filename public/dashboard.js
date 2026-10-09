@@ -767,7 +767,37 @@ const STYLES_V = {
   fast: { label: '⚡ เร็วปรื๋อ', pitch: 1.1, rate: 1.6 },
   slow: { label: '🐢 ช้า ๆ', pitch: 0.95, rate: 0.7 },
   robot: { label: '🤖 หุ่นยนต์', pitch: 0.5, rate: 1.15 },
+  // กวน ๆ: these also play with the words, so they work with every voice
+  troll: { label: '😜 กวนตีน', pitch: 1.2, rate: 1.2, troll: true },
+  drawl: { label: '🦥 ยานคาง', pitch: 0.9, rate: 0.62, drawl: true },
+  shout: { label: '📢 โฆษก', pitch: 1, rate: 1.05, shout: true },
+  sassy: { label: '💅 ประชด', pitch: 1.3, rate: 0.95, sassy: true },
 };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+// word games for the cheeky styles (Thai only; other languages are read as they are)
+function styleText(t, lang) {
+  const st = STYLES_V[ct().style] || {};
+  if (lang !== 'th') return t;
+  if (st.troll) return `${pick(['เอ้า', 'โห', 'อ้าว', 'อ๋อออ', 'ห๊ะ', 'เดี๋ยวนะ'])} ${t} ${pick(['จริงดิ', 'เหรอออ', 'ก็ได้', 'แล้วไงต่อ', 'อะเนอะ', 'จ้าาา'])}`;
+  if (st.sassy) return `${pick(['อ๋อ', 'ค่ะ', 'โอเค'])} ${t} ${pick(['ค่าาา', 'นะคะ ที่รัก', 'เก่งจังเลย', 'ดีใจด้วยนะ'])}`;
+  if (st.shout) return `${pick(['ประกาศ ประกาศ!', 'ข่าวด่วน!', 'แจ้งให้ทราบ!'])} ${t}`;
+  if (st.drawl) return `${pick(['อืมมม...', 'เอ่ออ...', 'อ่าาา...'])} ${t.replace(/\s+/g, ' ... ')} ... ${pick(['เนอะะะ', 'อ่ะะะ', 'แหละะะ'])}`;
+  return t;
+}
+// voice groups for the library, from the names of the Microsoft voices
+const FEMALE = 'premwadee achara aria jenny ava emma michelle sonia libby maisie nanami aoi mayu shiori sunhi jimin seohyeon xiaoxiao xiaoyi xiaohan xiaomo xiaoxuan xiaorui hiumaan hiugaai hsiaochen hsiaoyu hoaimy gadis yasmin elvira dalia denise eloise vivienne seraphina katja amala elsa isabella francisca raquel sofie hillevi swara salma zariyah svetlana dariya nanami mai neerja natasha clara jane nancy sara amber ashley cora elizabeth monica jenny ana';
+const MALE = 'niwat guy andrew brian christopher eric roger steffan ryan thomas william keita daichi naoki injoon hyunsu yunxi yunjian yunyang yunfeng yunhao wanlung yunjhe namminh ardi alvaro jorge henri remy conrad florian killian diego giuseppe antonio duarte mattias madhur hamed shakir dmitry prabhat liam kai luke davis jason tony brandon christopher derek dustin'.split(' ');
+const FEMALE_L = FEMALE.split(' ');
+const vkey = v => v.name.replace(/^Microsoft /, '').split(/[\s-]/)[0].toLowerCase().replace(/multilingual$/, '');
+function voiceGroup(v) {
+  const k = vkey(v);
+  if (/^(ana|maisie|xiaoyou|aiden|asher)$/.test(k)) return 'kid';
+  if (FEMALE_L.includes(k) || /female|woman|zira|hazel|susan|haruka|ayumi|heami|huihui|yaoyao|pattara/i.test(v.name)) return 'f';
+  if (MALE.includes(k) || /male|man|david|mark|george|ichiro|kangkang|danny/i.test(v.name)) return 'm';
+  return '';
+}
+const GROUPS = { all: 'ทั้งหมด', f: '👩 ผู้หญิง', m: '👨 ผู้ชาย', kid: '🧒 เด็ก', fun: '😜 กวน ๆ' };
+let libGroup = 'all';
 function voiceRank(v) { return (/natural|online|neural/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1); }
 function bestVoice(lang) { return voicesFor(lang).sort((a, b) => voiceRank(b) - voiceRank(a))[0]; }
 function mainVoice() { return voices.find(v => v.name === ct().voice) || bestVoice('th') || voices[0]; }
@@ -833,7 +863,7 @@ function prepare(name, user, text) {
   const say = [];
   const pre = before.replaceAll('{name}', nameSay).trim();
   if (pre) say.push({ text: pre, lang: detectLang(pre) === 'th' || /[฀-๿]/.test(tpl) ? 'th' : detectLang(pre), part: 'name' });
-  say.push({ text: t, lang, part: 'text' });
+  say.push({ text: styleText(t, lang), lang, part: 'text' });
   const post = after.replaceAll('{name}', nameSay).trim(); if (post) say.push({ text: post, lang: 'th', part: 'name' });
   return { say, lang };
 }
@@ -927,7 +957,7 @@ function renderChatVoices() {
 }
 // --- voice library ---
 const prettyVoice = v => v.name.replace(/^Microsoft /, '').replace(/ Online \(Natural\)/, '').replace(/ - .*$/, '');
-function sampleText(v) { const l = langOf(v); return isMulti(v) ? 'สวัสดีค่ะ Hello! ขอบคุณที่มาดูไลฟ์นะ' : ({ th: 'สวัสดีค่ะ ขอบคุณที่มาดูไลฟ์นะคะ', ja: 'こんにちは、配信に来てくれてありがとう！', ko: '안녕하세요, 방송에 와줘서 고마워요!', zh: '你好，谢谢你来看直播！', vi: 'Xin chào, cảm ơn bạn đã xem live!' }[l] || 'Hello! Thanks for watching the live!'); }
+function sampleText(v) { const l = langOf(v); if (libGroup === 'fun') return 'โอ้โห วันนี้ไลฟ์สนุกมากเลยนะ ส่งกุหลาบมาหน่อยสิ'; return isMulti(v) ? 'สวัสดีค่ะ Hello! ขอบคุณที่มาดูไลฟ์นะ' : ({ th: 'สวัสดีค่ะ ขอบคุณที่มาดูไลฟ์นะคะ', ja: 'こんにちは、配信に来てくれてありがとう！', ko: '안녕하세요, 방송에 와줘서 고마워요!', zh: '你好，谢谢你来看直播！', vi: 'Xin chào, cảm ơn bạn đã xem live!' }[l] || 'Hello! Thanks for watching the live!'); }
 function previewVoice(v) {
   enableSound(); speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(sampleText(v)); u.voice = v; u.lang = isMulti(v) ? 'th-TH' : v.lang;
@@ -942,10 +972,14 @@ function renderVoiceLib() {
   sel.innerHTML = `<option value="th+multi">ไทย + พูดได้หลายภาษา</option><option value="all">ทุกภาษา (${voices.length})</option><option value="multi">🌐 พูดได้หลายภาษา</option>` + langs.map(l => `<option value="${l}">${LANGS[l] || l} (${voicesFor(l).length})</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'th+multi';
   const q = $('#libQ').value.trim().toLowerCase(), onlyFav = $('#libFav').checked, lf = sel.value;
-  const list = voices.filter(v => (lf === 'all' || (lf === 'multi' ? isMulti(v) : lf === 'th+multi' ? (langOf(v) === 'th' || isMulti(v)) : langOf(v) === lf))
-    && (!q || v.name.toLowerCase().includes(q)) && (!onlyFav || fav.has(v.name)));
+  $('#libGroups').innerHTML = Object.entries(GROUPS).map(([k, l]) => `<span class="chip ${k === libGroup ? 'on' : ''}" data-g="${k}">${l}</span>`).join('');
+  $$('#libGroups [data-g]').forEach(ch => ch.onclick = () => { libGroup = ch.dataset.g; renderVoiceLib(); });
+  $('#libFunHint').hidden = libGroup !== 'fun';
+  const inGroup = v => libGroup === 'all' || (libGroup === 'fun' ? (isMulti(v) || voiceGroup(v) === 'kid') : voiceGroup(v) === libGroup);
+  const list = voices.filter(v => (libGroup === 'fun' || libGroup === 'kid' || lf === 'all' || (lf === 'multi' ? isMulti(v) : lf === 'th+multi' ? (langOf(v) === 'th' || isMulti(v)) : langOf(v) === lf))
+    && inGroup(v) && (!q || v.name.toLowerCase().includes(q)) && (!onlyFav || fav.has(v.name)));
   $('#libCount').textContent = `มีทั้งหมด ${voices.length} เสียง · ติดดาว ${fav.size}`;
-  $('#voiceLib').innerHTML = list.slice(0, 300).map((v, i) => `<div class="vc ${v.name === c.voice ? 'main' : ''}"><div><b title="${esc(v.name)}">${isMulti(v) ? '🌐 ' : ''}${esc(prettyVoice(v))}</b><small>${esc(LANGS[langOf(v)] || v.lang)} · ${esc(v.lang)}</small></div>
+  $('#voiceLib').innerHTML = list.slice(0, 300).map((v, i) => `<div class="vc ${v.name === c.voice ? 'main' : ''}"><div><b title="${esc(v.name)}">${isMulti(v) ? '🌐 ' : ''}${esc(prettyVoice(v))}</b><small>${{ f: '👩 ', m: '👨 ', kid: '🧒 ' }[voiceGroup(v)] || ''}${esc(LANGS[langOf(v)] || v.lang)} · ${esc(v.lang)}</small></div>
     <button data-play="${i}" title="ฟัง">▶</button><button class="star ${fav.has(v.name) ? 'on' : ''}" data-fav="${i}" title="ติดดาว">⭐</button>${v.name === c.voice ? `<button class="primary" data-unmain="1" title="เลิกใช้เป็นเสียงหลัก (กลับไปเลือกอัตโนมัติ)">✕ ยกเลิก</button>` : `<button data-main="${i}" title="ใช้เป็นเสียงหลัก">ใช้</button>`}</div>`).join('') || '<p class="hint">ไม่พบเสียง</p>';
   $$('#voiceLib [data-play]').forEach(b => b.onclick = () => previewVoice(list[+b.dataset.play]));
   $$('#voiceLib [data-fav]').forEach(b => b.onclick = () => { const n = list[+b.dataset.fav].name; const f = new Set(ct().favVoices || []); f.has(n) ? f.delete(n) : f.add(n); setCt('favVoices', [...f]); renderVoiceLib(); });

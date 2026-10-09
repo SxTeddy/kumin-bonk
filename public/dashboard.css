@@ -340,3 +340,5 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .vc .star.on { background: var(--amber); border-color: var(--amber); color: #fff; }
 #ctStyles .chip { cursor: pointer; padding: 4px 12px; border: 2px solid transparent; }
 #ctStyles .chip.on { border-color: var(--pink); background: var(--pink); color: var(--on-accent); }
+#libGroups .chip { cursor: pointer; padding: 4px 12px; border: 2px solid transparent; }
+#libGroups .chip.on { background: var(--pink); color: var(--on-accent); }

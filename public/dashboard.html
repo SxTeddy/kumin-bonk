@@ -270,6 +270,8 @@
     <div class="card" style="margin-bottom:18px">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">🎚️ คลังเสียง</h2><span class="hint" id="libCount" style="margin:0"></span></div>
       <p class="hint">กด ▶ ฟังเสียงตัวอย่าง · กด ⭐ เก็บเข้า "ชุดเสียงคนละเสียง" (กดอีกครั้ง = เอาออก) · กด "ใช้" ตั้งเป็นเสียงหลัก (กด ✕ ยกเลิก เพื่อเลิกใช้) (โหมด 🎭 คนละเสียง จะสุ่มเสียงจากที่ติดดาวให้คนดูแต่ละคน) · เสียงที่มีป้าย 🌐 พูดได้หลายภาษา (รวมภาษาไทย)</p>
+      <div class="chips" id="libGroups"></div>
+      <p class="hint" id="libFunHint" hidden style="margin-top:0">😜 กวน ๆ = เสียงฝรั่ง/ญี่ปุ่น/จีนที่พูดไทยได้ (สำเนียงตลก ๆ) และเสียงเด็ก · ใช้คู่กับสไตล์ 😜 กวนตีน / 💅 ประชด / 🦥 ยานคาง / 📢 โฆษก ด้านบน</p>
       <div class="row"><select id="libLang"></select><input id="libQ" placeholder="🔍 ค้นหาชื่อเสียง" style="flex:1"><label class="check" style="margin:0"><input type="checkbox" id="libFav"> เฉพาะที่ติดดาว</label>
         <button id="libStarAll" class="small">⭐ ติดดาวเสียงไทย + หลายภาษาทั้งหมด</button><button id="libStarNone" class="small">✕ ล้างดาวทั้งหมด</button><button id="ctReset" class="small danger">↺ คืนค่าเสียงทั้งหมด</button></div>
       <div class="voicelib" id="voiceLib"></div>
