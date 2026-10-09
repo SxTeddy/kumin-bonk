@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // KuminBonk — TikTok LIVE gifts → VTube Studio reactions + OBS throwing overlay.
 import http from 'node:http';
 import fs from 'node:fs';
@@ -16,7 +17,7 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
-const VERSION = '1.4.2';
+const VERSION = '1.4.3';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -251,7 +252,7 @@ function sampleEvent(r) {
 const clamp01 = v => Math.max(0, Math.min(1, Number(v) || 0));
 
 // ---------- http ----------
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.wav': 'audio/wav' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.wav': 'audio/wav', '.txt': 'text/plain; charset=utf-8' };
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   let p = url.pathname;

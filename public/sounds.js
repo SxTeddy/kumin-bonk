@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Effect sounds, synthesised in the browser (no audio files).
 (function () {
 let VOL = 0.6;

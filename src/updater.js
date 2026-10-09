@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Auto-update: checks the GitHub repo's updates/ folder, downloads the new app files in the background,
 // and switches to them on the next start (or right away when the user presses restart).
 // Installed layout:  <install>\launch.cjs  <install>\current.txt  <install>\versions\<ver>\{app.cjs, public\...}

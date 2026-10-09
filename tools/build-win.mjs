@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Builds dist/KuminBonk.exe: one Windows app file with every web asset embedded.
 // usage: node tools/build-win.mjs <path to Windows node.exe> [--linux-test]
 import fs from 'node:fs';
@@ -9,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = path.join(ROOT, 'build');
 const DIST = path.join(ROOT, 'dist');
-const VERSION = '1.4.2';
+const VERSION = '1.4.3';
 const nodeExe = process.argv[2];
 const linuxTest = process.argv.includes('--linux-test');
 fs.mkdirSync(BUILD, { recursive: true });
@@ -17,8 +18,7 @@ fs.mkdirSync(DIST, { recursive: true });
 const run = (cmd, args) => execFileSync(cmd, args, { cwd: ROOT, stdio: 'inherit' });
 
 // 1) bundle
-run('npx', ['esbuild', 'src/server.js', '--bundle', '--platform=node', '--target=node22', '--format=cjs', `--outfile=${path.join(BUILD, 'app.cjs')}`,
-  '--external:bufferutil', '--external:utf-8-validate', '--log-level=warning']);
+run('node', ['tools/build.mjs']);
 
 // 1b) icon (.ico with PNG images)
 const sizes = [16, 24, 32, 48, 64, 128, 256];

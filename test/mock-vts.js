@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Fake VTube Studio API for local testing. Logs request types to stdout.
 import { WebSocketServer } from 'ws';
 import fs from 'node:fs';

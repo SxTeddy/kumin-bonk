@@ -1,3 +1,4 @@
+# KuminBonk - created by hxz - Copyright (c) 2026 hxz - see LICENSE
 # KuminBonk installer: copies the app, downloads the official Node.js runtime (verified), makes shortcuts.
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'

@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Thai TikTok gift list (as shown in the Thai gift panel): coins | Thai name | English name TikTok sends (when known).
 // TikTok LIVE events usually carry the English name, so rules written in Thai are matched through
 // the English alias, through aliases learned during lives, or by price when that price is unique.

@@ -1,3 +1,4 @@
+# KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz
 # Builds dist/KuminBonk-v<ver>-Windows.zip (installer layout).
 import os, shutil, zipfile, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,6 +16,8 @@ shutil.copy(os.path.join(ROOT, 'installer', 'install.cmd'), os.path.join(out, '�
 shutil.copy(os.path.join(ROOT, 'installer', 'launch.cjs'), os.path.join(out, 'setup', 'launch.cjs'))
 readme = open(os.path.join(ROOT, 'README-TH.txt'), encoding='utf-8').read()
 open(os.path.join(out, 'README-TH.txt'), 'w', encoding='utf-8-sig', newline='\r\n').write(readme)
+for f in ('LICENSE', 'THIRD-PARTY-NOTICES.txt'):
+    open(os.path.join(out, f if f.endswith('.txt') else f + '.txt'), 'w', encoding='utf-8-sig', newline='\r\n').write(open(os.path.join(ROOT, f), encoding='utf-8').read())
 src = os.path.join(out, 'source')
 for d in ('src', 'tools', 'test', 'installer'):
     shutil.copytree(os.path.join(ROOT, d), os.path.join(src, d), ignore=shutil.ignore_patterns('__pycache__'))

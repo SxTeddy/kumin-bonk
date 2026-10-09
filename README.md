@@ -1,5 +1,7 @@
 # KuminBonk
 
+**สร้างโดย hxz** · © 2026 hxz — สงวนลิขสิทธิ์ ([เงื่อนไขการใช้งาน](LICENSE))
+
 ของขวัญจาก TikTok LIVE → ตัวละครใน VTube Studio มีท่าตามของขวัญ (โดนปา, รถชน, หมวกหล่นใส่หัว, เครื่องดนตรี, ฯลฯ)
 ทำมาสำหรับ TikTok LIVE Studio (ไม่ต้องใช้ OBS) — ของที่ปาบินอยู่ในหน้าต่าง VTube Studio เลย
 
@@ -8,14 +10,14 @@
 - หน้าตั้งค่าภาษาไทย: กฎของขวัญ, ตั้งค่าแยกตามหมวดของขวัญ, เล็งหัว, ทดสอบ
 
 ## เวอร์ชัน
-- เวอร์ชันปัจจุบัน: **v1.4.1** — ดู [ประวัติเวอร์ชัน](CHANGELOG.md)
+- เวอร์ชันปัจจุบัน: **v1.4.3** — ดู [ประวัติเวอร์ชัน](CHANGELOG.md)
 - เวอร์ชันที่จะมา: ดู [แผนเวอร์ชันถัดไป](ROADMAP.md)
 
 ## อัปเดตอัตโนมัติ
 แอปที่ติดตั้งแล้วจะเช็กโฟลเดอร์ [`updates/`](updates) ของที่เก็บนี้ทุกครั้งที่เปิด แล้วดาวน์โหลดเวอร์ชันใหม่ให้เอง
 (`latest.json` บอกเวอร์ชันล่าสุด + ลายเซ็น SHA-256, ไฟล์ `update-<เวอร์ชัน>.json.gz` คือโค้ดชุดใหม่)
 
-ออกเวอร์ชันใหม่: แก้ `VERSION` ใน `src/server.js` และ CHANGELOG → `npx esbuild ...` (ดู tools) → `node tools/make-update.mjs <เวอร์ชัน>` → commit + push
+ออกเวอร์ชันใหม่: แก้ `VERSION` ใน `src/server.js` และ CHANGELOG → `npm run build` → `node tools/make-update.mjs <เวอร์ชัน>` → commit + push
 
 รูปของขวัญ TikTok ไม่ได้อยู่ในที่เก็บนี้ (เป็นของ TikTok) — มาจากตัวติดตั้งของผู้ใช้เอง
 
@@ -26,3 +28,8 @@ node src/server.js          # เปิดที่ http://localhost:3939
 node test/mock-vts.js       # VTube Studio จำลองสำหรับทดสอบ
 node tools/make-update.mjs <version>   # สร้างไฟล์อัปเดตใน updates/
 ```
+
+## ลิขสิทธิ์
+KuminBonk สร้างโดย **hxz** — Copyright © 2026 hxz. All rights reserved.
+ใช้ในไลฟ์ของตัวเองได้ฟรี ห้ามแจกต่อ ขาย หรือแก้แล้วเผยแพร่โดยไม่ได้รับอนุญาต ดูรายละเอียดใน [LICENSE](LICENSE)
+ไลบรารีของผู้อื่นที่ใช้อยู่ภายใต้สัญญาอนุญาตของแต่ละราย: [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)

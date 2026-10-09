@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // KuminBonk launcher: starts the newest complete version in .\versions (auto-update friendly).
 const fs = require('fs');
 const path = require('path');

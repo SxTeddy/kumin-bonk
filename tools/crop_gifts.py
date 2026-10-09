@@ -1,3 +1,4 @@
+# KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz
 # Cut each gift icon out of the gift-panel screenshots and make the dark background transparent.
 import sys, json, glob, os, hashlib
 import numpy as np

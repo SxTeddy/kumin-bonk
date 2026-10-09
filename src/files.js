@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Where things live. In the packaged app every web file is embedded in KuminBonk.exe
 // (Node "single executable" assets); during development they're read from ./public.
 import fs from 'node:fs';

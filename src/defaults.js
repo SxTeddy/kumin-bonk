@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Default settings and starter rules (all editable in the dashboard).
 let n = 0;
 const id = () => `r${++n}`;

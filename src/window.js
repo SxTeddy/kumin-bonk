@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Opens KuminBonk in its own app window (Microsoft Edge / Chrome "app mode": no tabs, no address bar).
 import fs from 'node:fs';
 import path from 'node:path';

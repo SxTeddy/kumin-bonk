@@ -1,3 +1,4 @@
+// KuminBonk — สร้างโดย hxz · Copyright (c) 2026 hxz · ดูเงื่อนไขใน LICENSE
 // Gift effects played inside VTube Studio: each style is a small choreography of
 // item sprites (the gift picture + particles) and reactions of the model itself.
 let SPEED = 1; // per-category speed while a job runs

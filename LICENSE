@@ -1,0 +1,49 @@
+KuminBonk
+Copyright (c) 2026 hxz. All rights reserved.
+สร้างโดย hxz — สงวนลิขสิทธิ์
+
+ภาษาไทย
+-------
+KuminBonk (โค้ด หน้าตาแอป ไอคอน ภาพเอฟเฟกต์ เสียงสังเคราะห์ ตัวติดตั้ง และเอกสาร) เป็นลิขสิทธิ์ของ hxz
+
+อนุญาต
+  - ดาวน์โหลด ติดตั้ง และใช้ KuminBonk ในการไลฟ์ของตัวเองได้ฟรี
+  - ดูและศึกษาโค้ดในหน้า GitHub นี้ได้
+
+ไม่อนุญาต หากไม่ได้รับอนุญาตเป็นลายลักษณ์อักษรจาก hxz
+  - นำโค้ดหรือส่วนใดส่วนหนึ่งไปแจกจ่ายต่อ ขาย ให้เช่า หรือรวมไว้ในผลงานของผู้อื่น
+  - ดัดแปลงแล้วเผยแพร่ หรืออ้างว่าเป็นผู้สร้าง
+  - ลบหรือแก้ไขข้อความลิขสิทธิ์และคำว่า "สร้างโดย hxz"
+
+ไม่รวมอยู่ในลิขสิทธิ์นี้
+  - ไลบรารีของบุคคลอื่นที่แอปใช้ (เช่น tiktok-live-connector, ws) อยู่ภายใต้สัญญาอนุญาตของเจ้าของแต่ละราย
+    ดูรายละเอียดใน THIRD-PARTY-NOTICES.txt
+    (tiktok-live-connector ใช้ AGPL-3.0 พร้อมข้อยกเว้นข้อ 18 ที่อนุญาตให้รวมในเครื่องมือ TikTok LIVE
+    เช่น overlay และบอท โดยไม่ต้องเป็น AGPL; KuminBonk เป็นแอปที่รันบนคอมของผู้ใช้เอง ไม่ใช่บริการบนเซิร์ฟเวอร์)
+  - ชื่อ เครื่องหมายการค้า และรูปของขวัญของ TikTok เป็นของ TikTok/ByteDance
+    (รูปของขวัญไม่ได้เผยแพร่ใน GitHub นี้)
+  - VTube Studio เป็นของ Denchi; KuminBonk ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก TikTok หรือ VTube Studio
+
+ซอฟต์แวร์นี้ให้มา "ตามสภาพ" ไม่มีการรับประกันใด ๆ ผู้สร้างไม่รับผิดชอบต่อความเสียหายที่เกิดจากการใช้งาน
+
+English
+-------
+KuminBonk (source code, user interface, icons, effect artwork, synthesized sounds, installer and
+documentation) is the copyright of hxz.
+
+You MAY download, install and use KuminBonk free of charge for your own live streams, and read the
+source code published in this repository.
+
+You may NOT, without written permission from hxz: redistribute, sell, sublicense or rent the software
+or any part of it; publish modified versions; claim authorship; or remove or alter this copyright
+notice or the "created by hxz" credit.
+
+Not covered by this license: third-party libraries, which remain under their own licenses (see
+THIRD-PARTY-NOTICES.txt; tiktok-live-connector is AGPL-3.0 with a Section 18 exception that allows
+integration into TikTok LIVE tools such as overlays and bots without adopting the AGPL — KuminBonk
+runs locally on the user's own computer and is not a hosted service); TikTok names, trademarks and gift images, which belong to TikTok/ByteDance
+and are not distributed in this repository; VTube Studio, which belongs to Denchi. KuminBonk is not
+affiliated with or endorsed by TikTok or VTube Studio.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT SHALL THE AUTHOR BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
