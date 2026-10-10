@@ -47,9 +47,11 @@ export class Updater extends EventEmitter {
     if (type === 'text') return r.text();
     // binary: read in chunks so the dashboard can show a progress bar
     const total = Number(r.headers.get('content-length')) || 0;
+    if (total > 80e6) throw new Error('ไฟล์อัปเดตใหญ่ผิดปกติ');
     const parts = []; let got = 0, last = 0;
     for await (const chunk of r.body) {
       parts.push(chunk); got += chunk.length;
+      if (got > 80e6) throw new Error('ไฟล์อัปเดตใหญ่ผิดปกติ');
       if (onProgress && Date.now() - last > 150) { last = Date.now(); onProgress(got, total); }
     }
     if (onProgress) onProgress(got, total || got);
@@ -76,14 +78,17 @@ export class Updater extends EventEmitter {
       const gz = await this.get(`${BASE}/${man.file}`, 'bin', (got, total) => this.set({ status: 'downloading', latest, progress: Math.min(1, got / (total || size || got || 1)) }));
       const got = crypto.createHash('sha256').update(gz).digest('hex');
       if (String(man.sha256).toLowerCase() !== got) throw new Error('ไฟล์อัปเดตไม่ตรงกับลายเซ็น');
-      const bundle = JSON.parse(zlib.gunzipSync(gz).toString('utf8'));
+      const bundle = JSON.parse(zlib.gunzipSync(gz, { maxOutputLength: 300e6 }).toString('utf8'));
+      if (!bundle || typeof bundle.files !== 'object') throw new Error('bad update bundle');
       if (String(bundle.version) !== latest) throw new Error('เวอร์ชันในไฟล์ไม่ตรง');
 
       const tmp = dir + '.partial';
       fs.rmSync(tmp, { recursive: true, force: true });
       for (const [rel, b64] of Object.entries(bundle.files)) {
-        if (rel.includes('..') || path.isAbsolute(rel)) throw new Error('bad path in update');
-        const out = path.join(tmp, rel);
+        // 🔒 every file must stay inside the new version's folder
+        if (typeof b64 !== 'string' || rel.includes('..') || rel.includes(':') || path.isAbsolute(rel) || /^[\\/]/.test(rel)) throw new Error('bad path in update');
+        const out = path.resolve(tmp, rel);
+        if (!out.startsWith(path.resolve(tmp) + path.sep)) throw new Error('bad path in update');
         fs.mkdirSync(path.dirname(out), { recursive: true });
         fs.writeFileSync(out, Buffer.from(b64, 'base64'));
       }

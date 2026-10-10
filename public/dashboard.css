@@ -399,3 +399,5 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .catquick button i { width: 10px; height: 10px; border-radius: 50%; background: var(--mint); }
 .catquick button.off { opacity: .6; text-decoration: line-through; }
 .catquick button.off i { background: var(--dot-off); }
+
+#summary #smDir { width: 100%; box-sizing: border-box; }

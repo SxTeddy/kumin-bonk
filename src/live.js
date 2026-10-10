@@ -1,6 +1,8 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // 📊 Live summaries and 🙏 auto thank-you messages.
 import fs from 'node:fs';
+// names from TikTok are used as object keys: never let them be special JavaScript names
+const safeKey = k => (k === '__proto__' || k === 'constructor' || k === 'prototype' || k === 'hasOwnProperty') ? '_' + k : k;
 
 // ---------- one summary per live ----------
 export class Sessions {
@@ -30,7 +32,7 @@ export class Sessions {
     const empty = !c.gifts && !c.likes && !c.chats && !c.follows && c.end - c.start < 120000;
     if (empty) this.list = this.list.filter(s => s !== c);
     this.dirty = true; this.flush();
-    return !empty;
+    return empty ? null : c; // the finished live (null = nothing happened, not kept)
   }
   viewers(n) { if (this.cur && n > this.cur.peak) { this.cur.peak = n; this.dirty = true; } }
   add(ev) {
@@ -41,11 +43,11 @@ export class Sessions {
       case 'gift': {
         const n = Number(ev.count) || 1, coins = n * (Number(ev.gift?.diamonds) || 0);
         c.gifts += n; c.coins += coins;
-        const key = u.id || u.username || u.nickname || '?';
+        const key = safeKey(String(u.id || u.username || u.nickname || '?'));
         const g = c.givers[key] || (c.givers[key] = { name: u.nickname || u.username || '?', username: u.username || '', avatar: u.avatar || '', coins: 0, gifts: 0 });
         g.coins += coins; g.gifts += n; if (u.nickname) g.name = u.nickname;
-        const gname = ev.gift?.th || ev.gift?.name || '?';
-        const t = c.giftTypes[gname] || (c.giftTypes[gname] = { name: gname, image: ev.gift?.image || '', count: 0, coins: 0 });
+        const gname = String(ev.gift?.th || ev.gift?.name || '?');
+        const t = c.giftTypes[safeKey(gname)] || (c.giftTypes[safeKey(gname)] = { name: gname, image: ev.gift?.image || '', count: 0, coins: 0 });
         t.count += n; t.coins += coins;
         return;
       }

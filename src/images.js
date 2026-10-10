@@ -1,6 +1,42 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Turns a throw source ('rose', a gift picture URL, an avatar URL) into PNG/JPG/GIF data VTube Studio accepts.
 import crypto from 'node:crypto';
+import dns from 'node:dns';
+import net from 'node:net';
+
+const MAX_BYTES = 4_000_000;
+// 🔒 never fetch pictures from this PC or the home network (only public internet addresses)
+export function privateIp(ip) {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  const v = ip.toLowerCase();
+  if (v.startsWith('::ffff:')) return privateIp(v.slice(7));
+  return v === '::' || v === '::1' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe8') || v.startsWith('fe9') || v.startsWith('fea') || v.startsWith('feb');
+}
+async function publicUrl(u) {
+  let url; try { url = new URL(u); } catch { return false; }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return false;
+  if (net.isIP(host)) return !privateIp(host);
+  try { const all = await dns.promises.lookup(host, { all: true }); return all.length > 0 && all.every(a => !privateIp(a.address)); } catch { return false; }
+}
+// download at most MAX_BYTES, follow at most 3 redirects (each one checked again)
+async function download(u) {
+  for (let hop = 0; hop < 4; hop++) {
+    if (!(await publicUrl(u))) return null;
+    const res = await fetch(u, { redirect: 'manual', signal: AbortSignal.timeout(4000) });
+    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) { u = new URL(res.headers.get('location'), u).href; continue; }
+    if (!res.ok) return null;
+    if (Number(res.headers.get('content-length')) > MAX_BYTES) return null;
+    const parts = []; let got = 0;
+    for await (const chunk of res.body) { got += chunk.length; if (got > MAX_BYTES) return null; parts.push(Buffer.from(chunk)); }
+    return Buffer.concat(parts);
+  }
+  return null;
+}
 
 export const BUILTIN = ['rose', 'heart', 'star', 'hammer', 'donut', 'slipper', 'target', 'note', 'sparkle', 'cash', 'petal', 'snow', 'flame', 'confetti', 'smoke', 'coin', 'zap', 'diamond'];
 
@@ -10,6 +46,7 @@ export class Images {
     this.log = log;
     this.cache = new Map();
     this.bad = new Set();
+    this.bytes = 0; // size of downloaded pictures kept in memory
   }
 
   builtin(name) {
@@ -55,19 +92,23 @@ export class Images {
       let buf, ext;
       for (const u of tries) {
         try {
-          const res = await fetch(u, { signal: AbortSignal.timeout(4000) });
-          if (!res.ok) continue;
-          buf = Buffer.from(await res.arrayBuffer()); ext = sniff(buf);
+          buf = await download(u); if (!buf) continue;
+          ext = sniff(buf);
           if (ext) break;
         } catch {}
       }
-      if (!ext || buf.length > 4_000_000 || !bigEnough(buf, ext)) throw new Error('unsupported image');
+      if (!ext || buf.length > MAX_BYTES || !bigEnough(buf, ext)) throw new Error('unsupported image');
       const key = 'u' + crypto.createHash('sha1').update(src).digest('hex').slice(0, 14);
       const img = { key, b64: buf.toString('base64'), ext };
-      this.cache.set(src, img);
-      if (this.cache.size > 300) this.cache.delete(this.cache.keys().next().value);
+      this.cache.set(src, img); this.bytes += img.b64.length;
+      // keep memory small: forget the oldest downloaded pictures (built-in ones stay)
+      for (const [k, v] of this.cache) {
+        if (this.cache.size <= 300 && this.bytes <= 120e6) break;
+        if (/^https?:/.test(k)) { this.cache.delete(k); this.bytes -= v.b64.length; }
+      }
       return img;
     } catch {
+      if (this.bad.size > 2000) this.bad.clear();
       this.bad.add(src);
       return this.builtin(fallback);
     }

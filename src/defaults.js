@@ -55,7 +55,7 @@ export const DEFAULT_CONFIG = {
     share: false, shareText: 'ขอบคุณ {name} ที่แชร์ไลฟ์นะ',
   },
   // 📊 summary after each live
-  summary: { enabled: true },
+  summary: { enabled: true, saveFiles: true, folder: '' }, // saveFiles: write each finished live as a file; folder '' = Documents\\KuminBonk สรุปไลฟ์
   customSounds: [],      // [{ id, name, file }] uploaded effect sounds (played as 'u:<id>')
   profiles: {},          // name -> saved copy of rules / effects / throwing / chat settings
   rulesVersion: 4,

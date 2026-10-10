@@ -18,8 +18,9 @@ import { Effects } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
+import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.7.1';
+const VERSION = '1.8.0';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -42,7 +43,7 @@ let config = loadConfig();
 function loadConfig() {
   try {
     const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    return mergeConfig(structuredClone(DEFAULT_CONFIG), c);
+    return sanitizeConfig(mergeConfig(structuredClone(DEFAULT_CONFIG), c));
   } catch { return structuredClone(DEFAULT_CONFIG); }
 }
 // Settings groups (plain objects like head, throwing, combo…) are merged key by key so new options get their defaults.
@@ -51,6 +52,27 @@ function mergeConfig(base, next) {
   const out = { ...base, ...next };
   for (const k of SECTIONS) if (next?.[k] && typeof next[k] === 'object') out[k] = { ...base[k], ...next[k] };
   return out;
+}
+// 🔒 settings coming from the dashboard are checked before use (types, ranges, safe folder)
+function intIn(v, lo, hi, d) { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= lo && n <= hi ? n : d; }
+function safeFolder(f) {
+  const s = typeof f === 'string' ? f.trim() : '';
+  if (!s || s.length > 240 || /[\0<>"|?*]/.test(s)) return '';
+  if (/^[\\/]{2}/.test(s)) return ''; // no network (\\server\share) paths
+  if (process.platform === 'win32') return /^[A-Za-z]:[\\/]/.test(s) && !s.slice(2).includes(':') ? s : '';
+  return path.isAbsolute(s) ? s : '';
+}
+function sanitizeConfig(c) {
+  c.vtsPort = intIn(c.vtsPort, 1, 65535, 8001);
+  c.port = intIn(c.port, 1024, 65535, 3939);
+  c.tiktokUsername = String(c.tiktokUsername || '').replace(/^@/, '').trim().slice(0, 64);
+  if (!Array.isArray(c.rules)) c.rules = structuredClone(DEFAULT_CONFIG.rules);
+  c.summary = { ...DEFAULT_CONFIG.summary, ...(c.summary || {}) };
+  c.summary.folder = safeFolder(c.summary.folder);
+  if (!Array.isArray(c.customSounds)) c.customSounds = [];
+  c.customSounds = c.customSounds.filter(x => x && /^[a-z0-9]{1,20}$/.test(String(x.id)) && /^[a-z0-9]{1,20}\.(mp3|wav|ogg|webm|m4a|aac)$/.test(String(x.file)));
+  if (c.lang && !['th', 'en', 'ja', 'zh', 'ko', 'vi', 'id', 'es'].includes(c.lang)) c.lang = 'th';
+  return c;
 }
 function saveConfig() {
   const tmp = CONFIG_FILE + '.tmp';
@@ -114,6 +136,29 @@ setInterval(() => { if (seenDirty) { seenDirty = false; writeJson('gifts-seen.js
 let viewers = 0;
 // 📊 live summaries, 🙏 thank-you messages, ⌨️ pause shortcut
 const sessions = new Sessions(path.join(DATA, 'sessions.json'), log);
+findDocuments();
+// 📁 each finished live is also saved as a page in a folder, to open and read any time
+function giftPic(name) {
+  const g = CATALOG.find(c => c.th === name || c.en === name);
+  const buf = g && readPublic(`gifts/${g.img}.png`);
+  return buf ? 'data:image/png;base64,' + buf.toString('base64') : '';
+}
+function writeReport(s) {
+  if (!s) return null;
+  try {
+    const dir = summaryDir(config.summary?.folder);
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, reportName(s));
+    fs.writeFileSync(file, reportHtml(sessions.view(s), giftPic, config.lang || 'th'));
+    s.file = file; sessions.dirty = true; sessions.flush();
+    log('summary', `บันทึกสรุปไลฟ์เป็นไฟล์แล้ว: ${path.basename(file)}`);
+    return file;
+  } catch (e) { log('summary', `บันทึกไฟล์สรุปไม่ได้: ${e.message}`, 'warn'); return null; }
+}
+function liveEnded(s) {
+  if (s && config.summary?.saveFiles !== false) writeReport(s);
+  toDashboards({ t: 'sessions', list: sessions.all(), ended: !!s });
+}
 const thanks = new Thanks(() => config, text => toDashboards({ t: 'tts', text, kind: 'thanks' }));
 const hotkey = new Hotkey(log);
 hotkey.onPress = () => setPaused(!engine.paused, 'คีย์ลัด');
@@ -127,7 +172,7 @@ function setPaused(on, by = '') {
 setInterval(() => {
   const c = sessions.cur;
   if (c && tiktok.status !== 'live' && Date.now() - (c.updated || c.start) > 10 * 60000) {
-    const kept = sessions.end(true); toDashboards({ t: 'sessions', list: sessions.all(), ended: kept });
+    liveEnded(sessions.end(true));
   }
 }, 60000).unref?.();
 let queueTimer = null;
@@ -157,7 +202,7 @@ tiktok.on('status', () => {
   const st = tiktok.status;
   if (st !== lastTikStatus) {
     if (st === 'live' && config.summary?.enabled !== false) sessions.start(tiktok.username);
-    if (st === 'offline' && sessions.cur) { const kept = sessions.end(); toDashboards({ t: 'sessions', list: sessions.all(), ended: kept }); }
+    if (st === 'offline' && sessions.cur) liveEnded(sessions.end());
     lastTikStatus = st;
   }
   pushStatus();
@@ -166,12 +211,28 @@ vts.on('status', pushStatus);
 tiktok.on('viewers', v => { viewers = v; sessions.viewers(v); });
 setInterval(pushStatus, 3000);
 
+// TikTok (or a test) event → safe shape: numbers are numbers, strings are short strings
+function cleanEvent(ev) {
+  const str = (v, n = 200) => String(v ?? '').slice(0, n);
+  const u = ev.user || {};
+  ev.user = { id: str(u.id, 80), username: str(u.username, 80), nickname: str(u.nickname, 80), avatar: /^https?:\/\//.test(String(u.avatar || '')) ? str(u.avatar, 1000) : '' };
+  ev.count = Math.max(1, Math.min(1e6, Math.floor(Number(ev.count)) || 1));
+  if (ev.type === 'gift') {
+    const g = ev.gift || {};
+    ev.gift = { id: str(g.id, 40), name: str(g.name, 120), diamonds: Math.max(0, Math.min(1e6, Math.floor(Number(g.diamonds)) || 0)), image: /^https?:\/\//.test(String(g.image || '')) ? str(g.image, 1000) : undefined };
+  }
+  if (ev.type === 'chat') ev.text = str(ev.text, 500);
+  return ev;
+}
+const EVENT_TYPES = new Set(['gift', 'like', 'follow', 'share', 'join', 'chat']);
 function onEvent(ev, simulated = false) {
+  if (!ev || !EVENT_TYPES.has(ev.type)) return;
+  cleanEvent(ev);
   if (ev.type === 'gift' && ev.gift?.name) {
     const learned = simulated ? null : gifts.learn(ev.gift.name, Number(ev.gift.diamonds) || 0);
     if (learned) log('gift', `จำได้แล้ว: "${ev.gift.name}" = ${learned}`);
     ev.gift.th = gifts.thaiName(ev.gift.name) || (CATALOG.some(g => g.th === ev.gift.name) ? ev.gift.name : '');
-    if (!simulated && !giftsSeen.has(ev.gift.name)) { giftsSeen.set(ev.gift.name, { name: ev.gift.name, th: ev.gift.th, image: ev.gift.image, diamonds: ev.gift.diamonds }); seenDirty = true; }
+    if (!simulated && !giftsSeen.has(ev.gift.name) && giftsSeen.size < 1000) { giftsSeen.set(ev.gift.name, { name: ev.gift.name, th: ev.gift.th, image: ev.gift.image, diamonds: ev.gift.diamonds }); seenDirty = true; }
   }
   if (!simulated) sessions.add(ev);
   if (!simulated) thanks.handle(ev); // the ✨ tab has its own "listen" button for testing
@@ -258,7 +319,7 @@ async function onDashboard(ws, m) {
       if (!next || !Array.isArray(next.rules)) return;
       delete next.customSounds; // the server owns the uploaded-sound list (a save in flight must not undo an upload)
       const hk = JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey]);
-      config = mergeConfig(config, next);
+      config = sanitizeConfig(mergeConfig(config, next));
       saveConfig();
       if (hk !== JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey])) setupHotkey();
       vts.setPort(Number(config.vtsPort) || 8001);
@@ -274,7 +335,8 @@ async function onDashboard(ws, m) {
       return;
     case 'disconnectTikTok': return tiktok.disconnect();
     case 'simulate': {
-      const ev = m.ev;
+      const ev = m.ev && typeof m.ev === 'object' ? m.ev : null;
+      if (!ev) return;
       ev.user = { id: 'sim', username: 'tester', nickname: ev.user?.nickname || 'คนทดสอบ', avatar: ev.user?.avatar };
       return onEvent(ev, true);
     }
@@ -356,10 +418,32 @@ async function onDashboard(ws, m) {
     case 'clearQueue': engine.clearQueue(); log('pause', 'ล้างของที่รออยู่แล้ว'); return pushStatus();
     case 'sessions': return send(ws, { t: 'sessions', list: sessions.all() });
     case 'delSession': sessions.remove(Number(m.id)); return send(ws, { t: 'sessions', list: sessions.all() });
+    case 'summaryFiles': { const dir = summaryDir(config.summary?.folder); return send(ws, { t: 'summaryFiles', dir, files: listReports(dir) }); }
+    case 'saveSummaryFile': {
+      const s = sessions.list.find(x => x.id === Number(m.id));
+      const file = writeReport(s);
+      if (file && m.open) openPath(file);
+      const dir = summaryDir(config.summary?.folder);
+      toDashboards({ t: 'sessions', list: sessions.all() });
+      return send(ws, { t: 'summaryFiles', dir, files: listReports(dir) });
+    }
+    case 'openSummaryFolder': {
+      const dir = summaryDir(config.summary?.folder);
+      try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { return log('summary', `เปิดโฟลเดอร์ไม่ได้: ${e.message}`, 'warn'); }
+      return openPath(dir);
+    }
+    case 'openSummaryFile': {
+      const dir = summaryDir(config.summary?.folder);
+      const file = path.join(dir, path.basename(String(m.name || '')));
+      if (!file.toLowerCase().endsWith('.html') || !fs.existsSync(file)) return log('summary', 'ไม่พบไฟล์สรุปนี้ (อาจถูกย้ายหรือลบไปแล้ว)', 'warn');
+      return openPath(file);
+    }
     case 'addSound': {
       const ext = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/x-m4a': 'm4a', 'audio/mp4': 'm4a', 'audio/aac': 'aac' }[m.mime] || String(m.ext || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       if (!['mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac'].includes(ext)) return log('sound', 'ใช้ได้เฉพาะไฟล์เสียง mp3 / wav / ogg / m4a', 'warn');
-      const buf = Buffer.from(String(m.data || ''), 'base64');
+      if ((config.customSounds || []).length >= 50) return log('sound', 'เพิ่มเสียงได้สูงสุด 50 เสียง ลบเสียงที่ไม่ใช้ก่อนนะ', 'warn');
+      if (typeof m.data !== 'string' || m.data.length > 4.2e6) return log('sound', 'ไฟล์เสียงต้องไม่เกิน 3 MB', 'warn');
+      const buf = Buffer.from(m.data, 'base64');
       if (!buf.length || buf.length > 3 * 1024 * 1024) return log('sound', 'ไฟล์เสียงต้องไม่เกิน 3 MB', 'warn');
       fs.mkdirSync(SOUND_DIR, { recursive: true });
       const id = Date.now().toString(36);
@@ -414,7 +498,12 @@ const clamp01 = v => Math.max(0, Math.min(1, Number(v) || 0));
 
 // ---------- http ----------
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.wav': 'audio/wav', '.txt': 'text/plain; charset=utf-8' };
+// 🔒 Only this app may talk to the server: web pages from other sites (and DNS-rebinding tricks) are refused.
+const LOCAL_HOSTS = () => [`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`];
+const hostOk = req => LOCAL_HOSTS().includes(String(req.headers.host || '').toLowerCase());
+const originOk = req => { const o = req.headers.origin; return !o || LOCAL_HOSTS().some(h => String(o).toLowerCase() === 'http://' + h); };
 const server = http.createServer((req, res) => {
+  if (!hostOk(req)) { res.writeHead(403); return res.end('forbidden'); }
   const url = new URL(req.url, 'http://x');
   let p = url.pathname;
   if (p === '/') p = '/dashboard.html';
@@ -428,13 +517,14 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', webm: 'audio/webm', m4a: 'audio/mp4', aac: 'audio/aac' }[ext] || 'application/octet-stream', 'Cache-Control': 'max-age=3600' });
     return res.end(buf);
   }
-  const buf = readPublic(decodeURIComponent(p));
+  let rel; try { rel = decodeURIComponent(p); } catch { res.writeHead(400); return res.end('bad request'); }
+  const buf = readPublic(rel);
   if (!buf) { res.writeHead(404); return res.end('not found'); }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(p)] || 'application/octet-stream', 'Cache-Control': p.startsWith('/gifts/') ? 'max-age=86400' : 'no-cache' });
   res.end(buf);
 });
 
-const wss = new WebSocketServer({ server, path: '/ws' });
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 6 * 1024 * 1024, verifyClient: ({ req }) => hostOk(req) && originOk(req) });
 wss.on('error', () => {}); // listen errors are handled on the http server
 wss.on('connection', (ws, req) => {
   const role = new URL(req.url, 'http://x').searchParams.get('role');
@@ -467,7 +557,8 @@ let appWindow = null;
 
 function quit() {
   log('app', 'ปิดโปรแกรม');
-  hotkey.stop(); sessions.end(tiktok.status !== 'live');
+  hotkey.stop();
+  { const s = sessions.end(tiktok.status !== 'live'); if (s && config.summary?.saveFiles !== false) writeReport(s); }
   try { appWindow?.kill(); } catch {}
   vts.stop(); tiktok.disconnect(true).catch(() => {});
   setTimeout(() => process.exit(0), 300);

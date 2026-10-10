@@ -274,7 +274,7 @@ const priceCount = new Map();
 for (const g of CATALOG) priceCount.set(g.coins, (priceCount.get(g.coins) || 0) + 1);
 
 export class GiftMatcher {
-  constructor(learned = {}) { this.learned = learned; } // english name (lowercase) -> thai name
+  constructor(learned = {}) { this.learned = Object.assign(Object.create(null), learned && typeof learned === 'object' ? learned : {}); } // english name (lowercase) -> thai name
 
   // Remember the Thai name of an English gift name when its price points to exactly one gift.
   learn(enName, coins) {

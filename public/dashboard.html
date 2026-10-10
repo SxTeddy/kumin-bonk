@@ -369,8 +369,16 @@
     <div class="card">
       <div class="fhead"><h2>📊 สรุปไลฟ์</h2><label class="check" style="margin:0"><input type="checkbox" id="smOn"> เก็บสรุปทุกไลฟ์</label></div>
       <p class="hint">เริ่มนับเองตอนเชื่อมต่อไลฟ์ TikTok และเก็บไว้ 30 ไลฟ์ล่าสุด</p>
-      <div class="row mt8"><select id="smPick" style="flex:1;max-width:420px"></select><button class="small" id="smDel">ลบ</button></div>
+      <div class="row mt8"><select id="smPick" style="flex:1;max-width:420px"></select><button class="small" id="smSave">💾 บันทึกเป็นไฟล์</button><button class="small" id="smOpen">📄 เปิดอ่าน</button><button class="small" id="smDel">ลบ</button></div>
       <div id="smBody"></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <div class="fhead"><h2>📁 โฟลเดอร์สรุปไลฟ์</h2><button class="small primary" id="smFolder">📂 เปิดโฟลเดอร์</button></div>
+      <p class="hint">ทุกไลฟ์ที่จบจะถูกบันทึกเป็นไฟล์ในโฟลเดอร์นี้ เปิดอ่านได้ด้วยเว็บเบราว์เซอร์ เก็บไว้ได้ตลอด ไม่หายแม้ลบออกจากแอป</p>
+      <label class="check"><input type="checkbox" id="smFiles"> บันทึกเป็นไฟล์อัตโนมัติเมื่อไลฟ์จบ</label>
+      <label>ที่เก็บไฟล์ (ว่าง = โฟลเดอร์ Documents)</label>
+      <input id="smDir" placeholder="" data-noi18n>
+      <div id="smFileList" class="pflist"></div>
     </div>
   </section>
 

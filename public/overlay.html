@@ -58,7 +58,7 @@ function play(name) { if (settings.sound) KBSound.play(name, settings.volume); }
 // ---------- throwing ----------
 const G = 2600;
 function spawn(src, from, opts) {
-  if (items.length >= settings.maxOnScreen) { queue.push([src, from, opts]); return; }
+  if (items.length >= settings.maxOnScreen) { if (queue.length < 300) queue.push([src, from, opts]); return; }
   const size = (opts.size || settings.size) * (0.85 + Math.random() * 0.3);
   const tx = head.x * W + (Math.random() - 0.5) * size * 0.6;
   const ty = head.y * H + (Math.random() - 0.5) * size * 0.4;

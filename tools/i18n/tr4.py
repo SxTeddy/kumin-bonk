@@ -210,6 +210,18 @@ EXTRA = [
 ("พิมพ์ !bonk = ค้อนของเล่น", "Type !bonk = toy hammer", "!bonk と打つ = おもちゃのハンマー", "输入 !bonk = 玩具锤", "!bonk 입력 = 장난감 망치", "Gõ !bonk = búa đồ chơi", "Ketik !bonk = palu mainan", "Escribe !bonk = martillo de juguete"),
 ("กดเพื่อเปิด/ปิดหมวดนี้", "Click to turn this category on/off", "クリックでこのカテゴリーをオン/オフ", "点击开启/关闭此分类", "눌러서 이 카테고리 켜기/끄기", "Bấm để bật/tắt nhóm này", "Klik untuk menyalakan/mematikan kategori ini", "Pulsa para activar/desactivar esta categoría"),
 ("⏳ รอ", "⏳ Waiting", "⏳ 待機中", "⏳ 等待中", "⏳ 대기 중", "⏳ Đang chờ", "⏳ Menunggu", "⏳ En espera"),
+("📁 โฟลเดอร์สรุปไลฟ์", "📁 Live summary folder", "📁 配信まとめフォルダー", "📁 直播总结文件夹", "📁 라이브 요약 폴더", "📁 Thư mục tổng kết live", "📁 Folder ringkasan live", "📁 Carpeta de resúmenes"),
+("📂 เปิดโฟลเดอร์", "📂 Open folder", "📂 フォルダーを開く", "📂 打开文件夹", "📂 폴더 열기", "📂 Mở thư mục", "📂 Buka folder", "📂 Abrir carpeta"),
+("📄 เปิดอ่าน", "📄 Open", "📄 開いて読む", "📄 打开查看", "📄 열어 보기", "📄 Mở xem", "📄 Buka", "📄 Abrir"),
+("💾 บันทึกเป็นไฟล์", "💾 Save as file", "💾 ファイルに保存", "💾 保存为文件", "💾 파일로 저장", "💾 Lưu thành file", "💾 Simpan sebagai file", "💾 Guardar como archivo"),
+("ทุกไลฟ์ที่จบจะถูกบันทึกเป็นไฟล์ในโฟลเดอร์นี้ เปิดอ่านได้ด้วยเว็บเบราว์เซอร์ เก็บไว้ได้ตลอด ไม่หายแม้ลบออกจากแอป", "Every finished live is saved as a file in this folder. Open it in any web browser — it stays even if you delete it from the app", "終わった配信はこのフォルダーにファイルとして保存されます。ブラウザで開けて、アプリから消しても残ります", "每场结束的直播都会保存为此文件夹中的文件，可用浏览器打开，即使从应用中删除也会保留", "끝난 라이브는 이 폴더에 파일로 저장돼요. 웹 브라우저로 열 수 있고 앱에서 지워도 남아요", "Mỗi live kết thúc được lưu thành file trong thư mục này, mở bằng trình duyệt, vẫn còn dù xóa khỏi app", "Setiap live yang selesai disimpan sebagai file di folder ini, bisa dibuka di browser dan tetap ada walau dihapus dari aplikasi", "Cada directo terminado se guarda como archivo en esta carpeta; ábrelo con el navegador, se queda aunque lo borres de la app"),
+("บันทึกเป็นไฟล์อัตโนมัติเมื่อไลฟ์จบ", "Save as a file automatically when a live ends", "配信が終わったら自動でファイルに保存", "直播结束时自动保存为文件", "라이브가 끝나면 자동으로 파일 저장", "Tự lưu thành file khi live kết thúc", "Simpan otomatis sebagai file saat live selesai", "Guardar automáticamente al terminar el directo"),
+("ที่เก็บไฟล์ (ว่าง = โฟลเดอร์ Documents)", "Save location (empty = Documents folder)", "保存場所（空欄 = ドキュメントフォルダー）", "保存位置（留空 = 文档文件夹）", "저장 위치 (비우면 = 문서 폴더)", "Nơi lưu (trống = thư mục Documents)", "Lokasi simpan (kosong = folder Documents)", "Ubicación (vacío = carpeta Documentos)"),
+("ยังไม่มีไฟล์ในโฟลเดอร์", "No files in the folder yet", "フォルダーにまだファイルがありません", "文件夹里还没有文件", "아직 폴더에 파일이 없어요", "Thư mục chưa có file", "Belum ada file di folder", "Aún no hay archivos en la carpeta"),
+("บันทึกเป็นไฟล์แล้ว 💾", "Saved as a file 💾", "ファイルに保存しました 💾", "已保存为文件 💾", "파일로 저장됨 💾", "Đã lưu thành file 💾", "Disimpan sebagai file 💾", "Guardado como archivo 💾"),
+("กำลังเปิดไฟล์สรุป…", "Opening the summary…", "まとめを開いています…", "正在打开总结…", "요약 여는 중…", "Đang mở tổng kết…", "Membuka ringkasan…", "Abriendo el resumen…"),
+("ไม่พบไฟล์สรุปนี้ (อาจถูกย้ายหรือลบไปแล้ว)", "This summary file was not found (it may have been moved or deleted)", "このまとめファイルが見つかりません（移動または削除された可能性）", "找不到此总结文件（可能已被移动或删除）", "이 요약 파일을 찾을 수 없어요 (옮겨졌거나 삭제됨)", "Không tìm thấy file tổng kết này (có thể đã bị chuyển hoặc xóa)", "File ringkasan tidak ditemukan (mungkin dipindah atau dihapus)", "No se encontró este resumen (puede que se moviera o borrara)"),
+("เพิ่มเสียงได้สูงสุด 50 เสียง ลบเสียงที่ไม่ใช้ก่อนนะ", "Up to 50 sounds — delete ones you don't use first", "音は最大50個まで。使わない音を先に削除してね", "最多50个声音，请先删除不用的", "소리는 최대 50개예요. 안 쓰는 것부터 지우세요", "Tối đa 50 âm thanh, xóa bớt cái không dùng trước nhé", "Maksimal 50 suara, hapus yang tidak dipakai dulu", "Máximo 50 sonidos: borra los que no uses"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)
@@ -287,4 +299,7 @@ PATS = [
 (r"^✅ เปิด (.+)$", "✅ On: $1", "✅ オン: $1", "✅ 开启：$1", "✅ 켬: $1", "✅ Bật: $1", "✅ Nyala: $1", "✅ Activado: $1"),
 (r"^⛔ ปิด (.+)$", "⛔ Off: $1", "⛔ オフ: $1", "⛔ 关闭：$1", "⛔ 끔: $1", "⛔ Tắt: $1", "⛔ Mati: $1", "⛔ Desactivado: $1"),
 (r"^ตั้งคีย์ลัดไม่ได้: (.+)$", "Couldn't set the shortcut: $1", "ショートカットを設定できません: $1", "无法设置快捷键：$1", "단축키 설정 실패: $1", "Không đặt được phím tắt: $1", "Gagal mengatur shortcut: $1", "No se pudo poner el atajo: $1"),
+(r"^บันทึกสรุปไลฟ์เป็นไฟล์แล้ว: (.+)$", "Live summary saved as a file: $1", "配信まとめをファイルに保存: $1", "直播总结已保存为文件：$1", "라이브 요약을 파일로 저장: $1", "Đã lưu tổng kết live thành file: $1", "Ringkasan live disimpan sebagai file: $1", "Resumen guardado como archivo: $1"),
+(r"^บันทึกไฟล์สรุปไม่ได้: (.+)$", "Couldn't save the summary file: $1", "まとめファイルを保存できません: $1", "无法保存总结文件：$1", "요약 파일 저장 실패: $1", "Không lưu được file tổng kết: $1", "Gagal menyimpan file ringkasan: $1", "No se pudo guardar el resumen: $1"),
+(r"^เปิดโฟลเดอร์ไม่ได้: (.+)$", "Couldn't open the folder: $1", "フォルダーを開けません: $1", "无法打开文件夹：$1", "폴더를 열 수 없어요: $1", "Không mở được thư mục: $1", "Gagal membuka folder: $1", "No se pudo abrir la carpeta: $1"),
 ]

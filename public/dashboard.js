@@ -36,6 +36,7 @@ function handle(m) {
       break;
     case 'status': renderStatus(m); renderPause(m); break;
     case 'sessions': renderSessions(m); break;
+    case 'summaryFiles': renderSummaryFiles(m); break;
     case 'sounds': config.customSounds = m.customSounds || []; renderSounds(); renderCats(); renderRules(); if (m.added) toast('เพิ่มเสียงแล้ว 🎵'); break;
     case 'log': addLog(m); break;
     case 'event': addFeed(m); if (m.ev.type === 'chat') readChat(m.ev.user?.nickname || m.ev.user?.username, m.ev.user?.username, m.ev.text); if (m.ev.type === 'gift' && !seenGifts.some(g => g.name === m.ev.gift.name)) { seenGifts.push(m.ev.gift); fillGiftList(); } break;
@@ -69,7 +70,8 @@ function renderStatus(s) {
   $('#ckPerm').classList.toggle('done', !!v.images);
 
   const st = s.stats || {};
-  $('#stats').innerHTML = `<span>🎁 <b>${st.gifts || 0}</b></span><span>💎 <b>${st.diamonds || 0}</b></span><span>❤️ <b>${st.likes || 0}</b></span><span>➕ <b>${st.follows || 0}</b></span>${s.viewers ? `<span>👀 <b>${s.viewers}</b></span>` : ''}`;
+  const num = v => (Number(v) || 0).toLocaleString();
+  $('#stats').innerHTML = `<span>🎁 <b>${num(st.gifts)}</b></span><span>💎 <b>${num(st.diamonds)}</b></span><span>❤️ <b>${num(st.likes)}</b></span><span>➕ <b>${num(st.follows)}</b></span>${s.viewers ? `<span>👀 <b>${num(s.viewers)}</b></span>` : ''}`;
 }
 
 // ---------- auto-update ----------
@@ -216,8 +218,8 @@ $('#btnCheckUpd').onclick = () => { send({ t: 'checkUpdate' }); $('#verInfo').te
 // ---------- feed & log ----------
 function evText(ev) {
   switch (ev.type) {
-    case 'gift': return `ส่ง <b>${esc(ev.gift.th || ev.gift.name)}</b>${ev.gift.th && ev.gift.th !== ev.gift.name ? ` <small>(${esc(ev.gift.name)})</small>` : ''} ×${ev.count}${ev.gift.diamonds ? ` <small>· ${ev.gift.diamonds} เหรียญ</small>` : ''}`;
-    case 'like': return `กดไลค์ ×${ev.count}`;
+    case 'gift': return `ส่ง <b>${esc(ev.gift.th || ev.gift.name)}</b>${ev.gift.th && ev.gift.th !== ev.gift.name ? ` <small>(${esc(ev.gift.name)})</small>` : ''} ×${Number(ev.count) || 1}${Number(ev.gift.diamonds) ? ` <small>· ${Number(ev.gift.diamonds)} เหรียญ</small>` : ''}`;
+    case 'like': return `กดไลค์ ×${Number(ev.count) || 1}`;
     case 'follow': return 'ฟอลโลว์แล้ว';
     case 'share': return 'แชร์ไลฟ์';
     case 'join': return 'เข้ามาในไลฟ์';
@@ -353,7 +355,7 @@ function ruleCard(r, idx) {
 function renderTrigger(box, r) {
   const t = r.trigger;
   const sel = document.createElement('select');
-  sel.innerHTML = Object.entries(TRIGGERS).map(([k, v]) => `<option value="${k}" ${t.type === k ? 'selected' : ''}>${v}</option>`).join('');
+  sel.innerHTML = Object.entries(TRIGGERS).map(([k, v]) => `<option value="${esc(k)}" ${t.type === k ? 'selected' : ''}>${esc(v)}</option>`).join('');
   sel.onchange = () => { r.trigger = { type: sel.value, ...(sel.value === 'gift' ? { gifts: 'Rose', minDiamonds: 0 } : sel.value === 'like' ? { every: 100 } : sel.value === 'chat' ? { match: '!bonk' } : {}) }; renderTrigger(box, r); save(); };
   box.querySelectorAll(':scope > :not(.tag)').forEach(n => n.remove());
   box.appendChild(sel);
@@ -383,7 +385,7 @@ function renderTrigger(box, r) {
   } else if (t.type === 'chat') {
     add(`<label>คำที่พิมพ์</label><input value="${esc(t.match)}">`, d => d.querySelector('input').oninput = e => { t.match = e.target.value; save(); });
     add(`<label>แบบ</label><select><option value="start" ${t.mode !== 'contains' ? 'selected' : ''}>ขึ้นต้นด้วยคำนี้</option><option value="contains" ${t.mode === 'contains' ? 'selected' : ''}>มีคำนี้อยู่ในข้อความ</option></select>`, d => d.querySelector('select').onchange = e => { t.mode = e.target.value; save(); });
-    add(`<label>แต่ละคนใช้ซ้ำได้ทุกกี่วินาที (ว่าง = ตามค่าในแท็บ ✨ ตัวช่วยไลฟ์)</label><input type="number" min="0" value="${r.userCooldown ?? ''}" placeholder="${Number(config.chatCmd?.userCooldown ?? 30)}">`, d => d.querySelector('input').oninput = e => { const v = e.target.value.trim(); if (v === '') delete r.userCooldown; else r.userCooldown = Number(v) || 0; save(); });
+    add(`<label>แต่ละคนใช้ซ้ำได้ทุกกี่วินาที (ว่าง = ตามค่าในแท็บ ✨ ตัวช่วยไลฟ์)</label><input type="number" min="0" value="${r.userCooldown == null ? '' : Number(r.userCooldown) || 0}" placeholder="${Number(config.chatCmd?.userCooldown ?? 30)}">`, d => d.querySelector('input').oninput = e => { const v = e.target.value.trim(); if (v === '') delete r.userCooldown; else r.userCooldown = Number(v) || 0; save(); });
   }
   add(`<label>พักระหว่างครั้ง (วินาที, 0 = ไม่พัก)</label><input type="number" min="0" value="${Number(r.cooldown) || 0}">`, d => d.querySelector('input').oninput = e => { r.cooldown = Number(e.target.value) || 0; save(); });
 }
@@ -444,7 +446,7 @@ function field(a, key, label, kind, opts, allowCustom, step) {
     const cur = a[key];
     const vals = { count: 'ตามจำนวนที่ส่ง', 1: '1', 2: '2', 3: '3', 5: '5', 10: '10', 20: '20' };
     if (!(cur in vals)) vals[cur] = cur;
-    input.innerHTML = Object.entries(vals).map(([k, v]) => `<option value="${k}" ${String(cur) === k ? 'selected' : ''}>${v}</option>`).join('');
+    input.innerHTML = Object.entries(vals).map(([k, v]) => `<option value="${esc(k)}" ${String(cur) === k ? 'selected' : ''}>${esc(v)}</option>`).join('');
     input.onchange = e => set(e.target.value === 'count' ? 'count' : Number(e.target.value));
   } else if (kind === 'color') {
     input = document.createElement('input'); input.type = 'color'; input.value = a[key] || '#ff8fb8';
@@ -538,10 +540,10 @@ function renderCats() {
   for (const [st, label] of Object.entries(styles)) {
     const c = catOf(st), list = (groups[st] || []).sort((a, b) => a.coins - b.coins);
     const el = document.createElement('div'); el.className = 'cat' + (c.enabled ? '' : ' off');
-    const slider = (k, lab, min, max, step, fmt = v => '×' + v) => `<div class="ctl"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${c[k]}"><output>${fmt(c[k])}</output></div>`;
+    const slider = (k, lab, min, max, step, fmt = v => '×' + v) => `<div class="ctl"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${Number(c[k]) || 0}"><output>${esc(fmt(Number(c[k]) || 0))}</output></div>`;
     el.innerHTML = `<div class="cat-head"><label class="switch"><input type="checkbox" ${c.enabled ? 'checked' : ''}><span></span></label><b>${esc(label)}</b><small>${list.length} ชิ้น</small><button class="small" data-aimcat title="ตั้งจุดที่ท่านี้ไปโดน เช่น ปาก คอ ตัว">🎯 เป้า${c.aim ? ' ✓' : ''}</button><button class="small" data-try>▶ ลอง</button></div>
       ${slider('size', 'ขนาดรูป', 0.4, 2.5, 0.1)}${slider('power', 'ความแรง', 0, 2, 0.1)}${slider('speed', 'ความเร็ว', 0.5, 2, 0.1)}${slider('max', 'สูงสุดต่อครั้ง', 1, 30, 1, v => v)}
-      <div class="sel"><div><label>เสียง</label><select data-k="sound">${Object.entries(soundMap(FX_SOUNDS)).map(([k, v]) => `<option value="${k}" ${k === c.sound ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div class="sel"><div><label>เสียง</label><select data-k="sound">${Object.entries(soundMap(FX_SOUNDS)).map(([k, v]) => `<option value="${esc(k)}" ${k === c.sound ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
       <div><label>ใช้ท่า</label><select data-k="as"><option value="same">ท่าของหมวดนี้</option>${Object.entries(styles).filter(([k]) => k !== st).map(([k, v]) => `<option value="${k}" ${k === c.as ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div></div>
       <div class="gifts">${list.map(g => `<button data-g="${esc(g.th)}" class="${fxCfg().gifts[g.th] ? 'own' : ''}${fxCfg().gifts[g.th]?.off ? ' offg' : ''}" title="${esc(g.th)} · ${g.coins} เหรียญ"><img src="/gifts/${g.img}.png" alt="${esc(g.th)}" loading="lazy"></button>`).join('') || '<small class="hint">ยังไม่มีของขวัญในหมวดนี้</small>'}</div>`;
     el.querySelector('.switch input').onchange = e => { setCat(st, 'enabled', e.target.checked); el.classList.toggle('off', !e.target.checked); };
@@ -740,7 +742,7 @@ function renderSliders() {
   const box = $('#throwSliders'); box.innerHTML = '';
   for (const [k, label, min, max, step] of SLIDERS) {
     const d = document.createElement('div'); d.className = 'slider';
-    d.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${config.throwing[k]}"><output>${config.throwing[k]}</output>`;
+    d.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${Number(config.throwing[k]) || 0}"><output>${Number(config.throwing[k]) || 0}</output>`;
     d.querySelector('input').oninput = e => { config.throwing[k] = Number(e.target.value); d.querySelector('output').textContent = e.target.value; save(); };
     box.appendChild(d);
   }
@@ -1156,7 +1158,7 @@ function sliderBox(box, k, list) {
   for (const [key, label, min, max, step, fmt = v => v] of list) {
     const v = sec(k)[key];
     const d = document.createElement('div'); d.className = 'slider';
-    d.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${v}"><output>${fmt(v)}</output>`;
+    d.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${Number(v) || 0}"><output>${esc(fmt(Number(v) || 0))}</output>`;
     d.querySelector('input').oninput = e => { const n = Number(e.target.value); d.querySelector('output').textContent = fmt(n); setSec(k, key, n); };
     box.appendChild(d);
   }
@@ -1305,8 +1307,34 @@ function drawSession(x) {
       <div><h3>🎁 ของขวัญที่ได้</h3><div class="smgifts">${(x.giftTypes || []).map(t => { const c = catalog.find(g => g.th === t.name || g.en === t.name); const src = c ? `/gifts/${c.img}.png` : t.image; return `<div>${src ? `<img src="${esc(src)}" alt="">` : ''}<b>${esc(t.name)}</b><br>×${t.count.toLocaleString()}</div>`; }).join('') || '<p class="hint">ยังไม่มี</p>'}</div></div>
     </div>`;
 }
+function renderSummaryFiles(m) {
+  const box = $('#smFileList'); if (!box) return;
+  $('#smDir').placeholder = m.dir || '';
+  const list = m.files || [];
+  box.innerHTML = list.length ? '' : '<p class="hint">ยังไม่มีไฟล์ในโฟลเดอร์</p>';
+  for (const f of list) {
+    const d = document.createElement('div'); d.className = 'it';
+    d.innerHTML = `<b></b><small></small><button class="small primary">📄 เปิดอ่าน</button>`;
+    d.querySelector('b').textContent = '📊 ' + f.name.replace(/\.html$/i, '');
+    d.querySelector('small').textContent = Math.max(1, Math.round(f.size / 1024)) + ' KB';
+    d.querySelector('button').onclick = () => { send({ t: 'openSummaryFile', name: f.name }); toast('กำลังเปิดไฟล์สรุป…'); };
+    box.appendChild(d);
+  }
+}
+$('#smSave').onclick = () => { const x = sessionsList.find(s => s.id === smPicked); if (x) { send({ t: 'saveSummaryFile', id: x.id }); toast('บันทึกเป็นไฟล์แล้ว 💾'); } };
+$('#smOpen').onclick = () => {
+  const x = sessionsList.find(s => s.id === smPicked); if (!x) return;
+  if (x.file) send({ t: 'openSummaryFile', name: x.file.split(/[\\/]/).pop() }); else send({ t: 'saveSummaryFile', id: x.id, open: true });
+  toast('กำลังเปิดไฟล์สรุป…');
+};
+$('#smFolder').onclick = () => send({ t: 'openSummaryFolder' });
+$('#smFiles').onchange = e => { config.summary = { ...(config.summary || {}), saveFiles: e.target.checked }; save(); };
+$('#smDir').onchange = e => { config.summary = { ...(config.summary || {}), folder: e.target.value.trim() }; save(); setTimeout(() => send({ t: 'summaryFiles' }), 700); };
 $('#smPick').onchange = e => { smPicked = Number(e.target.value); drawSession(sessionsList.find(x => x.id === smPicked)); };
 $('#smDel').onclick = () => { const x = sessionsList.find(s => s.id === smPicked); if (x && !x.live && confirm('ลบสรุปไลฟ์นี้?')) send({ t: 'delSession', id: x.id }); };
-$('#tabs button[data-tab=summary]').addEventListener('click', () => send({ t: 'sessions' }));
+$('#tabs button[data-tab=summary]').addEventListener('click', () => {
+  send({ t: 'sessions' }); send({ t: 'summaryFiles' });
+  $('#smFiles').checked = config?.summary?.saveFiles !== false; $('#smDir').value = config?.summary?.folder || '';
+});
 $('#tabs button[data-tab=helpers]').addEventListener('click', () => renderHelpers());
 setInterval(() => { if ($('#summary').classList.contains('on') && lastStatus?.session) send({ t: 'sessions' }); }, 10000);
