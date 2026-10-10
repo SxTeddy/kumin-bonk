@@ -28,6 +28,8 @@ EXTRA = [
 ("ของขวัญที่เคยได้รับจริง (ชื่อจาก TikTok)", "Gifts you've actually received (names from TikTok)", "実際に受け取ったギフト（TikTokの名前）", "实际收到过的礼物（TikTok名称）", "실제로 받은 선물 (TikTok 이름)", "Quà đã thật sự nhận (tên từ TikTok)", "Hadiah yang pernah diterima (nama dari TikTok)", "Regalos recibidos de verdad (nombres de TikTok)"),
 ("ข้อความว่าง", "empty message", "空のメッセージ", "空消息", "빈 메시지", "tin trống", "pesan kosong", "mensaje vacío"),
 ("คิวเต็ม", "queue full", "キューがいっぱい", "队列已满", "대기열 가득", "hàng chờ đầy", "antrean penuh", "cola llena"),
+("ปิดเสียงอ่านแชทอยู่", "chat reader is muted", "チャット読み上げがミュート中", "聊天朗读已静音", "채팅 읽기 음소거 중", "đang tắt tiếng đọc chat", "pembaca chat dibisukan", "lector de chat silenciado"),
+("ปิดเสียงอยู่", "muted", "ミュート中", "已静音", "음소거 중", "đang tắt tiếng", "dibisukan", "silenciado"),
 ("คนดูแต่ละคนได้เสียงของตัวเอง (สุ่มเสียงและความสูงต่ำแบบคงที่ต่อคน) และยังเลือกตามภาษาให้ด้วย", "Each viewer gets their own voice (a fixed random voice and pitch per person), still matched to the language", "視聴者ごとに自分の声（人ごとに固定のランダムな声と高さ）、言語にも合わせます", "每位观众有自己的声音（每人固定随机的声音和音调），仍会按语言选择", "시청자마다 자기 목소리 (사람마다 고정된 랜덤 목소리와 음높이), 언어에도 맞춰요", "Mỗi người xem có giọng riêng (giọng và cao độ ngẫu nhiên cố định theo người), vẫn theo ngôn ngữ", "Tiap penonton dapat suara sendiri (suara dan nada acak tetap per orang), tetap sesuai bahasa", "Cada espectador tiene su propia voz (voz y tono aleatorios fijos por persona), según el idioma"),
 ("คนที่ไม่อ่าน", "muted person", "読まない人", "不读的人", "안 읽는 사람", "người không đọc", "orang yang tidak dibaca", "persona silenciada"),
 ("คำต้องห้าม", "banned word", "禁止ワード", "违禁词", "금지어", "từ cấm", "kata terlarang", "palabra prohibida"),

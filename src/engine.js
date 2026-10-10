@@ -176,7 +176,7 @@ export class Engine {
     if (!name || name === 'none') return;
     const cfg = this.getConfig();
     if (!cfg.throwing.sound) return;
-    const v = Math.max(0, Math.min(2, Number(vol))) * (Number(cfg.throwing.volume) ?? 0.6);
+    const v = Math.max(0, Math.min(2, Number(vol) || 0)) * Number(cfg.throwing.volume ?? 0.6);
     if (!(v > 0.001)) return;
     if ((cfg.throwing.target === 'overlay') && this.overlay.count() > 0) this.overlay.send({ t: 'sound', sound: name, volume: v });
     else this.dashboard({ t: 'sound', sound: name, volume: v });
@@ -231,25 +231,31 @@ export class Engine {
         const combo = ctx.combo || 1;
         const power = Math.min(2.5, 0.8 + Math.log10(coins + 1) * 0.35) * (Number(a.power) || 1) * cat.power * combo;
         const count = Math.max(1, Math.min(ctx.count, Number(cat.max) || 30, MAX_ITEMS));
+        const big = { ...BIG_DEFAULT, ...(fx.big || {}) };
+        const t1 = Number(fx.showcaseMin ?? 1000), t2 = Number(big.tier2) || 5000, t3 = Number(big.tier3) || 20000;
+        const pricey = t1 > 0 && coins >= t1;
         if (cfg.throwing.target === 'overlay' && this.overlay.count() > 0) {
-          return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: own.sound && own.sound !== 'auto' ? own.sound : (cat.sound && cat.sound !== 'auto' ? cat.sound : 'bonk') }, { ...ctx, vol: Number(own.vol ?? cat.vol ?? 1) * (ctx.vol ?? 1) });
+          return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: own.sound && own.sound !== 'auto' ? own.sound : (cat.sound && cat.sound !== 'auto' ? cat.sound : 'bonk') }, { ...ctx, vol: Number(own.vol ?? cat.vol ?? 1) * (pricey ? Number(big.volume ?? 1) : 1) * (ctx.vol ?? 1) });
         }
         if (!vts.ready || !vts.canCustomImages) {
           for (let i = 0; i < Math.min(count, 5); i++) { vts.flinch(Math.random() * 2 - 1, power * 0.7, cfg.throwing.eyesClose); await sleep(200); }
           return;
         }
-        // 👑 expensive gifts: grander by price, a name banner, their own scene, and the stage to themselves
-        const big = { ...BIG_DEFAULT, ...(fx.big || {}) };
-        const t1 = Number(fx.showcaseMin ?? 1000), t2 = Number(big.tier2) || 5000, t3 = Number(big.tier3) || 20000;
-        const tier = t1 > 0 && coins >= t1 ? (big.tiers === false ? 1 : coins >= t3 ? 3 : coins >= t2 ? 2 : 1) : 0;
-        const scene = big.scenes !== false ? sceneFor(e?.th || ctx.gift || '') : null;
-        const spot = big.spotlight !== false && coins >= (Number(big.spotMin) || 1000);
+        // 👑 expensive gifts: grander by price, a name banner, their own scene, and the stage to themselves.
+        // Only once per gift: a rule with two effect actions must not play the grand show twice.
+        const first = !ctx.bigDone;
+        const tier = first && pricey ? (big.tiers === false ? 1 : coins >= t3 ? 3 : coins >= t2 ? 2 : 1) : 0;
+        // a gift's own scene plays only when nobody picked another move for it (rule, gift or category setting)
+        const chosen = (a.style && a.style !== 'auto') || (own.style && own.style !== e?.style) || (cat.as && cat.as !== 'same');
+        const scene = first && big.scenes !== false && !chosen ? sceneFor(e?.th || ctx.gift || '') : null;
+        const spot = first && !ctx.preview && big.spotlight !== false && coins >= (Number(big.spotMin) || 1000);
         let banner = null;
-        if (big.banner !== false && this.banner && coins >= (Number(big.bannerMin) || 1000)) {
+        if (first && big.banner !== false && this.banner && coins >= (Number(big.bannerMin) || 1000)) {
           const v = { ...ctx, gift: e?.th || ctx.gift || '', coins: coins * ctx.count };
           banner = await this.banner([fill(big.line1, v).slice(0, 40), fill(big.line2, v).slice(0, 40)].filter(Boolean), tier).catch(() => null);
         }
-        const vol = Number(own.vol ?? cat.vol ?? 1) * ((tier >= 1 || scene) ? Number(big.volume ?? 1) : 1) * (ctx.vol ?? 1);
+        if (tier || scene || spot || banner) ctx.bigDone = true;
+        const vol = Number(own.vol ?? cat.vol ?? 1) * ((pricey || scene) ? Number(big.volume ?? 1) : 1) * (ctx.vol ?? 1);
         const done = this.effects.play(style, {
           img, count, power, coins, label: e?.th || ctx.gift || '', tier, banner, scene, spot, vol,
           size: cat.size * (Number(own.size) || 1) * Math.sqrt(combo), speed: cat.speed, sound: own.sound && own.sound !== 'auto' ? own.sound : cat.sound,
@@ -259,7 +265,11 @@ export class Engine {
         });
         if (spot && done) { // hold the queue until the big gift's show is over (40 s at most)
           this.hold++;
-          let to; Promise.race([done, new Promise(r => { to = setTimeout(r, 40000); })]).finally(() => { clearTimeout(to); this.hold = Math.max(0, this.hold - 1); this.pump(); });
+          let to; Promise.race([done, new Promise(r => { to = setTimeout(r, 40000); })]).finally(() => {
+            clearTimeout(to); this.hold = Math.max(0, this.hold - 1);
+            if (!this.hold && this.queue.length) this.draining = true; // gifts that waited come out one by one, not all at once
+            this.pump();
+          });
         }
         return;
       }

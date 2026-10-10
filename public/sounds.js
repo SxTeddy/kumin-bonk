@@ -47,12 +47,28 @@ const SOUNDS = {
 
 
 // uploaded sounds: 'u:<id>' → /usound/<id>
-const files = {};
-function playFile(id) {
+// Played through Web Audio so the volume can also go above 100% (like the built-in sounds); plain <audio> as a fallback.
+const files = {}, bufs = {};
+function playTag(id, v) {
   let a = files[id];
   if (!a) a = files[id] = new Audio('/usound/' + encodeURIComponent(id));
   const c = a.paused ? a : a.cloneNode(); // overlapping hits each get their own copy
-  c.volume = Math.max(0, Math.min(1, VOL)); c.currentTime = 0; c.play().catch(() => {});
+  c.volume = Math.max(0, Math.min(1, v)); c.currentTime = 0; c.play().catch(() => {});
+}
+function playFile(id) {
+  const v = Math.max(0, Math.min(4, VOL));
+  if (!(v > 0.001)) return;
+  let a; try { a = audio(); } catch { return playTag(id, v); }
+  if (!bufs[id]) {
+    bufs[id] = fetch('/usound/' + encodeURIComponent(id))
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(b => new Promise((res, rej) => a.decodeAudioData(b, res, rej)));
+    bufs[id].catch(() => { delete bufs[id]; });
+  }
+  bufs[id].then(buf => {
+    const s = a.createBufferSource(), g = a.createGain();
+    s.buffer = buf; g.gain.value = v; s.connect(g).connect(a.destination); s.start();
+  }).catch(() => playTag(id, v));
 }
 window.KBSound = { play(name, volume) { if (volume != null) VOL = volume; try { if (String(name).startsWith('u:')) return playFile(String(name).slice(2)); (SOUNDS[name] || SOUNDS.pop)(); } catch {} }, unlock() { try { audio(); } catch {} }, running() { try { return audio().state === 'running'; } catch { return false; } } };
 })();

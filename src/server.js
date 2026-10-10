@@ -15,13 +15,13 @@ import { Engine, CAT_DEFAULT, BIG_DEFAULT } from './engine.js';
 import crypto from 'node:crypto';
 import { Images } from './images.js';
 import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
-import { Effects, SCENES, SCENE_NAMES } from './effects.js';
+import { Effects, SCENES, SCENE_NAMES, MAX_ITEMS } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.9.1';
+const VERSION = '1.9.2';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -331,6 +331,8 @@ async function onDashboard(ws, m) {
       const next = m.config;
       if (!next || !Array.isArray(next.rules)) return;
       delete next.customSounds; // the server owns the uploaded-sound list (a save in flight must not undo an upload)
+      delete next.locks; delete next.modelLocks; // ...and the lock points (set by clicking the model in VTube Studio)
+      if (next.head && typeof next.head === 'object') { delete next.head.modelX; delete next.head.modelY; } // ...and where the model was when the head was saved
       const hk = JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey]);
       config = sanitizeConfig(mergeConfig(config, next));
       saveConfig();
@@ -414,8 +416,10 @@ async function onDashboard(ws, m) {
       calibrating = false;
       await vts.hideCalib();
       saveConfig();
+      liveHead = null; // follow the model again from the new spot
       overlay.send({ t: 'calib', x: config.head.x, y: config.head.y, show: false });
       overlay.send(overlaySettings());
+      toDashboards({ t: 'head', head: { ...config.head } });
       log('calib', 'บันทึกตำแหน่งหัวแล้ว');
       return;
     }
@@ -424,15 +428,16 @@ async function onDashboard(ws, m) {
       const coins = [0, Number(fx.showcaseMin ?? 1000) || 1000, Number(big.tier2) || 5000, Number(big.tier3) || 20000][Math.max(1, Math.min(3, Number(m.tier) || 1))];
       const g = CATALOG.find(c => c.th === 'กาแล็กซี') || CATALOG[0];
       toDashboards({ t: 'event', ev: { type: 'gift', user: { nickname: 'คนทดสอบ' }, gift: { name: g.th, th: g.th, diamonds: coins }, count: 1 }, fired: ['👑 ระดับ ' + (Number(m.tier) || 1)], simulated: true, time: Date.now() });
-      return engine.run({ type: 'giftfx', style: 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: 1, diamonds: coins, entry: g });
+      return engine.run({ type: 'giftfx', style: 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: 1, diamonds: coins, entry: g, preview: true });
     }
-    case 'previewStyle': {
-      const g = m.gift ? CATALOG.find(c => c.th === m.gift) : CATALOG.find(c => c.style === m.style);
+    case 'previewStyle': { // gift → that gift as it plays live · style (+ gift) → that move with the gift's picture
+      const style = Object.hasOwn(STYLES, m.style) ? m.style : '';
+      const g = m.gift ? CATALOG.find(c => c.th === m.gift) : CATALOG.find(c => c.style === style);
       if (!g) return;
-      const ev = { type: 'gift', user: { id: 'sim', username: 'tester', nickname: 'คนทดสอบ' }, gift: { id: '0', name: g.en || g.th, diamonds: g.coins }, count: Number(m.count) || 1 };
+      const ev = { type: 'gift', user: { id: 'sim', username: 'tester', nickname: 'คนทดสอบ' }, gift: { id: '0', name: g.en || g.th, diamonds: g.coins }, count: Math.max(1, Math.min(MAX_ITEMS, Math.floor(Number(m.count)) || 1)) };
       ev.gift.th = g.th;
-      toDashboards({ t: 'event', ev, fired: [`ท่า: ${STYLES[g.style]}`], simulated: true, time: Date.now() });
-      return engine.run({ type: 'giftfx', style: m.style && !m.gift ? m.style : 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: ev.count, diamonds: g.coins, entry: g });
+      toDashboards({ t: 'event', ev, fired: [`ท่า: ${STYLES[style || g.style]}`], simulated: true, time: Date.now() });
+      return engine.run({ type: 'giftfx', style: style || 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: ev.count, diamonds: g.coins, entry: g, preview: true });
     }
     case 'bannerImg': {
       const done = bannerWait.get(String(m.id || '')); if (!done) return;

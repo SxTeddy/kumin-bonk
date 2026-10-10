@@ -37,10 +37,11 @@ export class Effects {
     return { x: n.x - this.frozen.x, y: n.y - this.frozen.y };
   }
   // head point right now, moved by the aim offset of the gift/category being played
-  liveHead(aim = this.aim) {
+  // (lock/style default to the effect on stage; quick throws that run beside it pass their own)
+  liveHead(aim = this.aim, lock = this.lock, style = this.style) {
     // locked to the model: use the live tracked point (the style's own offset is taken back out, so it lands exactly there)
-    const lk = this.lock && this.getLock(this.lock);
-    if (lk?.live) { const a = ANCHOR[this.style] || { dx: 0, dy: 0 }; return { x: clamp(lk.live.x - a.dx, 0, 1), y: clamp(lk.live.y - a.dy, 0, 1) }; }
+    const lk = lock && this.getLock(lock);
+    if (lk?.live) { const a = ANCHOR[style] || { dx: 0, dy: 0 }; return { x: clamp(lk.live.x - a.dx, 0, 1), y: clamp(lk.live.y - a.dy, 0, 1) }; }
     const h = this.baseHead();
     if (!aim || (!aim.dx && !aim.dy)) return h;
     return { x: clamp(h.x + (Number(aim.dx) || 0), 0, 1), y: clamp(h.y + (Number(aim.dy) || 0), 0, 1) };
@@ -58,9 +59,11 @@ export class Effects {
     if (!this.vts.ready) return Promise.resolve();
     if (tier == null) tier = showcaseMin > 0 && coins >= showcaseMin ? 1 : 0;
     const show = tier >= 1;
-    if (style === 'bonk' && !show && !scene && !banner) return this.bonk(img, count, power, sizeFor(coins) * size, speed, sound, aim, vol);
-    const same = !spot && this.queue.find(q => !q.spot && q.style === style && q.img === img && JSON.stringify(q.aim) === JSON.stringify(aim));
-    if (same) { same.count += count; return same.done; }
+    if (style === 'bonk' && !show && !scene && !banner) return this.bonk(img, count, power, sizeFor(coins) * size, speed, sound, aim, vol, lock);
+    // the same plain effect already waiting: just send more of it (big-gift shows are never merged: each keeps its banner/scene)
+    const plain = q => !q.spot && !q.show && !q.banner && !q.scene;
+    const same = plain({ spot, show, banner, scene }) && this.queue.find(q => plain(q) && q.style === style && q.img === img && q.lock === lock && q.vol === vol && JSON.stringify(q.aim) === JSON.stringify(aim));
+    if (same) { same.count = Math.min(MAX_ITEMS, same.count + count); return same.done; }
     if (this.queue.length >= 8 && !spot) { this.vts.flinch(side(), 0.8, true); return Promise.resolve(); } // too busy: just react
     let resolve; const done = new Promise(r => { resolve = r; });
     const job = { style, img, count, power, label, coins, size, speed, sound, show, tier, banner, scene, spot, aim, lock, vol, done, resolve };
@@ -74,24 +77,28 @@ export class Effects {
     while (this.queue.length) {
       const job = this.queue.shift();
       const fn = this[job.style] || this.bonk;
+      let banner = null, crown = null;
       try {
         const pic = await this.images.get(job.img, 'heart');
         this.cur = { img: pic, scale: sizeFor(job.coins) * (job.size || 1) }; // the gift picture is drawn at this scale
         SPEED = Math.max(0.3, job.speed || 1); this.soundMode = job.sound || 'auto'; this.aim = job.aim || null; this.lock = job.lock || null; this.style = job.style;
         this.frozen = null; this.frozen = this.liveHead(); this.vol = job.vol ?? 1;
-        const banner = job.banner ? await this.showBanner(job.banner, job.tier) : null;
+        banner = job.banner ? await this.showBanner(job.banner, job.tier) : null;
         if (job.show) await this.showcase(pic, job.coins, job.tier);
-        const crown = job.tier >= 3 ? await this.crownOn() : null;
+        crown = job.tier >= 3 ? await this.crownOn() : null;
         const power = clamp(job.power, 0.6, 2.5);
         const run = job.scene && this['scene_' + job.scene] ? this['scene_' + job.scene](pic, job.count, power, job)
-          : fn === this.bonk ? this.bonk(pic, job.count, power, this.cur.scale, job.speed, job.sound, job.aim, job.vol) : fn.call(this, pic, job.count, power, job);
+          : fn === this.bonk ? this.bonk(pic, job.count, power, this.cur.scale, job.speed, job.sound, job.aim, job.vol, job.lock) : fn.call(this, pic, job.count, power, job);
         await Promise.race([run, sleep(job.scene ? 16000 : HEAVY_TIMEOUT)]);
         if (job.tier >= 2) await this.finale(job.tier);
-        if (crown) await crown.off();
-        if (banner) await this.hideBanner(banner);
-        this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null; this.lock = null; this.frozen = null; this.vol = 1;
+      } catch (e) { this.log('fx', `เอฟเฟกต์ ${job.style} ผิดพลาด: ${e.message}`, 'warn'); }
+      finally {
+        // always take the crown and the name banner away, even when something above went wrong
+        try { if (crown) await crown.off(); } catch {}
+        try { if (banner) await this.hideBanner(banner); } catch {}
+        this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null; this.lock = null; this.style = null; this.frozen = null; this.vol = 1;
         job.resolve?.();
-      } catch (e) { job.resolve?.(); this.cur = null; SPEED = 1; this.soundMode = 'auto'; this.aim = null; this.frozen = null; this.log('fx', `เอฟเฟกต์ ${job.style} ผิดพลาด: ${e.message}`, 'warn'); }
+      }
     }
     this.running = false;
   }
@@ -201,7 +208,8 @@ export class Effects {
     if (!id) return null;
     await this.to(id, { y: h.y - 0.16 }, 0.5, 'overshoot'); await sleep(500);
     this.sound('ding');
-    let on = true; const pc = this.getLock('head')?.coords;
+    // pin only to the hat point (🎯 "สวมบนหัว" locked): pinning to the head point would pull the crown down onto the face
+    let on = true; const pc = this.getLock('cat:wear')?.coords;
     const pinned = pc ? await this.vts.pin(id, pc) : false;
     const keep = pinned ? null : (async () => { while (on) await this.stick([id], 600); })();
     return { off: async () => { on = false; await keep; if (pinned) await this.vts.unpin(id); await this.to(id, { y: -0.3 }, 0.5, 'easeIn'); await sleep(520); await this.kill(id); } };
@@ -262,13 +270,13 @@ export class Effects {
   ring(h, n, r = 0.14) { return i => ({ x: h.x + Math.cos((i / n) * Math.PI * 2) * r * 0.56, y: h.y + Math.sin((i / n) * Math.PI * 2) * r }); }
 
   // ---------- styles ----------
-  async bonk(img, count, power, scale = this.cur?.scale || 1, speed = 1, sound = this.soundMode, aim = this.aim, vol = this.vol ?? 1) {
+  async bonk(img, count, power, scale = this.cur?.scale || 1, speed = 1, sound = this.soundMode, aim = this.aim, vol = this.vol ?? 1, lock = this.lock) {
     const cfg = this.getConfig().throwing;
     const hit = sound === 'none' ? null : (sound && sound !== 'auto' ? sound : 'bonk');
     const pic = typeof img === 'string' ? await this.images.get(img, 'rose') : img;
     const n = clamp(count, 1, MAX_ITEMS); // how many come is set per category (สูงสุดต่อครั้ง); VTS gets at most 18 in the air at once
     for (let i = 0; i < n; i++) {
-      this.vts.throwItem({ img: pic, head: () => this.liveHead(aim), from: 'random', size: clamp((cfg.size || 90) / 500 * scale, 0.05, 0.6), speed: (cfg.speed || 1) * speed, spin: cfg.spin, flinch: true, strength: 0.6 + power * 0.4, eyes: this.eyes, onHit: () => hit && vol > 0 && this._sound(hit, vol) });
+      this.vts.throwItem({ img: pic, head: () => this.liveHead(aim, lock, 'bonk'), from: 'random', size: clamp((cfg.size || 90) / 500 * scale, 0.05, 0.6), speed: (cfg.speed || 1) * speed, spin: cfg.spin, flinch: true, strength: 0.6 + power * 0.4, eyes: this.eyes, onHit: () => hit && vol > 0 && this._sound(hit, vol) });
       await sleep(cfg.stagger || 90);
     }
   }
@@ -297,12 +305,13 @@ export class Effects {
   }
 
   // Fly toward a target that may move (the mouth follows the model): re-aim every ~0.1 s on the way.
+  // T is in normal-speed seconds (the category speed is applied here, once)
   async home(id, from, target, T, rot = 0) {
     if (!id) return;
-    const steps = Math.max(3, Math.round(T / 0.1)), dt = T / steps;
+    const steps = Math.max(3, Math.round(T / SPEED / 0.1)), dt = T / steps;
     for (let i = 1; i <= steps; i++) {
       const p = target(), u = i / steps, e = 1 - (1 - u) * (1 - u); // ease-out
-      this.vts.spriteTo(id, { x: from.x + (p.x - from.x) * e, y: from.y + (p.y - from.y) * e, rot: rot * u }, dt, 'linear');
+      this.vts.spriteTo(id, { x: from.x + (p.x - from.x) * e, y: from.y + (p.y - from.y) * e, rot: rot * u }, dt / SPEED, 'linear');
       await sleep(dt * 1000);
     }
   }
@@ -311,13 +320,16 @@ export class Effects {
   async glide(id, pts, T, { bank = 0, trail = null, every = 2 } = {}) {
     if (!id || !pts.length) return;
     const dt = T / pts.length;
-    let prev = { ...(this.base.get(id) || pts[0]) };
+    let prev = { ...(this.base.get(id) || pts[0]) }, tilt = null;
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i], dx = p.x - prev.x, dy = p.y - prev.y;
       const o = { x: p.x, y: p.y };
       if (p.size) o.size = p.size;
-      if (bank && Math.abs(dx) + Math.abs(dy) > 0.001) o.rot = clamp(Math.atan2(dy, Math.abs(dx)) * 57.3 * (dx < 0 ? -1 : 1) * bank, -28, 28); // clockwise = nose down when flying right
-      else if (p.rot != null) o.rot = p.rot;
+      if (bank && Math.abs(dx) + Math.abs(dy) > 0.001) {
+        const want = clamp(Math.atan2(dy, Math.abs(dx)) * 57.3 * (dx < 0 ? -1 : 1) * bank, -28, 28); // clockwise = nose down when flying right
+        tilt = tilt == null ? want : tilt + clamp(want - tilt, -10, 10); // turn smoothly (no sudden flip at the top of a loop)
+        o.rot = Math.round(tilt * 10) / 10;
+      } else if (p.rot != null) o.rot = p.rot;
       this.to(id, o, dt, 'linear');
       if (trail && i % every === 0) {
         const at = { ...prev }, back = { x: -dx * 2.5, y: -dy * 2.5 };
@@ -336,7 +348,7 @@ export class Effects {
     const m0 = mouthNow();
     const from = { x: d < 0 ? -0.1 : 1.1, y: clamp(m0.y + 0.18, 0, 1.1) };
     const id = await this.spawn(img, { ...from, size: 0.17, rot: 0 });
-    await this.home(id, from, mouthNow, 0.55 / SPEED, d * 25);
+    await this.home(id, from, mouthNow, 0.55, d * 25);
     // no live tracking (older VTube Studio) but a lock point: stick it to the mouth while eating
     const pc = !live() && this.pinCoords();
     const pinned = pc && id ? await this.vts.pin(id, pc) : false;
@@ -370,7 +382,7 @@ export class Effects {
     this.particles('smoke', 4, () => ({ x: hitX, y }), () => ({ x: hitX + rnd(-0.1, 0.1), y: y - rnd(0.05, 0.15), size: 0.12 }), 0.8);
     // bounce back a little, then race away with a wheelie
     await this.to(id, { x: hitX + d * 0.06, rot: d * 8 }, 0.18, 'easeOut'); await sleep(260);
-    await this.glide(id, [0.2, 0.45, 0.75, 1].map(u => ({ x: hitX + d * 0.06 + ((d < 0 ? 1.35 : -0.35) - hitX) * u * u, y: y - 0.01 * Math.sin(u * 3), rot: d * -10 })), 0.6, { trail: { img: 'smoke', size: 0.06, fall: -0.02, t: 0.5 } });
+    await this.glide(id, [0.2, 0.45, 0.75, 1].map(u => ({ x: hitX + d * 0.06 + ((d < 0 ? 1.35 : -0.35) - hitX) * u * u, y: y - 0.01 * Math.sin(u * 3), rot: d * 10 })), 0.6, { trail: { img: 'smoke', size: 0.06, fall: -0.02, t: 0.5 } });
     await this.kill(id);
     this.scared(1.2, d);
   }

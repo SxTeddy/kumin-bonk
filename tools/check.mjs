@@ -53,11 +53,13 @@ await new Promise(done => {
   w.on('error', () => { step('security: bad settings are refused', false, 'no connection'); done(); });
   w.once('message', d => {
     const cfg = JSON.parse(d).config;
-    w.send(JSON.stringify({ t: 'saveConfig', config: { ...cfg, vtsPort: 'abc', summary: { ...cfg.summary, folder: '\\\\evil-pc\\share' } } }));
+    // (an old copy of the settings from the window must not overwrite what only the app knows: model position, lock points)
+    w.send(JSON.stringify({ t: 'saveConfig', config: { ...cfg, vtsPort: 'abc', summary: { ...cfg.summary, folder: '\\\\evil-pc\\share' }, head: { ...cfg.head, modelX: 9, modelY: 9 }, modelLocks: { stale: {} } } }));
     w.send(JSON.stringify({ t: 'simulate', ev: { type: 'gift', gift: { name: 'Rose', diamonds: '5' }, count: '7x' } }));
     setTimeout(() => {
       let c = {}; try { c = JSON.parse(fs.readFileSync(path.join(work, 'data', 'config.json'), 'utf8')); } catch {}
       step('security: bad settings are refused', c.summary?.folder === '' && c.vtsPort === 8001, `folder=${c.summary?.folder} vtsPort=${c.vtsPort}`);
+      step('saving settings keeps the head/lock data the app owns', c.head?.modelX !== 9 && !c.modelLocks?.stale, `modelX=${c.head?.modelX} locks=${Object.keys(c.modelLocks || {})}`);
       w.close(); done();
     }, 800);
   });

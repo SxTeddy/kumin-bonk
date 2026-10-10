@@ -45,13 +45,14 @@ function handle(m) {
     case 'event': addFeed(m); if (m.ev.type === 'chat') readChat(m.ev.user?.nickname || m.ev.user?.username, m.ev.user?.username, m.ev.text); if (m.ev.type === 'gift' && !seenGifts.some(g => g.name === m.ev.gift.name)) { seenGifts.push(m.ev.gift); fillGiftList(); } break;
     case 'fired': break;
     case 'vtsLists': vtsLists = m; if (config) renderRules(); break;
-    case 'tts': speak(m.text, m.kind === 'thanks' ? '🙏' : 'กฎ', m.volume); break;
+    case 'tts': speak(m.text, m.kind === 'thanks' ? '🙏' : 'กฎ', m.volume, m.kind === 'thanks' ? 'thanks' : 'rule'); break;
     case 'sound': if (soundOn) KBSound.play(m.sound, m.volume); break;
     case 'saved': flashSaved(); break;
     case 'update': renderUpdate(m); break;
     case 'lockWaiting': lockWait = m.target; renderLock(); toast('ไปคลิกที่ตัวละครใน VTube Studio 1 ครั้งนะ'); break;
     case 'lockCancelled': lockWait = null; renderLock(); break;
-    case 'lockDone': { const was = lockWait; lockWait = null; config = { ...config, ...m.config }; renderAimFor(); renderCats?.(); if (was) toast('📌 ล็อกกับโมเดลแล้ว! เป้าจะขยับตามตัวละคร'); break; }
+    case 'head': if (config && m.head) config.head = { ...config.head, ...m.head }; break;
+    case 'lockDone': { const was = lockWait; lockWait = null; if (aimDraft && m.target === aimDraft.key) aimDraft = null; config = { ...config, ...m.config }; renderAimFor(); renderCats?.(); if (was) toast('📌 ล็อกกับโมเดลแล้ว! เป้าจะขยับตามตัวละคร'); break; }
     case 'closeWindow': closedByNewer = true; window.close(); break; // a newer app window took over
     case 'restarting': if (!restartingNow) { restartingNow = true; showSplash('กำลังเปลี่ยนชุดใหม่ ✨', 'รอแป๊บนึงนะ เดี๋ยวกลับมา~'); } $('#updBar').hidden = true; break;
   }
@@ -604,7 +605,8 @@ function renderCats() {
     el.querySelector('.maxn').onchange = e => { const v = Math.max(1, Math.min(300, Math.round(Number(e.target.value)) || 30)); e.target.value = v; e.target.previousElementSibling.value = v; setCat(st, 'max', v); };
     el.querySelectorAll('select').forEach(sel => sel.onchange = () => setCat(st, sel.dataset.k, sel.value));
     el.querySelector('[data-aimcat]').onclick = () => goAim('cat:' + st);
-    el.querySelector('[data-try]').onclick = () => { const g = list[list.length - 1] || catalog.find(x => x.style === st); if (g) send({ t: 'previewStyle', gift: g.th, count: 1 }); };
+    // try this category's move (with its cheapest gift: no big-gift show or special scene in the way)
+    el.querySelector('[data-try]').onclick = () => { const g = list.find(x => !fxCfg().gifts[x.th]?.off) || list[0] || catalog.find(x => x.style === st); if (g) send({ t: 'previewStyle', style: st, gift: g.th, count: 1 }); };
     el.querySelectorAll('.gifts button').forEach(b => b.onclick = ev => openGiftPop(catalog.find(g => g.th === b.dataset.g), ev.currentTarget));
     box.appendChild(el);
   }
@@ -716,6 +718,7 @@ function dropAimDraft() {
   if (!box) return false;
   if (d.prev) box[name] = { ...(box[name] || {}), aim: d.prev };
   else if (box[name]) { delete box[name].aim; if (!Object.keys(box[name]).length) delete box[name]; }
+  save(); // "▶ ลองท่านี้" may already have sent the moved target: put the old one back in the app too
   toast('ยังไม่ได้กดบันทึก เลยคืนเป้าเดิมให้แล้ว');
   return true;
 }
@@ -802,7 +805,7 @@ $('#btnTestAim').onclick = () => {
   if (aimFor.startsWith('gift:')) return send({ t: 'previewStyle', gift: aimFor.slice(5), count: 1 });
   const st = aimFor.slice(4);
   const g = catalog.find(x => giftStyle(x) === st && !config.fx?.gifts?.[x.th]?.aim) || catalog.find(x => x.style === st);
-  send(g ? { t: 'previewStyle', gift: g.th, count: 1 } : { t: 'previewStyle', style: st, count: 1 });
+  send(g ? { t: 'previewStyle', gift: g.th, style: st, count: 1 } : { t: 'previewStyle', style: st, count: 1 });
 };
 
 // ---------- settings ----------
@@ -1012,9 +1015,15 @@ function pickVoice(item, userKey) {
 }
 function enqueue(entry) {
   const max = Number(ct().maxQueue) || 6;
-  while (ctQueue.length >= max) { const old = ctQueue.shift(); markFeed(old, 'ข้าม: คิวเต็ม'); }
+  while (ctQueue.length >= max) { // queue full: chat makes room first, thank-yous are kept
+    let i = ctQueue.findIndex(e => e.kind !== 'thanks');
+    if (i < 0) { if (entry.kind !== 'thanks') { markFeed(entry, 'ข้าม: คิวเต็ม'); return; } i = 0; }
+    const [old] = ctQueue.splice(i, 1); markFeed(old, 'ข้าม: คิวเต็ม');
+  }
   ctQueue.push(entry); showQueue(); if (!ctBusy) nextSpeak();
 }
+// thank-yous have their own volume (✨ tab); chat and rule messages use the chat reader's volume
+const entryVol = (e, c = ct()) => Math.max(0, Math.min(1, e.kind === 'thanks' ? Number(e.vol ?? 1) : Number(c.volume ?? 1) * Number(e.vol ?? 1)));
 function nextSpeak() {
   ctCur = ctQueue.shift(); showQueue();
   if (!ctCur) { ctBusy = false; return; }
@@ -1026,7 +1035,7 @@ function nextSpeak() {
     const u = new SpeechSynthesisUtterance(p.text);
     const { voice, pitch, rate = 1 } = pickVoice(p, ctCur.userKey);
     if (voice) { u.voice = voice; u.lang = isMulti(voice) ? (TAG[p.lang] || p.lang) : voice.lang; } else u.lang = TAG[p.lang] || p.lang;
-    u.rate = Math.max(0.3, Math.min(3, (Number(c.rate) || 1) * rate)); u.pitch = Math.max(0.1, Math.min(2, (Number(c.pitch) || 1) * pitch)); u.volume = Math.max(0, Math.min(1, (c.volume ?? 1) * (ctCur.vol ?? 1)));
+    u.rate = Math.max(0.3, Math.min(3, (Number(c.rate) || 1) * rate)); u.pitch = Math.max(0.1, Math.min(2, (Number(c.pitch) || 1) * pitch)); u.volume = entryVol(ctCur, c);
     let ended = false; const fin = () => { if (!ended) { ended = true; clearTimeout(guard); speakPart(); } };
     u.onend = fin; u.onerror = fin;
     const guard = setTimeout(fin, 4000 + p.text.length * 220 / (u.rate || 1)); // never get stuck
@@ -1056,14 +1065,17 @@ function readChat(name, user, text, { force = false } = {}) {
   if (!('speechSynthesis' in window)) return;
   if (!force && !ct().enabled) return;
   const r = prepare(name, user, text);
+  if (!r.why && !(entryVol({ kind: 'chat' }) > 0)) r.why = 'ปิดเสียงอ่านแชทอยู่'; // muted: don't hold up the queue with silent messages
   const id = addChatFeed(name, text, r.why ? `ข้าม: ${r.why}` : `รอ · ${LANGS[r.lang] || r.lang}`);
   if (r.why) return;
-  enqueue({ id, say: r.say, userKey: user || name });
+  enqueue({ id, say: r.say, userKey: user || name, kind: 'chat' });
 }
-function speak(text, label = 'กฎ', vol = 1) { // rule action "อ่านออกเสียง" / thank-you: already formatted text, still filtered
+function speak(text, label = 'กฎ', vol = 1, kind = 'rule') { // rule action "อ่านออกเสียง" / thank-you: already formatted text, still filtered
   const r = prepare('', '', text, true);
-  const id = addChatFeed(label, text, r.why ? `ข้าม: ${r.why}` : 'รอ');
-  if (!r.why) enqueue({ id, say: r.say, userKey: '', vol: Number(vol ?? 1) });
+  const e = { say: r.say, userKey: '', vol: Number(vol ?? 1), kind };
+  if (!r.why && !(entryVol(e) > 0)) r.why = 'ปิดเสียงอยู่';
+  e.id = addChatFeed(label, text, r.why ? `ข้าม: ${r.why}` : 'รอ');
+  if (!r.why) enqueue(e);
 }
 
 // --- settings UI ---

@@ -41,9 +41,18 @@ let calib = null;
 const items = [], sparks = [], queue = [];
 const imgCache = new Map();
 
+// picture names from the app: 'gift:g012' (gift picture), 'rose' (built-in), or a web address (profile picture)
+function srcUrl(src) {
+  src = String(src || '');
+  if (/^gift:g\d{3}$/.test(src)) return `/gifts/${src.slice(5)}.png`;
+  if (/^[a-z]{2,16}$/.test(src)) return `/assets/${src}.svg`;
+  if (/^https?:\/\//.test(src)) return src;
+  return '/assets/heart.svg';
+}
 function getImg(src) {
-  const url = BUILTIN.includes(src) ? `/assets/${src}.svg` : src;
+  const url = srcUrl(src);
   if (!imgCache.has(url)) {
+    if (imgCache.size > 300) imgCache.delete(imgCache.keys().next().value); // many viewers' pictures: forget the oldest
     const im = new Image();
     im.onerror = () => { im.failed = true; };
     im.src = url;

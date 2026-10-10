@@ -184,6 +184,92 @@ await t('category / gift / chat-command volumes reach the sound player', async (
   assert.equal(sent.length, 0, 'muted chat-command sound still played');
 });
 
+// --- v1.9.2 bug fixes ---
+function bigEngine(rules, fxCfg = {}) {
+  const cfg = structuredClone(DEFAULT_CONFIG);
+  cfg.limit = { enabled: false };
+  cfg.fx = { ...cfg.fx, ...fxCfg };
+  cfg.rules = rules;
+  const plays = []; const finishers = [];
+  const effects = { queue: [], play: (st, o) => { plays.push({ style: st, ...o }); if (o.spot) return new Promise(r => finishers.push(r)); return Promise.resolve(); } };
+  const e = new Engine({ getConfig: () => cfg, getHead: () => ({ x: .5, y: .3 }), vts: { ready: true, canCustomImages: true, flinch() {} }, images: { guess: () => 'rose' },
+    gifts: { matches: () => true, find: g => ({ th: g.name, img: 'g001', style: 'bonk', coins: g.diamonds }) }, effects, overlay: { count: () => 0 }, dashboard: () => {}, log: () => {}, banner: async () => ({ key: 'bnx', b64: 'x', ext: 'png' }) });
+  return { e, cfg, plays, finish: () => finishers.splice(0).forEach(f => f()) };
+}
+const lion = (u = 'a') => ({ type: 'gift', user: { id: u }, gift: { name: 'สิงโต', diamonds: 29999 }, count: 1 });
+
+await t('a rule with two effects plays the grand show only once', async () => {
+  const { e, plays, finish } = bigEngine([{ id: 'g', enabled: true, name: '10k', trigger: { type: 'gift', gifts: '*' }, cooldown: 0, actions: [{ type: 'giftfx', style: 'auto' }, { type: 'giftfx', style: 'party' }] }]);
+  e.handle(lion()); await sleep(80);
+  assert.equal(plays.length, 2);
+  assert.equal(plays[0].tier, 3); assert.equal(plays[0].scene, 'lion'); assert.ok(plays[0].banner); assert.ok(plays[0].spot);
+  assert.equal(plays[1].style, 'party'); assert.equal(plays[1].tier, 0, 'second show'); assert.equal(plays[1].scene, null); assert.equal(plays[1].banner, null); assert.equal(plays[1].spot, false);
+  finish();
+});
+await t('the special scene only plays when no other move was picked', async () => {
+  const rule = st => [{ id: 'g', enabled: true, name: 'r', trigger: { type: 'gift', gifts: '*' }, cooldown: 0, actions: [{ type: 'giftfx', style: st }] }];
+  let x = bigEngine(rule('flyby')); await x.e.fire(x.cfg.rules[0], lion()); assert.equal(x.plays[0].scene, null, 'rule picked a move'); x.finish();
+  x = bigEngine(rule('auto'), { gifts: { 'สิงโต': { style: 'wear' } } }); await x.e.fire(x.cfg.rules[0], lion()); assert.equal(x.plays[0].scene, null, 'gift has its own move'); x.finish();
+  x = bigEngine(rule('auto'), { cats: { bonk: { as: 'love' } } }); await x.e.fire(x.cfg.rules[0], lion()); assert.equal(x.plays[0].scene, null, 'category uses another move'); x.finish();
+  x = bigEngine(rule('auto')); await x.e.fire(x.cfg.rules[0], lion()); assert.equal(x.plays[0].scene, 'lion', 'default keeps the scene'); x.finish();
+});
+await t('tests from the settings do not hold real gifts back', async () => {
+  const x = bigEngine([]);
+  await x.e.run({ type: 'giftfx', style: 'auto' }, { name: 't', gift: 'สิงโต', count: 1, diamonds: 29999, entry: { th: 'สิงโต', img: 'g001', style: 'bonk', coins: 29999 }, preview: true });
+  assert.equal(x.plays[0].spot, false); assert.equal(x.e.hold, 0);
+});
+await t('after a big show the waiting gifts come out one by one', async () => {
+  const { e, plays, finish } = bigEngine([{ id: 'g', enabled: true, name: 'gift', trigger: { type: 'gift', gifts: '*' }, cooldown: 0, actions: [{ type: 'giftfx', style: 'auto' }] }]);
+  e.handle(lion()); await sleep(50);
+  for (let i = 0; i < 6; i++) e.handle(gift('s' + i));
+  await sleep(80); assert.equal(plays.length, 1, 'played during the show');
+  finish(); await sleep(150);
+  assert.equal(plays.length, 2, 'all waiting gifts were let out at once: ' + (plays.length - 1));
+  await sleep(800); assert.ok(plays.length >= 3 && plays.length < 7, 'not paced: ' + plays.length);
+  e.clearQueue();
+});
+function fakeFx(over = {}) {
+  const throws = [], sprites = [];
+  const vts = { ready: true, sprite: async (img, o) => { sprites.push(o); return 's' + sprites.length; }, spriteTo: () => Promise.resolve(), spriteKill: async () => {}, animate() {}, move() {}, flinch() {}, pin: async () => false, unpin: async () => {}, tint: async () => {}, throwItem: o => throws.push(o), ...over };
+  const fx = new Effects({ vts, images: { get: async () => ({ key: 'x' }) }, getHead: () => ({ x: .5, y: .3 }), getLock: k => k === 'cat:eat' ? { coords: { artMeshID: 'Mouth' }, live: { x: 0.9, y: 0.9 } } : null, sound() {}, log() {}, getConfig: () => DEFAULT_CONFIG });
+  return { fx, throws, sprites };
+}
+await t('quick throws aim at their own target, not at the effect playing beside them', async () => {
+  const { fx, throws } = fakeFx();
+  fx.lock = 'cat:eat'; fx.style = 'eat'; // a donut is being eaten right now
+  await fx.play('bonk', { img: 'rose', count: 2, coins: 1, lock: null });
+  assert.ok(throws.length === 2);
+  const h = throws[0].head();
+  assert.ok(Math.abs(h.x - 0.5) < 0.001 && Math.abs(h.y - 0.3) < 0.001, 'aimed at the mouth lock: ' + JSON.stringify(h));
+});
+await t('big-gift shows are never merged together', async () => {
+  const { fx } = fakeFx();
+  fx.running = true; // something is on stage: new jobs wait
+  fx.play('flyby', { img: 'gift:g001', coins: 5000, tier: 2, banner: { key: 'b1' } });
+  fx.play('flyby', { img: 'gift:g001', coins: 5000, tier: 2, banner: { key: 'b2' } });
+  fx.play('love', { img: 'heart', count: 2 }); fx.play('love', { img: 'heart', count: 3 });
+  assert.equal(fx.queue.length, 3, 'queue: ' + fx.queue.map(q => q.style + q.count));
+  assert.equal(fx.queue[2].count, 5, 'plain ones should still merge');
+  fx.queue = [];
+});
+await t('the name banner is taken down even if an effect fails', async () => {
+  const killed = [];
+  const { fx } = fakeFx({ spriteKill: async id => { killed.push(id); } });
+  fx.love = async () => { throw new Error('boom'); };
+  let banner;
+  const orig = fx.showBanner.bind(fx); fx.showBanner = async (...a) => (banner = await orig(...a));
+  await fx.play('love', { img: 'heart', coins: 1, banner: { key: 'b' }, tier: 0 });
+  assert.ok(banner && killed.includes(banner), 'banner left on screen');
+  assert.equal(fx.lock, null); assert.equal(fx.frozen, null); assert.equal(fx.running, false);
+});
+await t('flying moves turn smoothly (no sudden flips)', async () => {
+  const rots = [];
+  const { fx } = fakeFx({ spriteTo: (id, o) => { if (o.rot != null) rots.push(o.rot); return Promise.resolve(); } });
+  const pts = []; for (let i = 0; i <= 24; i++) { const a = i / 24 * Math.PI * 2; pts.push({ x: 0.5 + Math.cos(a) * 0.2, y: 0.4 + Math.sin(a) * 0.2 }); } // a full loop
+  await fx.glide('s1', pts, 0.3, { bank: 1 });
+  for (let i = 1; i < rots.length; i++) assert.ok(Math.abs(rots[i] - rots[i - 1]) <= 10.01, `jump ${rots[i - 1]} → ${rots[i]}`);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 let bad = 0;
 for (const [ok, name, err] of results) { console.log(`${ok ? '✓' : '✗'} ${name}${ok ? '' : ' — ' + err}`); if (!ok) bad++; }
