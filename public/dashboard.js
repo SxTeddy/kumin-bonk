@@ -10,6 +10,7 @@ let seenGifts = [];
 let catalog = []; // Thai gift list {coins, th, en, img, style}
 let anchors = {}; // style -> where it lands relative to the head
 let styles = {};  // effect style id -> Thai description
+let bigDefault = {}, sceneMap = {}, sceneNames = {};
 let catDefault = { enabled: true, size: 1, power: 1, speed: 1, max: 30, sound: 'auto', as: 'same' };
 
 // ---------- socket ----------
@@ -25,7 +26,7 @@ function connect() {
 function handle(m) {
   switch (m.t) {
     case 'state':
-      config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.anchors) anchors = m.anchors;
+      config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.bigDefault) bigDefault = m.bigDefault; if (m.scenes) sceneMap = m.scenes; if (m.sceneNames) sceneNames = m.sceneNames; if (m.anchors) anchors = m.anchors;
       (m.logs || []).forEach(addLog);
       if (config.theme && config.theme !== curTheme()) applyTheme(config.theme);
       if (config.lang && window.KBI18N && config.lang !== KBI18N.lang) { KBI18N.setLang(config.lang); renderLangs(); }
@@ -36,6 +37,7 @@ function handle(m) {
       break;
     case 'status': renderStatus(m); renderPause(m); break;
     case 'sessions': renderSessions(m); break;
+    case 'renderBanner': drawBanner(m); break;
     case 'summaryFiles': renderSummaryFiles(m); break;
     case 'sounds': config.customSounds = m.customSounds || []; renderSounds(); renderCats(); renderRules(); if (m.added) toast('เพิ่มเสียงแล้ว 🎵'); break;
     case 'log': addLog(m); break;
@@ -527,7 +529,53 @@ function fxCfg() { config.fx ||= { showcaseMin: 1000, cats: {}, gifts: {} }; con
 function catOf(style) { return { ...catDefault, ...(fxCfg().cats[style] || {}) }; }
 function setCat(style, k, v) { const c = fxCfg().cats; c[style] = { ...(c[style] || {}), [k]: v }; save(); }
 function giftStyle(g) { return fxCfg().gifts[g.th]?.style || g.style; }
+// ---------- 👑 expensive gifts ----------
+function bigCfg() { const fx = fxCfg(); fx.big = { ...bigDefault, ...(fx.big || {}) }; return fx.big; }
+function renderBig() {
+  if (!$('#bigCard') || !config) return;
+  const b = bigCfg();
+  const chk = (id, k) => { const el = $(id); el.checked = b[k] !== false; el.onchange = () => { bigCfg()[k] = el.checked; save(); }; };
+  const num = (id, k) => { const el = $(id); el.value = Number(b[k]) || ''; el.onchange = () => { const v = Math.max(1, Math.min(1e6, Math.round(Number(el.value)) || Number(bigDefault[k]) || 1000)); el.value = v; bigCfg()[k] = v; save(); }; };
+  const txt = (id, k) => { const el = $(id); el.value = b[k] ?? ''; el.oninput = () => { bigCfg()[k] = el.value.slice(0, 60); save(); }; };
+  chk('#bgTiers', 'tiers'); num('#bgT2', 'tier2'); num('#bgT3', 'tier3');
+  chk('#bgBanner', 'banner'); num('#bgBannerMin', 'bannerMin'); txt('#bgLine1', 'line1'); txt('#bgLine2', 'line2');
+  chk('#bgSpot', 'spotlight'); num('#bgSpotMin', 'spotMin'); chk('#bgScenes', 'scenes');
+  $$('#bigCard [data-tier]').forEach(btn => btn.onclick = () => send({ t: 'previewTier', tier: Number(btn.dataset.tier) }));
+  const list = $('#bgSceneList');
+  list.innerHTML = Object.entries(sceneMap).map(([k, names]) => {
+    const g = catalog.find(c => c.th === names[0]);
+    return `<button class="small" data-scene="${esc(names[0])}" title="${esc(names.join(', '))}">${g ? `<img src="/gifts/${g.img}.png" alt="">` : ''}▶ ${esc(sceneNames[k] || k)}</button>`;
+  }).join('');
+  list.querySelectorAll('[data-scene]').forEach(btn => btn.onclick = () => send({ t: 'previewStyle', gift: btn.dataset.scene, count: 1 }));
+}
+// draw the "thank you" banner picture for VTube Studio (asked by the app for big gifts)
+async function drawBanner({ id, lines, tier }) {
+  try {
+    try { await document.fonts.load('700 80px Prompt'); } catch {}
+    const W = 1200, H = 300, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, W, H);
+    const cols = tier >= 3 ? ['#ffd54a', '#ff6fa8', '#9b7bff'] : tier >= 2 ? ['#ff8ab8', '#b07bff'] : ['#ff9fc4', '#ffb88a'];
+    cols.forEach((col, i) => grad.addColorStop(i / (cols.length - 1), col));
+    const r = 70, x = 20, y = 30, w = W - 40, h = H - 60;
+    g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 24;
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+    g.fillStyle = grad; g.fill(); g.shadowBlur = 0;
+    g.lineWidth = 10; g.strokeStyle = '#ffffff'; g.stroke();
+    const font = '"Prompt","Leelawadee UI","Segoe UI",sans-serif';
+    const deco = tier >= 3 ? '👑' : tier >= 2 ? '🎉' : '💖';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `92px ${font}`; g.fillText(deco, 110, H / 2); g.fillText(deco, W - 110, H / 2);
+    const fit = (text, size, maxW) => { let s = size; do { g.font = `700 ${s}px ${font}`; s -= 4; } while (g.measureText(text).width > maxW && s > 24); };
+    const [l1 = '', l2 = ''] = (lines || []).map(t => String(t).slice(0, 40));
+    g.lineJoin = 'round'; g.strokeStyle = 'rgba(80,20,60,.65)'; g.fillStyle = '#ffffff';
+    fit(l1, l2 ? 84 : 96, W - 300); g.lineWidth = 12; g.strokeText(l1, W / 2, l2 ? H / 2 - 38 : H / 2); g.fillText(l1, W / 2, l2 ? H / 2 - 38 : H / 2);
+    if (l2) { fit(l2, 56, W - 300); g.lineWidth = 9; g.strokeText(l2, W / 2, H / 2 + 52); g.fillText(l2, W / 2, H / 2 + 52); }
+    send({ t: 'bannerImg', id, b64: c.toDataURL('image/png').split(',')[1] });
+  } catch { send({ t: 'bannerImg', id, b64: '' }); }
+}
 function renderCats() {
+  renderBig();
   const box = $('#catList'); if (!box || !catalog.length) return;
   const q = $('#catQuick');
   if (q) {

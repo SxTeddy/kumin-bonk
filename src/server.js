@@ -11,16 +11,17 @@ import { spawn } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import { TikTokSource } from './tiktok.js';
 import { VTS } from './vts.js';
-import { Engine, CAT_DEFAULT } from './engine.js';
+import { Engine, CAT_DEFAULT, BIG_DEFAULT } from './engine.js';
+import crypto from 'node:crypto';
 import { Images } from './images.js';
 import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
-import { Effects } from './effects.js';
+import { Effects, SCENES, SCENE_NAMES } from './effects.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.8.3';
+const VERSION = '1.9.0';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -128,7 +129,19 @@ const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(path.join(D
 const writeJson = (f, v) => { try { fs.writeFileSync(path.join(DATA, f), JSON.stringify(v, null, 1)); } catch {} };
 const gifts = new GiftMatcher(readJson('gift-aliases.json', {}));
 const effects = new Effects({ vts, images, getHead, getLock, log, getConfig: () => config, sound: name => engine.sound(name) });
-const engine = new Engine({ getConfig: () => config, getHead, vts, images, gifts, effects, overlay, dashboard: toDashboards, log });
+// 👑 "thank you <name>" banner: the app window draws it (it has fonts + a canvas) and sends the picture back
+const bannerWait = new Map();
+function renderBanner(lines, tier) {
+  const ws = [...dashboards].find(d => d.isApp && d.readyState === 1) || [...dashboards].find(d => d.readyState === 1);
+  if (!ws) return Promise.resolve(null);
+  const id = crypto.randomBytes(6).toString('hex');
+  send(ws, { t: 'renderBanner', id, lines, tier });
+  return new Promise(res => {
+    const tm = setTimeout(() => { bannerWait.delete(id); res(null); }, 1500);
+    bannerWait.set(id, img => { clearTimeout(tm); bannerWait.delete(id); res(img); });
+  });
+}
+const engine = new Engine({ getConfig: () => config, getHead, vts, images, gifts, effects, overlay, dashboard: toDashboards, log, banner: renderBanner });
 // Gifts actually received in lives (real English name, picture and price) — shown in the gift picker.
 const giftsSeen = new Map(readJson('gifts-seen.json', []).map(g => [g.name, g]));
 let seenDirty = false;
@@ -406,6 +419,13 @@ async function onDashboard(ws, m) {
       log('calib', 'บันทึกตำแหน่งหัวแล้ว');
       return;
     }
+    case 'previewTier': { // try a price tier with a stand-in gift
+      const fx = config.fx || {}; const big = { ...BIG_DEFAULT, ...(fx.big || {}) };
+      const coins = [0, Number(fx.showcaseMin ?? 1000) || 1000, Number(big.tier2) || 5000, Number(big.tier3) || 20000][Math.max(1, Math.min(3, Number(m.tier) || 1))];
+      const g = CATALOG.find(c => c.th === 'กาแล็กซี') || CATALOG[0];
+      toDashboards({ t: 'event', ev: { type: 'gift', user: { nickname: 'คนทดสอบ' }, gift: { name: g.th, th: g.th, diamonds: coins }, count: 1 }, fired: ['👑 ระดับ ' + (Number(m.tier) || 1)], simulated: true, time: Date.now() });
+      return engine.run({ type: 'giftfx', style: 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: 1, diamonds: coins, entry: g });
+    }
     case 'previewStyle': {
       const g = m.gift ? CATALOG.find(c => c.th === m.gift) : CATALOG.find(c => c.style === m.style);
       if (!g) return;
@@ -413,6 +433,13 @@ async function onDashboard(ws, m) {
       ev.gift.th = g.th;
       toDashboards({ t: 'event', ev, fired: [`ท่า: ${STYLES[g.style]}`], simulated: true, time: Date.now() });
       return engine.run({ type: 'giftfx', style: m.style && !m.gift ? m.style : 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: ev.count, diamonds: g.coins, entry: g });
+    }
+    case 'bannerImg': {
+      const done = bannerWait.get(String(m.id || '')); if (!done) return;
+      const b64 = typeof m.b64 === 'string' && m.b64.length < 4e6 ? m.b64 : '';
+      const buf = b64 ? Buffer.from(b64, 'base64') : null;
+      const png = buf && buf.length > 64 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+      return done(png ? { key: 'bn' + crypto.createHash('sha1').update(buf).digest('hex').slice(0, 14), b64, ext: 'png' } : null);
     }
     case 'pause': return setPaused(m.on !== undefined ? !!m.on : !engine.paused, 'ปุ่ม');
     case 'clearQueue': engine.clearQueue(); log('pause', 'ล้างของที่รออยู่แล้ว'); return pushStatus();
@@ -542,7 +569,7 @@ wss.on('connection', (ws, req) => {
     ws.isApp = new URL(req.url, 'http://x').searchParams.get('app') === '1';
     if (ws.isApp) for (const d of dashboards) if (d.isApp) send(d, { t: 'closeWindow' });
     dashboards.add(ws);
-    send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, anchors: ANCHOR, logs, justUpdated, firstRun });
+    send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, bigDefault: BIG_DEFAULT, scenes: SCENES, sceneNames: SCENE_NAMES, anchors: ANCHOR, logs, justUpdated, firstRun });
     justUpdated = ''; firstRun = false;
     send(ws, { t: 'status', ...status() });
     send(ws, { t: 'update', ...updater.state });

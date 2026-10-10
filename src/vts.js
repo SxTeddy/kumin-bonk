@@ -60,7 +60,7 @@ export class VTS extends EventEmitter {
       ...base, fileName: `kb-${img.key}.${img.ext || 'png'}`.slice(0, 32),
       customDataBase64: img.b64, customDataAskUserFirst: false, customDataSkipAskingUserIfWhitelisted: true, customDataAskTimer: -1,
     });
-    if (r.fileName) this.itemFileCache.set(img.key, r.fileName);
+    if (r.fileName) { this.itemFileCache.set(img.key, r.fileName); if (this.itemFileCache.size > 600) this.itemFileCache.delete(this.itemFileCache.keys().next().value); }
     return r;
   }
 
@@ -89,8 +89,11 @@ export class VTS extends EventEmitter {
 
   async _throw({ img, head, from = 'random', size = 0.18, speed = 1, spin = 1, flinch = true, strength = 1, eyes = true, onHit }) {
     const rnd = (a, b) => a + Math.random() * (b - a);
-    const hx = head.x * 2 - 1 + rnd(-0.04, 0.04);
-    const hy = 1 - head.y * 2 + rnd(-0.04, 0.04);
+    const headNow = typeof head === 'function' ? head : () => head; // a function = follow the model while flying
+    const jx = rnd(-0.04, 0.04), jy = rnd(-0.04, 0.04);
+    const h0 = headNow();
+    let hx = h0.x * 2 - 1 + jx;
+    let hy = 1 - h0.y * 2 + jy;
     if (from === 'random') from = ['left', 'right', 'left', 'right', 'top'][Math.floor(Math.random() * 5)];
     let sx, sy;
     if (from === 'left') { sx = -1.35; sy = rnd(-0.5, 0.6); }
@@ -104,7 +107,11 @@ export class VTS extends EventEmitter {
     const { instanceID: id } = await this.loadImageItem(img, { x: sx, y: sy, size, rotation: rot0, order: 10 + Math.floor(Math.random() * 15) });
     try {
       await this.moveItem(id, { x: hx, y: hy, rotation: rot0 + turn }, T, 'easeIn');
-      await sleep(T * 1000);
+      await sleep(T * 600);
+      // halfway: the model may have moved — aim again at where the head is now
+      const h1 = headNow(); const nx = h1.x * 2 - 1 + jx, ny = 1 - h1.y * 2 + jy;
+      if (Math.abs(nx - hx) + Math.abs(ny - hy) > 0.01) { hx = nx; hy = ny; await this.moveItem(id, { x: hx, y: hy, rotation: rot0 + turn }, T * 0.4, 'linear'); }
+      await sleep(T * 400);
       const dir = sx < hx ? -1 : 1; // side the hit came from
       if (flinch) this.flinch(dir, strength, eyes);
       onHit?.(dir);

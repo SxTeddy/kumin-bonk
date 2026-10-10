@@ -1,12 +1,13 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Rules engine: matches live events to rules and runs their actions.
-import { sizeFor, MAX_ITEMS } from './effects.js';
+import { sizeFor, MAX_ITEMS, sceneFor } from './effects.js';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const lc = s => String(s ?? '').trim().toLowerCase();
 
 export class Engine {
-  constructor({ getConfig, getHead, vts, images, gifts, effects, overlay, dashboard, log }) {
-    Object.assign(this, { getConfig, getHead, vts, images, gifts, effects, overlay, dashboard, log });
+  constructor({ getConfig, getHead, vts, images, gifts, effects, overlay, dashboard, log, banner = null }) {
+    Object.assign(this, { getConfig, getHead, vts, images, gifts, effects, overlay, dashboard, log, banner });
+    this.hold = 0; // a big gift is on stage: everything else waits
     this.lastFired = new Map();
     this.likeBucket = new Map(); // ruleId -> likes accumulated
     this.stats = { gifts: 0, diamonds: 0, likes: 0, follows: 0, shares: 0, triggers: 0 };
@@ -42,7 +43,7 @@ export class Engine {
     }
   }
   pump() {
-    if (this.pumpTimer || this.paused) return;
+    if (this.pumpTimer || this.paused || this.hold > 0) return;
     const cfg = this.getConfig();
     const lim = cfg.limit || {};
     const now = Date.now();
@@ -232,13 +233,28 @@ export class Engine {
           for (let i = 0; i < Math.min(count, 5); i++) { vts.flinch(Math.random() * 2 - 1, power * 0.7, cfg.throwing.eyesClose); await sleep(200); }
           return;
         }
-        this.effects.play(style, {
-          img, count, power, coins, label: e?.th || ctx.gift || '',
+        // 👑 expensive gifts: grander by price, a name banner, their own scene, and the stage to themselves
+        const big = { ...BIG_DEFAULT, ...(fx.big || {}) };
+        const t1 = Number(fx.showcaseMin ?? 1000), t2 = Number(big.tier2) || 5000, t3 = Number(big.tier3) || 20000;
+        const tier = t1 > 0 && coins >= t1 ? (big.tiers === false ? 1 : coins >= t3 ? 3 : coins >= t2 ? 2 : 1) : 0;
+        const scene = big.scenes !== false ? sceneFor(e?.th || ctx.gift || '') : null;
+        const spot = big.spotlight !== false && coins >= (Number(big.spotMin) || 1000);
+        let banner = null;
+        if (big.banner !== false && this.banner && coins >= (Number(big.bannerMin) || 1000)) {
+          const v = { ...ctx, gift: e?.th || ctx.gift || '', coins: coins * ctx.count };
+          banner = await this.banner([fill(big.line1, v).slice(0, 40), fill(big.line2, v).slice(0, 40)].filter(Boolean), tier).catch(() => null);
+        }
+        const done = this.effects.play(style, {
+          img, count, power, coins, label: e?.th || ctx.gift || '', tier, banner, scene, spot,
           size: cat.size * (Number(own.size) || 1) * Math.sqrt(combo), speed: cat.speed, sound: own.sound && own.sound !== 'auto' ? own.sound : cat.sound,
           showcaseMin: fx.showcaseMin ?? 1000,
           aim: own.aim || cat.aim || null,                                 // per-gift / per-category target offset
           lock: (e && cfg.locks?.['gift:' + e.th]) ? 'gift:' + e.th : (cfg.locks?.['cat:' + baseStyle] ? 'cat:' + baseStyle : null), // locked to the model
         });
+        if (spot && done) { // hold the queue until the big gift's show is over (40 s at most)
+          this.hold++;
+          let to; Promise.race([done, new Promise(r => { to = setTimeout(r, 40000); })]).finally(() => { clearTimeout(to); this.hold = Math.max(0, this.hold - 1); this.pump(); });
+        }
         return;
       }
       case 'flinch':
@@ -261,6 +277,7 @@ export class Engine {
   }
 }
 
+export const BIG_DEFAULT = { tiers: true, tier2: 5000, tier3: 20000, banner: true, bannerMin: 1000, line1: 'ขอบคุณ {name}', line2: 'ที่ส่ง {gift} ×{count}', spotlight: true, spotMin: 1000, scenes: true };
 export const CAT_DEFAULT = { enabled: true, size: 1, power: 1, speed: 1, max: 30, sound: 'auto', as: 'same' };
 export function catSettings(fx, style) { return { ...CAT_DEFAULT, ...(fx?.cats?.[style] || {}) }; }
 

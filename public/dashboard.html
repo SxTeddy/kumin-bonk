@@ -120,6 +120,26 @@
         <button id="btnCatsAllOff" class="small">⛔ ปิดทุกหมวด</button>
         <button id="btnCatsReset" class="ghost">คืนค่าทุกหมวด</button>
       </div>
+      <div class="card bigcard" id="bigCard">
+        <h2>👑 ของขวัญแพง</h2>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgTiers"> ยิ่งแพงยิ่งอลัง</label>
+          <span class="hint">ระดับ 1 = ตามช่อง "อวดของขวัญใหญ่" ด้านบน · ระดับ 2 ตั้งแต่</span><input type="number" id="bgT2" min="1" class="num"><span class="hint">· ระดับ 3 ตั้งแต่</span><input type="number" id="bgT3" min="1" class="num"><span class="hint">เหรียญ</span>
+          <button class="small" data-tier="1">▶ ระดับ 1</button><button class="small" data-tier="2">▶ ระดับ 2</button><button class="small" data-tier="3">▶ ระดับ 3</button>
+        </div>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgBanner"> ป้ายชื่อคนส่งบนจอ</label><span class="hint">ตั้งแต่</span><input type="number" id="bgBannerMin" min="1" class="num"><span class="hint">เหรียญ</span>
+          <input id="bgLine1" class="line" maxlength="60"><input id="bgLine2" class="line" maxlength="60">
+        </div>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgSpot"> พักของอื่นให้ของแพงเล่นเดี่ยว</label><span class="hint">ตั้งแต่</span><input type="number" id="bgSpotMin" min="1" class="num"><span class="hint">เหรียญ</span>
+        </div>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgScenes"> ฉากพิเศษเฉพาะชิ้น</label>
+          <div class="scenes" id="bgSceneList"></div>
+        </div>
+        <p class="hint">{name} = ชื่อคนส่ง · {gift} = ของขวัญ · {count} = จำนวน · ป้ายชื่อต้องเปิดหน้าต่างแอปไว้ (แอปวาดป้ายให้)</p>
+      </div>
       <p class="hint">กดสวิตช์ของแต่ละหมวดเพื่อเปิด/ปิด · กดรูปของขวัญเพื่อเปิด/ปิดหรือตั้งค่าทีละชิ้น (ชิ้นที่ปิดจะเป็นสีจาง)</p>
       <div class="catquick" id="catQuick"></div>
     </div>

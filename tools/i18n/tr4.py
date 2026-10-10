@@ -228,6 +228,27 @@ EXTRA = [
 ("กำลังตั้งอันนี้", "Setting this one", "設定中", "正在设置", "설정 중", "Đang chỉnh", "Sedang diatur", "Ajustando este"),
 ("ตั้งเป้าเองแล้ว", "Has its own target", "自分で設定済み", "已自定义", "직접 설정함", "Đã tự đặt", "Sudah diatur sendiri", "Tiene diana propia"),
 ("พิมพ์ตัวเลขได้ 1–300", "Type a number 1–300", "1〜300の数字を入力できます", "可输入 1–300", "1–300 숫자 입력 가능", "Gõ số từ 1–300", "Ketik angka 1–300", "Escribe un número del 1 al 300"),
+("👑 ของขวัญแพง", "👑 Expensive gifts", "👑 高額ギフト", "👑 贵重礼物", "👑 비싼 선물", "👑 Quà đắt tiền", "👑 Hadiah mahal", "👑 Regalos caros"),
+("ยิ่งแพงยิ่งอลัง", "Pricier = grander", "高いほど豪華に", "越贵越华丽", "비쌀수록 화려하게", "Càng đắt càng hoành tráng", "Makin mahal makin megah", "Más caro = más épico"),
+("ระดับ 1 = ตามช่อง \"อวดของขวัญใหญ่\" ด้านบน · ระดับ 2 ตั้งแต่", "Level 1 = the 'show off big gifts' box above · level 2 from", "レベル1 = 上の「大きなギフトを見せる」の値 · レベル2は", "等级1 = 上方“展示大礼物”的设置 · 等级2 从", "레벨 1 = 위의 '큰 선물 자랑' 값 · 레벨 2는", "Mức 1 = ô 'khoe quà lớn' ở trên · mức 2 từ", "Level 1 = kotak 'pamerkan hadiah besar' di atas · level 2 mulai", "Nivel 1 = la casilla 'mostrar regalos grandes' de arriba · nivel 2 desde"),
+("· ระดับ 3 ตั้งแต่", "· level 3 from", "· レベル3は", "· 等级3 从", "· 레벨 3은", "· mức 3 từ", "· level 3 mulai", "· nivel 3 desde"),
+("▶ ระดับ 1", "▶ Level 1", "▶ レベル1", "▶ 等级1", "▶ 레벨 1", "▶ Mức 1", "▶ Level 1", "▶ Nivel 1"),
+("▶ ระดับ 2", "▶ Level 2", "▶ レベル2", "▶ 等级2", "▶ 레벨 2", "▶ Mức 2", "▶ Level 2", "▶ Nivel 2"),
+("▶ ระดับ 3", "▶ Level 3", "▶ レベル3", "▶ 等级3", "▶ 레벨 3", "▶ Mức 3", "▶ Level 3", "▶ Nivel 3"),
+("ป้ายชื่อคนส่งบนจอ", "Sender name banner on screen", "送り主の名前を画面に表示", "屏幕上显示送礼人名字", "보낸 사람 이름 배너", "Bảng tên người gửi trên màn hình", "Banner nama pengirim di layar", "Cartel con el nombre en pantalla"),
+("ตั้งแต่", "from", "以上", "从", "부터", "từ", "mulai", "desde"),
+("พักของอื่นให้ของแพงเล่นเดี่ยว", "Hold other effects while a big gift plays", "高額ギフトの間は他を待たせる", "贵重礼物播放时其他先等待", "비싼 선물이 나올 땐 다른 건 대기", "Cho quà đắt diễn một mình", "Tahan efek lain saat hadiah mahal tampil", "Pausar lo demás mientras suena un regalo caro"),
+("ฉากพิเศษเฉพาะชิ้น", "Special scenes for famous gifts", "人気ギフトの特別演出", "热门礼物专属场景", "인기 선물 특별 장면", "Cảnh đặc biệt cho quà nổi tiếng", "Adegan khusus hadiah populer", "Escenas especiales"),
+("{name} = ชื่อคนส่ง · {gift} = ของขวัญ · {count} = จำนวน · ป้ายชื่อต้องเปิดหน้าต่างแอปไว้ (แอปวาดป้ายให้)", "{name} = sender · {gift} = gift · {count} = amount · the banner needs the app window open (the app draws it)", "{name} = 送り主 · {gift} = ギフト · {count} = 数 · 名前表示はアプリのウィンドウを開いておく必要あり", "{name} = 送礼人 · {gift} = 礼物 · {count} = 数量 · 横幅需要保持应用窗口打开（由应用绘制）", "{name} = 보낸 사람 · {gift} = 선물 · {count} = 개수 · 배너는 앱 창을 열어둬야 해요", "{name} = người gửi · {gift} = quà · {count} = số lượng · bảng tên cần mở cửa sổ app", "{name} = pengirim · {gift} = hadiah · {count} = jumlah · banner butuh jendela aplikasi terbuka", "{name} = remitente · {gift} = regalo · {count} = cantidad · el cartel necesita la ventana de la app abierta"),
+("▶ 🐋 ทะเล (วาฬ)", "▶ 🐋 Ocean (whale)", "▶ 🐋 海（クジラ）", "▶ 🐋 海洋（鲸鱼）", "▶ 🐋 바다 (고래)", "▶ 🐋 Biển (cá voi)", "▶ 🐋 Laut (paus)", "▶ 🐋 Océano (ballena)"),
+("▶ 🦁 ราชาสิงโต", "▶ 🦁 Lion king", "▶ 🦁 ライオンキング", "▶ 🦁 狮子王", "▶ 🦁 사자왕", "▶ 🦁 Vua sư tử", "▶ 🦁 Raja singa", "▶ 🦁 Rey león"),
+("▶ 🐉 มังกรพ่นไฟ", "▶ 🐉 Fire dragon", "▶ 🐉 火を吹くドラゴン", "▶ 🐉 喷火龙", "▶ 🐉 불 뿜는 용", "▶ 🐉 Rồng phun lửa", "▶ 🐉 Naga api", "▶ 🐉 Dragón de fuego"),
+("▶ 🔥 ฟีนิกซ์", "▶ 🔥 Phoenix", "▶ 🔥 フェニックス", "▶ 🔥 凤凰", "▶ 🔥 피닉스", "▶ 🔥 Phượng hoàng", "▶ 🔥 Phoenix", "▶ 🔥 Fénix"),
+("▶ 🌹 กุหลาบ", "▶ 🌹 Roses", "▶ 🌹 バラ", "▶ 🌹 玫瑰", "▶ 🌹 장미", "▶ 🌹 Hoa hồng", "▶ 🌹 Mawar", "▶ 🌹 Rosas"),
+("▶ 🚀 อวกาศ", "▶ 🚀 Space", "▶ 🚀 宇宙", "▶ 🚀 太空", "▶ 🚀 우주", "▶ 🚀 Vũ trụ", "▶ 🚀 Luar angkasa", "▶ 🚀 Espacio"),
+("▶ 🏎️ แข่งรถ", "▶ 🏎️ Race", "▶ 🏎️ レース", "▶ 🏎️ 赛车", "▶ 🏎️ 레이스", "▶ 🏎️ Đua xe", "▶ 🏎️ Balap", "▶ 🏎️ Carrera"),
+("▶ ☄️ ฝนดาวตก", "▶ ☄️ Meteor shower", "▶ ☄️ 流星群", "▶ ☄️ 流星雨", "▶ ☄️ 유성우", "▶ ☄️ Mưa sao băng", "▶ ☄️ Hujan meteor", "▶ ☄️ Lluvia de meteoros"),
+("▶ 💎 อัญมณี", "▶ 💎 Jewels", "▶ 💎 宝石", "▶ 💎 宝石", "▶ 💎 보석", "▶ 💎 Đá quý", "▶ 💎 Permata", "▶ 💎 Joyas"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)
@@ -308,4 +329,5 @@ PATS = [
 (r"^บันทึกสรุปไลฟ์เป็นไฟล์แล้ว: (.+)$", "Live summary saved as a file: $1", "配信まとめをファイルに保存: $1", "直播总结已保存为文件：$1", "라이브 요약을 파일로 저장: $1", "Đã lưu tổng kết live thành file: $1", "Ringkasan live disimpan sebagai file: $1", "Resumen guardado como archivo: $1"),
 (r"^บันทึกไฟล์สรุปไม่ได้: (.+)$", "Couldn't save the summary file: $1", "まとめファイルを保存できません: $1", "无法保存总结文件：$1", "요약 파일 저장 실패: $1", "Không lưu được file tổng kết: $1", "Gagal menyimpan file ringkasan: $1", "No se pudo guardar el resumen: $1"),
 (r"^เปิดโฟลเดอร์ไม่ได้: (.+)$", "Couldn't open the folder: $1", "フォルダーを開けません: $1", "无法打开文件夹：$1", "폴더를 열 수 없어요: $1", "Không mở được thư mục: $1", "Gagal membuka folder: $1", "No se pudo abrir la carpeta: $1"),
+(r"^👑 ระดับ (\d)$", "👑 Level $1", "👑 レベル$1", "👑 等级$1", "👑 레벨 $1", "👑 Mức $1", "👑 Level $1", "👑 Nivel $1"),
 ]

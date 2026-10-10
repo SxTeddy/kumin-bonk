@@ -14,7 +14,7 @@ const N = Number(process.argv[2]) || 300;
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-stress-'));
 const vtsPort = 18100 + Math.floor(Math.random() * 500), appPort = 4100 + Math.floor(Math.random() * 500);
 fs.mkdirSync(path.join(work, 'data'));
-fs.writeFileSync(path.join(work, 'data', 'config.json'), JSON.stringify({ vtsPort, fx: { showcaseMin: 0, cats: { bonk: { max: N } }, gifts: {} }, rulesVersion: 99 }));
+fs.writeFileSync(path.join(work, 'data', 'config.json'), JSON.stringify({ vtsPort, fx: { showcaseMin: 1000, cats: { bonk: { max: N } }, gifts: {} }, rulesVersion: 99 }));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let vtsStats = {};
 const mock = spawn(process.execPath, ['test/mock-vts.js'], { cwd: ROOT, env: { ...process.env, PORT: String(vtsPort), EVERY: '250' }, stdio: ['ignore', 'pipe', 'ignore'] });
@@ -67,6 +67,15 @@ try {
     check('CPU stays low', cpu < 35, `${cpu.toFixed(1)}% of one core on average`);
   }
   check('app keeps answering during the flood', worstPing >= 0 && worstPing < 1000, `slowest reply ${worstPing} ms`);
+  // the grandest show: a 29,999-coin lion (tier 3 + crown + scene + finale)
+  const before = sample();
+  ws.send(JSON.stringify({ t: 'previewStyle', gift: 'สิงโต', count: 1 }));
+  const t1 = Date.now(); let peak2 = before?.rss || 0;
+  await sleep(3000);
+  while (Date.now() - t1 < 40000 && vtsStats.live) { await sleep(500); const s = sample(); if (s) peak2 = Math.max(peak2, s.rss); }
+  check('top-tier show cleans up after itself', !vtsStats.live, `left on screen: ${vtsStats.live || 0} after ${((Date.now() - t1) / 1000).toFixed(0)} s`);
+  check('top-tier show never floods VTube Studio (≤ 26 items)', (vtsStats.peak || 0) <= 26, `peak ${vtsStats.peak}`);
+  if (before) check('top-tier show stays light on memory', peak2 - before.rss < 80, `+${(peak2 - before.rss).toFixed(0)} MB`);
   ws.close();
 } catch (e) { check('load test ran', false, e.message); }
 app.kill(); mock.kill();

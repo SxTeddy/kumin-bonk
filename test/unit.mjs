@@ -129,7 +129,36 @@ await t('donut follows the mouth while the model moves', async () => {
   const last = withPos[withPos.length - 1];
   assert.ok(withPos.length > 8, 'too few steps: ' + withPos.length);
   assert.ok(Math.abs(last.x - last.want) < 0.03, `ended at ${last.x.toFixed(2)}, mouth at ${last.want.toFixed(2)}`);
-  assert.ok(last.x - withPos[0].x > 0.1 || withPos[0].x > 1, 'did not follow the moving mouth');
+  assert.ok(last.want - withPos[0].want > 0.1, 'mouth did not move in the test');
+});
+
+await t('every effect follows the model (hat lands on the moved head)', async () => {
+  const t0 = Date.now(); const moves = []; let headX = 0.5;
+  const vts = { ready: true, sprite: async (img, o) => { moves.push({ ...o, spawn: true }); return 'h1'; }, spriteTo: (id, o) => { moves.push(o); return Promise.resolve(); }, animate() {}, move() {}, flinch() {}, spriteKill: async () => {}, pin: async () => false, unpin: async () => {}, tint: async () => {} };
+  const fx = new Effects({ vts, images: { get: async () => ({ key: 'x' }) }, getHead: () => ({ x: headX, y: 0.3 }), sound() {}, log() {}, getConfig: () => DEFAULT_CONFIG });
+  fx.style = 'wear'; fx.frozen = fx.liveHead();
+  setTimeout(() => { headX = 0.7; }, 200); // the streamer moves while the hat falls
+  await fx.wear({ key: 'x' }, 1, 1);
+  const landed = moves.filter(m => m.y != null && Math.abs(m.y - (0.3 - 0.14)) < 0.02);
+  assert.ok(landed.some(m => Math.abs(m.x - 0.7) < 0.02), 'hat did not land on the moved head: ' + JSON.stringify(landed.map(m => m.x)));
+});
+
+await t('a big gift gets the stage alone (others wait until it ends)', async () => {
+  const cfg = structuredClone(DEFAULT_CONFIG);
+  cfg.limit = { enabled: false };
+  cfg.rules = [{ id: 'g', enabled: true, name: 'gift', trigger: { type: 'gift', gifts: '*' }, cooldown: 0, actions: [{ type: 'giftfx', style: 'auto' }] }];
+  const plays = []; let finish;
+  const effects = { queue: [], play: (st, o) => { plays.push(o); if (o.spot) return new Promise(r => { finish = r; }); return Promise.resolve(); } };
+  const e = new Engine({ getConfig: () => cfg, getHead: () => ({ x: .5, y: .3 }), vts: { ready: true, canCustomImages: true, flinch() {} }, images: { guess: () => 'rose' },
+    gifts: { matches: () => true, find: g => ({ th: g.name, img: 'g001', style: 'bonk', coins: g.diamonds }) }, effects, overlay: { count: () => 0 }, dashboard: () => {}, log: () => {}, banner: async () => ({ key: 'bnx', b64: 'x', ext: 'png' }) });
+  e.handle({ type: 'gift', user: { id: 'a' }, gift: { name: 'สิงโต', diamonds: 29999 }, count: 1 });
+  await sleep(50);
+  assert.equal(plays.length, 1); assert.equal(plays[0].tier, 3); assert.equal(plays[0].scene, 'lion'); assert.ok(plays[0].banner, 'banner missing'); assert.ok(plays[0].spot);
+  e.handle({ type: 'gift', user: { id: 'b' }, gift: { name: 'Rose', diamonds: 1 }, count: 1 });
+  await sleep(100);
+  assert.equal(plays.length, 1, 'small gift played during the big show');
+  finish(); await sleep(100);
+  assert.equal(plays.length, 2, 'small gift did not play after the show');
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

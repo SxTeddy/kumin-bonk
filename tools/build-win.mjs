@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = path.join(ROOT, 'build');
 const DIST = path.join(ROOT, 'dist');
-const VERSION = '1.8.3';
+const VERSION = '1.9.0';
 const nodeExe = process.argv[2];
 const linuxTest = process.argv.includes('--linux-test');
 fs.mkdirSync(BUILD, { recursive: true });

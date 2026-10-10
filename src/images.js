@@ -38,7 +38,7 @@ async function download(u) {
   return null;
 }
 
-export const BUILTIN = ['rose', 'heart', 'star', 'hammer', 'donut', 'slipper', 'target', 'note', 'sparkle', 'cash', 'petal', 'snow', 'flame', 'confetti', 'smoke', 'coin', 'zap', 'diamond'];
+export const BUILTIN = ['rose', 'heart', 'star', 'hammer', 'donut', 'slipper', 'target', 'note', 'sparkle', 'cash', 'petal', 'snow', 'flame', 'confetti', 'smoke', 'coin', 'zap', 'diamond', 'bubble', 'drop', 'crown', 'streak', 'firework'];
 
 export class Images {
   constructor(readPublic, log) {
