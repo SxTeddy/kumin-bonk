@@ -46,10 +46,10 @@ export const DEFAULT_CONFIG = {
   // 🔒 at most this many effects per minute (the rest wait in line; cheapest dropped if too many)
   limit: { enabled: true, perMinute: 60 },
   // 🎮 free chat commands: seconds each viewer waits before using a command again
-  chatCmd: { userCooldown: 30 },
+  chatCmd: { userCooldown: 30, volume: 1 },
   // 🙏 auto thank-you (spoken with the chat reader voices)
   thanks: {
-    enabled: false, minCoins: 1, wait: 3,
+    enabled: false, minCoins: 1, wait: 3, volume: 1,
     giftText: 'ขอบคุณ {name} ที่ส่ง {gift} {count} อันนะ',
     follow: false, followText: 'ขอบคุณ {name} ที่ฟอลโลว์นะ',
     share: false, shareText: 'ขอบคุณ {name} ที่แชร์ไลฟ์นะ',

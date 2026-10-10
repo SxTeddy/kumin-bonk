@@ -161,6 +161,8 @@ export class Engine {
     this.dashboard({ t: 'fired', rule: rule.name, user: ev.user?.nickname });
     const ctx = makeCtx(ev, times);
     ctx.combo = combo || 1;
+    // sounds of free chat commands have their own volume (✨ tab)
+    ctx.vol = ev.type === 'chat' ? Number(this.getConfig().chatCmd?.volume ?? 1) : 1;
     if (ev.type === 'gift') ctx.entry = this.gifts.find(ev.gift);
     for (const a of rule.actions || []) {
       try { await this.run(a, ctx); }
@@ -169,12 +171,15 @@ export class Engine {
   }
 
   // Effect sounds play from the overlay when throwing there, otherwise from the KuminBonk page (desktop audio).
-  sound(name) {
+  // vol = loudness of this sound compared to the main effect volume (category / gift / chat-command setting; 0 = silent)
+  sound(name, vol = 1) {
     if (!name || name === 'none') return;
     const cfg = this.getConfig();
     if (!cfg.throwing.sound) return;
-    if ((cfg.throwing.target === 'overlay') && this.overlay.count() > 0) this.overlay.send({ t: 'sound', sound: name });
-    else this.dashboard({ t: 'sound', sound: name, volume: cfg.throwing.volume });
+    const v = Math.max(0, Math.min(2, Number(vol))) * (Number(cfg.throwing.volume) ?? 0.6);
+    if (!(v > 0.001)) return;
+    if ((cfg.throwing.target === 'overlay') && this.overlay.count() > 0) this.overlay.send({ t: 'sound', sound: name, volume: v });
+    else this.dashboard({ t: 'sound', sound: name, volume: v });
   }
 
   async run(a, ctx) {
@@ -190,7 +195,7 @@ export class Engine {
         const sound = a.sound || 'bonk';
         const target = cfg.throwing.target || 'vts';
         if (target === 'overlay' && this.overlay.count() > 0) {
-          this.overlay.send({ t: 'throw', src, count: n, from: a.from || 'random', flinch, strength, sound, size: a.size, round: a.image === 'avatar' && !!ctx.avatar });
+          this.overlay.send({ t: 'throw', src, count: n, from: a.from || 'random', flinch, strength, sound: (ctx.vol ?? 1) > 0 ? sound : 'none', vol: ctx.vol ?? 1, size: a.size, round: a.image === 'avatar' && !!ctx.avatar });
           return;
         }
         if (this.vts.ready && this.vts.canCustomImages) {
@@ -201,14 +206,14 @@ export class Engine {
             this.vts.throwItem({
               img, head: this.getHead(), from: a.from || 'random', size: Math.max(0.05, Math.min(0.6, px / 500)),
               speed: cfg.throwing.speed, spin: cfg.throwing.spin, flinch, strength, eyes: cfg.throwing.eyesClose,
-              onHit: () => this.sound(sound),
+              onHit: () => this.sound(sound, ctx.vol ?? 1),
             });
             await sleep(cfg.throwing.stagger || 90);
           }
           return;
         }
         // VTS not ready for pictures: still make the model react.
-        if (flinch) for (let i = 0; i < Math.min(n, 10); i++) { this.vts.flinch(Math.random() * 2 - 1, strength, cfg.throwing.eyesClose); this.sound(sound); await sleep((cfg.throwing.stagger || 90) + 120); }
+        if (flinch) for (let i = 0; i < Math.min(n, 10); i++) { this.vts.flinch(Math.random() * 2 - 1, strength, cfg.throwing.eyesClose); this.sound(sound, ctx.vol ?? 1); await sleep((cfg.throwing.stagger || 90) + 120); }
         return;
       }
       case 'giftfx': {
@@ -227,7 +232,7 @@ export class Engine {
         const power = Math.min(2.5, 0.8 + Math.log10(coins + 1) * 0.35) * (Number(a.power) || 1) * cat.power * combo;
         const count = Math.max(1, Math.min(ctx.count, Number(cat.max) || 30, MAX_ITEMS));
         if (cfg.throwing.target === 'overlay' && this.overlay.count() > 0) {
-          return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: own.sound && own.sound !== 'auto' ? own.sound : (cat.sound && cat.sound !== 'auto' ? cat.sound : 'bonk') }, ctx);
+          return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: own.sound && own.sound !== 'auto' ? own.sound : (cat.sound && cat.sound !== 'auto' ? cat.sound : 'bonk') }, { ...ctx, vol: Number(own.vol ?? cat.vol ?? 1) * (ctx.vol ?? 1) });
         }
         if (!vts.ready || !vts.canCustomImages) {
           for (let i = 0; i < Math.min(count, 5); i++) { vts.flinch(Math.random() * 2 - 1, power * 0.7, cfg.throwing.eyesClose); await sleep(200); }
@@ -244,8 +249,9 @@ export class Engine {
           const v = { ...ctx, gift: e?.th || ctx.gift || '', coins: coins * ctx.count };
           banner = await this.banner([fill(big.line1, v).slice(0, 40), fill(big.line2, v).slice(0, 40)].filter(Boolean), tier).catch(() => null);
         }
+        const vol = Number(own.vol ?? cat.vol ?? 1) * ((tier >= 1 || scene) ? Number(big.volume ?? 1) : 1) * (ctx.vol ?? 1);
         const done = this.effects.play(style, {
-          img, count, power, coins, label: e?.th || ctx.gift || '', tier, banner, scene, spot,
+          img, count, power, coins, label: e?.th || ctx.gift || '', tier, banner, scene, spot, vol,
           size: cat.size * (Number(own.size) || 1) * Math.sqrt(combo), speed: cat.speed, sound: own.sound && own.sound !== 'auto' ? own.sound : cat.sound,
           showcaseMin: fx.showcaseMin ?? 1000,
           aim: own.aim || cat.aim || null,                                 // per-gift / per-category target offset
@@ -270,15 +276,15 @@ export class Engine {
         return;
       }
       case 'alert': this.overlay.send({ t: 'alert', text: fill(a.text, ctx), avatar: ctx.avatar, image: ctx.giftImage, seconds: Number(a.seconds) || 4 }); return;
-      case 'sound': this.sound(a.sound || 'ding'); return;
+      case 'sound': this.sound(a.sound || 'ding', (ctx.vol ?? 1) * (Number(a.volume ?? 1))); return;
       case 'tts': this.dashboard({ t: 'tts', text: fill(a.text || '{text}', ctx) }); return;
       case 'wait': await sleep(Math.min(Number(a.ms) || 500, 30000)); return;
     }
   }
 }
 
-export const BIG_DEFAULT = { tiers: true, tier2: 5000, tier3: 20000, banner: true, bannerMin: 1000, line1: 'ขอบคุณ {name}', line2: 'ที่ส่ง {gift} ×{count}', spotlight: true, spotMin: 1000, scenes: true };
-export const CAT_DEFAULT = { enabled: true, size: 1, power: 1, speed: 1, max: 30, sound: 'auto', as: 'same' };
+export const BIG_DEFAULT = { volume: 1, tiers: true, tier2: 5000, tier3: 20000, banner: true, bannerMin: 1000, line1: 'ขอบคุณ {name}', line2: 'ที่ส่ง {gift} ×{count}', spotlight: true, spotMin: 1000, scenes: true };
+export const CAT_DEFAULT = { enabled: true, size: 1, power: 1, speed: 1, max: 30, sound: 'auto', as: 'same', vol: 1 };
 export function catSettings(fx, style) { return { ...CAT_DEFAULT, ...(fx?.cats?.[style] || {}) }; }
 
 function isSpecificGift(r) {

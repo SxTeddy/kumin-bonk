@@ -161,6 +161,29 @@ await t('a big gift gets the stage alone (others wait until it ends)', async () 
   assert.equal(plays.length, 2, 'small gift did not play after the show');
 });
 
+await t('category / gift / chat-command volumes reach the sound player', async () => {
+  const cfg = structuredClone(DEFAULT_CONFIG);
+  cfg.limit = { enabled: false };
+  cfg.throwing = { ...cfg.throwing, volume: 0.6, sound: true, target: 'vts' };
+  cfg.fx = { showcaseMin: 0, cats: { bonk: { vol: 0.5 }, love: { vol: 0 } }, gifts: {} };
+  cfg.chatCmd = { userCooldown: 0, volume: 0 };
+  cfg.rules = [
+    { id: 'g', enabled: true, name: 'gift', trigger: { type: 'gift', gifts: '*' }, cooldown: 0, actions: [{ type: 'giftfx', style: 'auto' }] },
+    { id: 'c', enabled: true, name: 'cmd', trigger: { type: 'chat', match: '!hi' }, cooldown: 0, actions: [{ type: 'sound', sound: 'ding' }] },
+  ];
+  const sent = []; const plays = [];
+  const e = new Engine({ getConfig: () => cfg, getHead: () => ({ x: .5, y: .3 }), vts: { ready: true, canCustomImages: true, flinch() {} }, images: { guess: () => 'rose' },
+    gifts: { matches: () => true, find: g => ({ th: g.name, img: 'g001', style: g.name === 'heart' ? 'love' : 'bonk', coins: 1 }) },
+    effects: { queue: [], play: (st, o) => { plays.push(o); return Promise.resolve(); } }, overlay: { count: () => 0 }, dashboard: m => m.t === 'sound' && sent.push(m), log: () => {} });
+  await e.fire(cfg.rules[0], { type: 'gift', user: { id: 'a' }, gift: { name: 'rose', diamonds: 1 }, count: 1 });
+  await e.fire(cfg.rules[0], { type: 'gift', user: { id: 'a' }, gift: { name: 'heart', diamonds: 1 }, count: 1 });
+  assert.equal(plays[0].vol, 0.5, 'bonk category volume'); assert.equal(plays[1].vol, 0, 'muted category');
+  e.sound('bonk', plays[0].vol); assert.equal(sent.pop().volume, 0.3, 'master × category');
+  e.sound('bonk', 0); assert.equal(sent.length, 0, 'muted sound still played');
+  await e.fire(cfg.rules[1], { type: 'chat', user: { id: 'v' }, text: '!hi' });
+  assert.equal(sent.length, 0, 'muted chat-command sound still played');
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 let bad = 0;
 for (const [ok, name, err] of results) { console.log(`${ok ? '✓' : '✗'} ${name}${ok ? '' : ' — ' + err}`); if (!ok) bad++; }

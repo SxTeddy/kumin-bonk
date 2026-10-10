@@ -53,7 +53,7 @@ function getImg(src) {
 }
 BUILTIN.forEach(getImg);
 
-function play(name) { if (settings.sound) KBSound.play(name, settings.volume); }
+function play(name, vol) { if (settings.sound) KBSound.play(name, vol ?? settings.volume); }
 
 // ---------- throwing ----------
 const G = 2600;
@@ -77,7 +77,7 @@ function onHit(it) {
   it.hit = true;
   const dir = it.vx > 0 ? -1 : 1; // which side the hit came from
   if (it.opts.flinch) send({ t: 'hit', dir: it.vx === 0 ? 0 : dir, strength: it.opts.strength || 1, flinch: true });
-  play(it.opts.sound);
+  play(it.opts.sound, settings.volume * (it.opts.vol ?? 1));
   burst(it.x, it.y, it.opts.flinch ? '#ffd23f' : '#ff7aa8');
   it.vx = -it.vx * 0.25 + (Math.random() - 0.5) * 300;
   it.vy = -Math.abs(it.vy) * 0.25 - 500 - Math.random() * 300;
@@ -163,10 +163,10 @@ function connect() {
     else if (m.t === 'calib') { head = { x: m.x, y: m.y }; calib = m.show ? { x: m.x, y: m.y } : null; }
     else if (m.t === 'throw') {
       const n = Math.min(m.count || 1, 200);
-      for (let i = 0; i < n; i++) setTimeout(() => spawn(m.src, m.from || 'random', { flinch: m.flinch, strength: m.strength, sound: m.sound, size: m.size, round: m.round ?? false }), i * (settings.stagger || 90));
+      for (let i = 0; i < n; i++) setTimeout(() => spawn(m.src, m.from || 'random', { flinch: m.flinch, strength: m.strength, sound: m.sound, vol: m.vol, size: m.size, round: m.round ?? false }), i * (settings.stagger || 90));
     }
     else if (m.t === 'alert') showAlert(m);
-    else if (m.t === 'sound') play(m.sound);
+    else if (m.t === 'sound') play(m.sound, m.volume);
     else if (m.t === 'clear') { items.length = 0; queue.length = 0; sparks.length = 0; }
   };
 }

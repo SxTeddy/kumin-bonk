@@ -249,6 +249,20 @@ EXTRA = [
 ("▶ 🏎️ แข่งรถ", "▶ 🏎️ Race", "▶ 🏎️ レース", "▶ 🏎️ 赛车", "▶ 🏎️ 레이스", "▶ 🏎️ Đua xe", "▶ 🏎️ Balap", "▶ 🏎️ Carrera"),
 ("▶ ☄️ ฝนดาวตก", "▶ ☄️ Meteor shower", "▶ ☄️ 流星群", "▶ ☄️ 流星雨", "▶ ☄️ 유성우", "▶ ☄️ Mưa sao băng", "▶ ☄️ Hujan meteor", "▶ ☄️ Lluvia de meteoros"),
 ("▶ 💎 อัญมณี", "▶ 💎 Jewels", "▶ 💎 宝石", "▶ 💎 宝石", "▶ 💎 보석", "▶ 💎 Đá quý", "▶ 💎 Permata", "▶ 💎 Joyas"),
+("🔊 ระดับเสียง", "🔊 Volume", "🔊 音量", "🔊 音量", "🔊 볼륨", "🔊 Âm lượng", "🔊 Volume", "🔊 Volumen"),
+("กด 🔊 เพื่อปิด/เปิดเสียงแต่ละอย่าง · ความดังของแต่ละหมวดของขวัญตั้งได้ในแท็บ 🎭 หมวดของขวัญ (และทีละชิ้นโดยกดรูปของขวัญ)", "Press 🔊 to mute/unmute each one · each gift category's volume is in the 🎭 Gift categories tab (and per gift by clicking its picture)", "🔊 で個別にミュート/解除 · ギフトカテゴリーごとの音量は 🎭 ギフトのカテゴリー タブ（ギフトの画像を押すと個別）", "按 🔊 单独静音/取消 · 各礼物分类的音量在 🎭 礼物分类 标签页（点礼物图片可单独设置）", "🔊 를 눌러 각각 음소거/해제 · 선물 카테고리별 볼륨은 🎭 선물 카테고리 탭에서 (선물 사진을 누르면 개별)", "Bấm 🔊 để tắt/bật từng loại · âm lượng từng nhóm quà ở tab 🎭 Nhóm quà (bấm hình quà để chỉnh riêng)", "Tekan 🔊 untuk bisukan/nyalakan · volume tiap kategori ada di tab 🎭 Kategori hadiah (klik gambar hadiah untuk per hadiah)", "Pulsa 🔊 para silenciar/activar cada uno · el volumen de cada categoría está en 🎭 Categorías de regalos (y por regalo pulsando su imagen)"),
+("🔔 เสียงเอฟเฟกต์ทั้งหมด", "🔔 All effect sounds", "🔔 すべての効果音", "🔔 所有特效音", "🔔 모든 효과음", "🔔 Mọi hiệu ứng âm thanh", "🔔 Semua efek suara", "🔔 Todos los efectos"),
+("👑 เสียงของขวัญแพง (ฉากใหญ่ พลุ แตร)", "👑 Expensive gifts (big scenes, fireworks, fanfare)", "👑 高額ギフト（大演出・花火・ファンファーレ）", "👑 贵重礼物（大场景、烟花、号角）", "👑 비싼 선물 (큰 장면, 불꽃, 팡파르)", "👑 Quà đắt (cảnh lớn, pháo hoa, kèn)", "👑 Hadiah mahal (adegan besar, kembang api, fanfare)", "👑 Regalos caros (escenas, fuegos, fanfarria)"),
+("🎮 เสียงคำสั่งแชต (!bonk ฯลฯ)", "🎮 Chat commands (!bonk etc.)", "🎮 チャットコマンド (!bonk など)", "🎮 聊天指令（!bonk 等）", "🎮 채팅 명령어 (!bonk 등)", "🎮 Lệnh chat (!bonk...)", "🎮 Perintah chat (!bonk dll.)", "🎮 Comandos del chat (!bonk, etc.)"),
+("🗣️ เสียงอ่านแชต", "🗣️ Chat reader", "🗣️ チャット読み上げ", "🗣️ 读聊天", "🗣️ 채팅 읽기", "🗣️ Đọc chat", "🗣️ Pembaca chat", "🗣️ Lector del chat"),
+("🙏 เสียงขอบคุณ", "🙏 Thank-you voice", "🙏 お礼の声", "🙏 感谢语音", "🙏 감사 음성", "🙏 Giọng cảm ơn", "🙏 Suara terima kasih", "🙏 Voz de agradecimiento"),
+("ปิด/เปิดเสียง", "Mute / unmute", "ミュート/解除", "静音/取消静音", "음소거/해제", "Tắt/bật tiếng", "Bisukan / nyalakan", "Silenciar / activar"),
+("🔊 ความดังเสียง", "🔊 Volume", "🔊 音量", "🔊 音量", "🔊 볼륨", "🔊 Âm lượng", "🔊 Volume", "🔊 Volumen"),
+("🔊 ความดัง", "🔊 Volume", "🔊 音量", "🔊 音量", "🔊 볼륨", "🔊 Âm lượng", "🔊 Volume", "🔊 Volumen"),
+("🔇 ปิด", "🔇 Off", "🔇 オフ", "🔇 关", "🔇 끔", "🔇 Tắt", "🔇 Mati", "🔇 Apagado"),
+("กดเพื่อปิด/เปิดเสียงหมวดนี้", "Click to mute/unmute this category", "クリックでこのカテゴリーの音をオン/オフ", "点击静音/取消此分类", "눌러서 이 카테고리 소리 끄기/켜기", "Bấm để tắt/bật tiếng nhóm này", "Klik untuk bisukan/nyalakan kategori ini", "Pulsa para silenciar/activar esta categoría"),
+("ทดสอบเสียงอ่านแชตค่ะ", "Testing the chat reader voice", "チャット読み上げのテストです", "测试读聊天声音", "채팅 읽기 소리 테스트", "Thử giọng đọc chat", "Tes suara pembaca chat", "Probando la voz del chat"),
+("🔊 เสียง", "🔊 Sound", "🔊 音", "🔊 声音", "🔊 소리", "🔊 Âm thanh", "🔊 Suara", "🔊 Sonido"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)

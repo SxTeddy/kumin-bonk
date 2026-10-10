@@ -416,3 +416,12 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .scenes { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .scenes button { display: inline-flex; align-items: center; gap: 6px; }
 .scenes button img { width: 26px; height: 26px; object-fit: contain; }
+
+/* sound mixer */
+.mixer { display: grid; gap: 8px; margin-top: 10px; }
+.mixer .mx { display: grid; grid-template-columns: 44px minmax(120px, 210px) 1fr 64px auto; gap: 10px; align-items: center; padding: 6px 10px; border: 2px solid var(--line); border-radius: 12px; background: var(--surface); }
+.mixer .mx.off { opacity: .6; }
+.mixer .mx .mute { font-size: 18px; padding: 4px 0; }
+.mixer .mx output { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.cat .ctl .mutebtn { cursor: pointer; text-decoration: underline dotted; }
+@media (max-width: 640px) { .mixer .mx { grid-template-columns: 40px 1fr 56px; } .mixer .mx input[type=range] { grid-column: 1 / -1; } }

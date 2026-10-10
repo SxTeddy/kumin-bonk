@@ -21,7 +21,7 @@ import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.9.0';
+const VERSION = '1.9.1';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -128,7 +128,7 @@ const getHead = () => livePoint('head') || liveHead || { x: config.head.x, y: co
 const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(path.join(DATA, f), 'utf8')); } catch { return d; } };
 const writeJson = (f, v) => { try { fs.writeFileSync(path.join(DATA, f), JSON.stringify(v, null, 1)); } catch {} };
 const gifts = new GiftMatcher(readJson('gift-aliases.json', {}));
-const effects = new Effects({ vts, images, getHead, getLock, log, getConfig: () => config, sound: name => engine.sound(name) });
+const effects = new Effects({ vts, images, getHead, getLock, log, getConfig: () => config, sound: (name, vol) => engine.sound(name, vol) });
 // 👑 "thank you <name>" banner: the app window draws it (it has fonts + a canvas) and sends the picture back
 const bannerWait = new Map();
 function renderBanner(lines, tier) {
@@ -172,7 +172,7 @@ function liveEnded(s) {
   if (s && config.summary?.saveFiles !== false) writeReport(s);
   toDashboards({ t: 'sessions', list: sessions.all(), ended: !!s });
 }
-const thanks = new Thanks(() => config, text => toDashboards({ t: 'tts', text, kind: 'thanks' }));
+const thanks = new Thanks(() => config, text => { const v = Number(config.thanks?.volume ?? 1); if (v > 0) toDashboards({ t: 'tts', text, kind: 'thanks', volume: v }); });
 const hotkey = new Hotkey(log);
 hotkey.onPress = () => setPaused(!engine.paused, 'คีย์ลัด');
 function setupHotkey() { hotkey.set(config.pause?.hotkeyOn ? config.pause.hotkey : ''); setTimeout(pushStatus, 2500); }
