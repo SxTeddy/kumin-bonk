@@ -251,6 +251,7 @@ function addLog(m) {
 $$('#tabs button').forEach(b => b.onclick = () => {
   $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
   $$('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
+  if (b.dataset.tab !== 'aim' && aimDraft) { dropAimDraft(); renderAimFor(); renderCats(); }
   if (b.dataset.tab === 'aim') { renderAimFor(); showMarker(); }
   else if (aimShown) { send({ t: 'calibDone' }); }
   aimShown = b.dataset.tab === 'aim';
@@ -643,9 +644,24 @@ function setAim(x, y) {
   if (aimFor === 'head') { config.head.x = x; config.head.y = y; }
   else {
     const i = aimInfo(); const a = anchors[i.st] || { dx: 0, dy: 0 };
+    if (!aimDraft || aimDraft.key !== aimFor) aimDraft = { key: aimFor, prev: i.store.aim ? { ...i.store.aim } : null };
     i.make().aim = { dx: r3(x - config.head.x - a.dx), dy: r3(y - config.head.y - a.dy) };
   }
   placeDot(); showMarker();
+}
+// A category/gift target only changes when "💾 บันทึกตำแหน่ง" is pressed.
+// Moved the dot but went somewhere else without saving → put the old target back.
+let aimDraft = null;
+function dropAimDraft() {
+  const d = aimDraft; aimDraft = null;
+  if (!d) return false;
+  const [kind, ...rest] = d.key.split(':'); const name = rest.join(':');
+  const box = kind === 'cat' ? config.fx?.cats : config.fx?.gifts;
+  if (!box) return false;
+  if (d.prev) box[name] = { ...(box[name] || {}), aim: d.prev };
+  else if (box[name]) { delete box[name].aim; if (!Object.keys(box[name]).length) delete box[name]; }
+  toast('ยังไม่ได้กดบันทึก เลยคืนเป้าเดิมให้แล้ว');
+  return true;
 }
 function aimLabel(v) {
   if (v === 'head') return '🎯 หัวตัวละคร (จุดหลัก)';
@@ -669,7 +685,7 @@ function renderAimFor() {
   $('#btnAimReset').hidden = isHead || !aimInfo().own;
   $('#followWrap').hidden = !isHead;
   $('#btnTestAim').textContent = isHead ? '🌹 ปาทดสอบ 3 ดอก' : '▶ ลองท่านี้';
-  const chip = (v, txt, done) => `<button data-aim="${esc(v)}" class="${v === aimFor ? 'on' : ''} ${done ? 'done' : ''}">${lockOf(v) ? '🔒 ' : ''}${esc(txt)}${done ? ' ✓' : ''}</button>`;
+  const chip = (v, txt, done) => `<button data-aim="${esc(v)}" class="${v === aimFor ? 'on' : ''} ${done ? 'done' : ''}" title="${v === aimFor ? 'กำลังตั้งอันนี้' : done ? 'ตั้งเป้าเองแล้ว' : ''}">${lockOf(v) ? '🔒 ' : ''}${esc(txt)}${done ? ' <i class="mine">✓</i>' : ''}</button>`;
   const giftsSet = Object.entries(config.fx?.gifts || {}).filter(([, o]) => o.aim).map(([n]) => n);
   $('#aimList').innerHTML = chip('head', '🎯 หัว (จุดหลัก)', false)
     + Object.keys(styles).map(k => chip('cat:' + k, styles[k], !!config.fx?.cats?.[k]?.aim)).join('')
@@ -691,9 +707,13 @@ function renderLock() {
   $('#btnLock').textContent = l ? '📌 ล็อกจุดใหม่' : '📌 ล็อกกับโมเดล';
   const c = $('#btnLockCancel'); if (c) c.onclick = () => send({ t: 'lockCancel' });
 }
-$('#btnLock').onclick = () => send({ t: 'lockStart', target: aimFor });
+$('#btnLock').onclick = () => {
+  if (lastStatus && lastStatus.vts?.status !== 'ready') return toast('ต้องเชื่อมต่อ VTube Studio ก่อน — เปิด VTube Studio แล้วรอให้ VTS ด้านบนเป็นสีเขียว');
+  send({ t: 'lockStart', target: aimFor });
+};
 $('#btnUnlock').onclick = () => send({ t: 'unlock', target: aimFor });
 function pickAim(v) {
+  if (v !== aimFor) dropAimDraft();
   // drop empty override objects left behind by browsing
   for (const o of [config.fx?.gifts, config.fx?.cats]) for (const k in (o || {})) if (o[k] && !Object.keys(o[k]).length) delete o[k];
   aimFor = v; renderAimFor(); if (aimShown) showMarker();
@@ -715,9 +735,10 @@ document.addEventListener('keydown', e => {
 });
 $('#btnCalibSave').onclick = () => {
   if (aimFor === 'head') { send({ t: 'calibDone' }); save(); toast('บันทึกตำแหน่งหัวแล้ว'); setTimeout(showMarker, 300); return; }
+  aimDraft = null;
   save(); renderAimFor(); renderCats(); toast('บันทึกเป้าของ ' + aimLabel(aimFor).replace(/^.*?: /, '') + ' แล้ว');
 };
-$('#btnAimReset').onclick = () => { const i = aimInfo(); delete i.store.aim; pickAim(aimFor); save(); renderCats(); showMarker(); toast('กลับไปใช้ค่าเริ่มต้นแล้ว'); };
+$('#btnAimReset').onclick = () => { aimDraft = null; const i = aimInfo(); delete i.store.aim; pickAim(aimFor); save(); renderCats(); showMarker(); toast('กลับไปใช้ค่าเริ่มต้นแล้ว'); };
 $('#followModel').onchange = e => { config.head.followModel = e.target.checked; save(); };
 $('#btnTestAim').onclick = () => {
   if (aimFor === 'head') return send({ t: 'testAction', action: { type: 'throw', image: 'rose', amount: 3, max: 3, from: 'random', flinch: true, sound: 'bonk' } });

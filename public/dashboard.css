@@ -189,7 +189,9 @@ label.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0; c
 .aimlist { display: flex; flex-wrap: wrap; gap: 6px; }
 .aimlist button { font-size: 12px; padding: 4px 8px; }
 .aimlist button.on { background: var(--pink); color: var(--on-accent); border-color: var(--pink); }
-.aimlist button.done:not(.on) { border-color: var(--pink); }
+.aimlist button.done:not(.on) { border-color: var(--line); }
+.aimlist button i.mine { font-style: normal; color: var(--mint); font-weight: 700; }
+.aimlist button.on i.mine { color: inherit; }
 .aimsub { flex-basis: 100%; font-size: 12px; opacity: .7; margin-top: 6px; }
 
 /* ---------- cute loading / update ---------- */
