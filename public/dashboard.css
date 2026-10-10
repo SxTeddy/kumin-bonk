@@ -403,3 +403,5 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .catquick button.off i { background: var(--dot-off); }
 
 #summary #smDir { width: 100%; box-sizing: border-box; }
+.cat .ctl:has(.maxn) { grid-template-columns: 92px 1fr 64px; }
+.cat .ctl .maxn { width: 64px; padding: 3px 6px; font-size: 13px; text-align: right; box-sizing: border-box; }

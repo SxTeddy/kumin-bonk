@@ -78,7 +78,7 @@ export class VTS extends EventEmitter {
   // Throw a picture at the head inside VTube Studio. head = {x,y} in 0..1 screen coords (y down).
   throwItem(t) {
     if (!this.ready) return;
-    if (this.flying >= 18) { if (this.throwQueue.length < 200) this.throwQueue.push(t); return; }
+    if (this.flying >= 18) { if (this.throwQueue.length < 600) this.throwQueue.push(t); return; } // max 18 in the air, the rest wait (each waiting one is tiny)
     this.flying++;
     this._throw(t).catch(e => this.log('vts', `ปาของไม่สำเร็จ: ${e.message}`, 'warn')).finally(() => {
       this.flying--;

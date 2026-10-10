@@ -18,6 +18,7 @@ wss.on('connection', ws => {
     const d = m.data || {};
     if (m.messageType === 'ItemMoveRequest') for (const it of d.itemsToMove) rec({ e: 'move', id: it.itemInstanceID, x: it.positionX, y: it.positionY, size: it.size, rot: it.rotation, time: it.timeInSeconds, fade: it.fadeMode, flip: it.setFlip ? it.flip : null });
     if (m.messageType === 'ItemUnloadRequest') rec({ e: 'unload', ids: d.instanceIDs });
+    if (m.messageType === 'ItemUnloadRequest') { counts.live = Math.max(0, (counts.live || 0) - (d.instanceIDs?.length || 0)); }
     if (m.messageType === 'InjectParameterDataRequest') rec({ e: 'inject', p: Object.fromEntries(d.parameterValues.map(v => [v.id, v.value])) });
     if (m.messageType === 'ColorTintRequest') rec({ e: 'tint', c: d.colorTint });
     if (m.messageType === 'MoveModelRequest') rec({ e: 'model', ...d });
@@ -35,6 +36,7 @@ wss.on('connection', ws => {
         const iid = 'it' + Math.random().toString(36).slice(2, 8); const fname = m.data.customDataBase64 ? 'gen_' + m.data.fileName : m.data.fileName;
         if (m.data.customDataBase64 && REC) { imgs[fname] = 1; fs.writeFileSync(REC + '.' + fname, Buffer.from(m.data.customDataBase64, 'base64')); }
         rec({ e: 'load', id: iid, file: fname, x: d.positionX, y: d.positionY, size: d.size, rot: d.rotation });
+        counts.live = (counts.live || 0) + 1; counts.peak = Math.max(counts.peak || 0, counts.live);
         return reply('ItemLoadResponse', { instanceID: iid, fileName: fname }); }
       case 'PermissionRequest': granted = granted || !!m.data.requestedPermission; return reply('PermissionResponse', { grantSuccess: granted, permissions: [{ name: 'LoadCustomImagesAsItems', granted }] });
       case 'EventSubscriptionRequest': {
@@ -55,5 +57,5 @@ wss.on('connection', ws => {
     }
   });
 });
-setInterval(() => console.log('VTS', JSON.stringify(counts)), 2000);
+setInterval(() => console.log('VTS', JSON.stringify(counts)), Number(process.env.EVERY) || 2000);
 console.log('mock VTS on', wss.options.port);

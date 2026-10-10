@@ -1,6 +1,6 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Rules engine: matches live events to rules and runs their actions.
-import { sizeFor } from './effects.js';
+import { sizeFor, MAX_ITEMS } from './effects.js';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const lc = s => String(s ?? '').trim().toLowerCase();
 
@@ -182,7 +182,7 @@ export class Engine {
     switch (a.type) {
       case 'throw': {
         const base = a.amount === 'count' ? ctx.count : Math.max(1, Number(a.amount) || 1);
-        const n = Math.min(Math.max(1, Math.round(base * (Number(a.multiply) || 1))), Math.max(1, Number(a.max) || 30));
+        const n = Math.min(Math.max(1, Math.round(base * (Number(a.multiply) || 1))), Math.max(1, Number(a.max) || 30), MAX_ITEMS);
         const src = a.image === 'gift' ? (ctx.entry ? `gift:${ctx.entry.img}` : ctx.giftImage || this.images.guess(ctx.gift)) : a.image === 'avatar' ? (ctx.avatar || 'heart') : (a.image || 'rose');
         const strength = (Number(a.strength) || 1) * (cfg.throwing.flinchStrength ?? 1) * Math.min(2, ctx.combo || 1);
         const flinch = a.flinch !== false;
@@ -224,7 +224,7 @@ export class Engine {
         const coins = Number(ctx.diamonds) || e?.coins || 1;
         const combo = ctx.combo || 1;
         const power = Math.min(2.5, 0.8 + Math.log10(coins + 1) * 0.35) * (Number(a.power) || 1) * cat.power * combo;
-        const count = Math.max(1, Math.min(ctx.count, cat.max));
+        const count = Math.max(1, Math.min(ctx.count, Number(cat.max) || 30, MAX_ITEMS));
         if (cfg.throwing.target === 'overlay' && this.overlay.count() > 0) {
           return this.run({ type: 'throw', image: 'gift', amount: count, max: cat.max, flinch: true, sound: own.sound && own.sound !== 'auto' ? own.sound : (cat.sound && cat.sound !== 'auto' ? cat.sound : 'bonk') }, ctx);
         }

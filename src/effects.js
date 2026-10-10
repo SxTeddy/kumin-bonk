@@ -2,6 +2,7 @@
 // Gift effects played inside VTube Studio: each style is a small choreography of
 // item sprites (the gift picture + particles) and reactions of the model itself.
 import { ANCHOR } from './gifts.js';
+export const MAX_ITEMS = 300; // safety ceiling for one gift (keeps the PC and VTube Studio smooth)
 let SPEED = 1; // per-category speed while a job runs
 const sleep = ms => new Promise(r => setTimeout(r, ms / SPEED));
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -146,7 +147,7 @@ export class Effects {
     const cfg = this.getConfig().throwing;
     const hit = sound === 'none' ? null : (sound && sound !== 'auto' ? sound : 'bonk');
     const pic = typeof img === 'string' ? await this.images.get(img, 'rose') : img;
-    const n = clamp(count, 1, 30);
+    const n = clamp(count, 1, MAX_ITEMS); // how many come is set per category (สูงสุดต่อครั้ง); VTS gets at most 18 in the air at once
     for (let i = 0; i < n; i++) {
       this.vts.throwItem({ img: pic, head: this.getHead(aim), from: 'random', size: clamp((cfg.size || 90) / 500 * scale, 0.05, 0.6), speed: (cfg.speed || 1) * speed, spin: cfg.spin, flinch: true, strength: 0.6 + power * 0.4, eyes: this.eyes, onHit: () => hit && this._sound(hit) });
       await sleep(cfg.stagger || 90);

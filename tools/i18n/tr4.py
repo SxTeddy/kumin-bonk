@@ -227,6 +227,7 @@ EXTRA = [
 ("ต้องเชื่อมต่อ VTube Studio ก่อน — เปิด VTube Studio แล้วรอให้ VTS ด้านบนเป็นสีเขียว", "Connect VTube Studio first — open VTube Studio and wait until VTS at the top turns green", "先にVTube Studioに接続してね — VTube Studioを開いて上のVTSが緑になるまで待って", "请先连接VTube Studio — 打开VTube Studio，等上方VTS变绿", "먼저 VTube Studio에 연결하세요 — VTube Studio를 열고 위의 VTS가 초록색이 될 때까지 기다리세요", "Cần kết nối VTube Studio trước — mở VTube Studio rồi chờ VTS phía trên chuyển xanh", "Hubungkan VTube Studio dulu — buka VTube Studio dan tunggu VTS di atas jadi hijau", "Conecta primero VTube Studio — ábrelo y espera a que VTS arriba se ponga verde"),
 ("กำลังตั้งอันนี้", "Setting this one", "設定中", "正在设置", "설정 중", "Đang chỉnh", "Sedang diatur", "Ajustando este"),
 ("ตั้งเป้าเองแล้ว", "Has its own target", "自分で設定済み", "已自定义", "직접 설정함", "Đã tự đặt", "Sudah diatur sendiri", "Tiene diana propia"),
+("พิมพ์ตัวเลขได้ 1–300", "Type a number 1–300", "1〜300の数字を入力できます", "可输入 1–300", "1–300 숫자 입력 가능", "Gõ số từ 1–300", "Ketik angka 1–300", "Escribe un número del 1 al 300"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)

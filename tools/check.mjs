@@ -63,7 +63,12 @@ await new Promise(done => {
   });
 });
 
-// 5. click through everything like a user (every tab, Thai + other languages)
+// 5. load test: one gift of 300 items against a fake VTube Studio (memory, CPU, items on screen)
+const ss = run(process.execPath, ['test/stress.mjs', '300'], { timeout: 200000 });
+process.stdout.write(ss.stdout.split('\n').filter(l => /^[✓✗]/.test(l)).map(l => '   ' + l + '\n').join(''));
+step('load test (300 items, PC stays light)', ss.status === 0);
+
+// 6. click through everything like a user (every tab, Thai + other languages)
 const sm = run('python3', ['test/smoke.py', String(port), work], { timeout: 240000 });
 process.stdout.write(sm.stdout.split('\n').filter(l => l.startsWith('✗')).map(l => '   ' + l + '\n').join(''));
 step('click-through test', sm.status === 0, sm.status ? (sm.stderr || '').slice(-400) : '');
