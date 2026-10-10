@@ -10,6 +10,7 @@ import { reportHtml, reportName } from '../src/report.js';
 import { parseHotkey } from '../src/hotkey.js';
 import { privateIp } from '../src/images.js';
 import { GiftMatcher } from '../src/gifts.js';
+import { Effects } from '../src/effects.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const results = [];
@@ -115,6 +116,20 @@ await t('gift learning ignores special names', async () => {
   const g = new GiftMatcher({ constructor: 'x' });
   assert.equal(typeof g.thaiName('toString'), 'string');
   assert.equal(g.thaiName('nope'), '');
+});
+
+await t('donut follows the mouth while the model moves', async () => {
+  const t0 = Date.now(); const moves = [];
+  const liveX = () => 0.3 + 0.4 * Math.min(1, (Date.now() - t0) / 1500);
+  const vts = { ready: true, sprite: async () => 'it1', spriteTo: (id, o) => { moves.push({ ...o, want: liveX() }); return Promise.resolve(); }, animate() {}, move() {}, flinch() {}, spriteKill: async () => {}, pin: async () => true, unpin: async () => {}, tint: async () => {} };
+  const fx = new Effects({ vts, images: { get: async () => ({ key: 'x' }) }, getHead: () => ({ x: .5, y: .3 }), getLock: k => k === 'cat:eat' ? { coords: { artMeshID: 'Mouth' }, live: { x: liveX(), y: 0.5 } } : null, sound() {}, log() {}, getConfig: () => DEFAULT_CONFIG });
+  fx.lock = 'cat:eat'; fx.style = 'eat';
+  await fx.eat({ key: 'x' }, 1, 1);
+  const withPos = moves.filter(m => m.x != null && m.y != null);
+  const last = withPos[withPos.length - 1];
+  assert.ok(withPos.length > 8, 'too few steps: ' + withPos.length);
+  assert.ok(Math.abs(last.x - last.want) < 0.03, `ended at ${last.x.toFixed(2)}, mouth at ${last.want.toFixed(2)}`);
+  assert.ok(last.x - withPos[0].x > 0.1 || withPos[0].x > 1, 'did not follow the moving mouth');
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

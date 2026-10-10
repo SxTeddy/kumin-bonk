@@ -177,17 +177,40 @@ export class Effects {
     await this.kill(id);
   }
 
+  // Fly toward a target that may move (the mouth follows the model): re-aim every ~0.1 s on the way.
+  async home(id, from, target, T, rot = 0) {
+    if (!id) return;
+    const steps = Math.max(3, Math.round(T / 0.1)), dt = T / steps;
+    for (let i = 1; i <= steps; i++) {
+      const p = target(), u = i / steps, e = 1 - (1 - u) * (1 - u); // ease-out
+      this.vts.spriteTo(id, { x: from.x + (p.x - from.x) * e, y: from.y + (p.y - from.y) * e, rot: rot * u }, dt, 'linear');
+      await sleep(dt * 1000);
+    }
+  }
+
   async eat(img, count, power) {
-    const h = this.getHead(); const d = side();
-    const mouth = { x: h.x, y: h.y + 0.07 };
-    const id = await this.spawn(img, { x: d < 0 ? -0.1 : 1.1, y: h.y + 0.25, size: 0.17, rot: 0 });
-    await this.to(id, { x: mouth.x, y: mouth.y, rot: d * 25 }, 0.55, 'easeOut'); await sleep(560);
+    // where the mouth is right now: follows the model live when "บินเข้าปาก" is locked to it (📌 in the 🎯 tab)
+    const mouthNow = () => { const h = this.getHead(); return { x: h.x, y: clamp(h.y + (ANCHOR.eat?.dy ?? 0.07), 0, 1) }; };
+    const live = () => !!(this.lock && this.getLock(this.lock)?.live);
+    const d = side();
+    const m0 = mouthNow();
+    const from = { x: d < 0 ? -0.1 : 1.1, y: clamp(m0.y + 0.18, 0, 1.1) };
+    const id = await this.spawn(img, { ...from, size: 0.17, rot: 0 });
+    await this.home(id, from, mouthNow, 0.55 / SPEED, d * 25);
+    // no live tracking (older VTube Studio) but a lock point: stick it to the mouth while eating
+    const pc = !live() && this.pinCoords();
+    const pinned = pc && id ? await this.vts.pin(id, pc) : false;
     for (const s of [0.13, 0.09, 0.05]) {
       this.vts.animate(0.25, (t, u) => ({ MouthOpen: Math.sin(Math.PI * u) }));
       this.sound('munch');
-      await this.to(id, { size: this.gs(s) }, 0.12, 'easeIn'); await sleep(300);
+      const m = mouthNow();
+      await this.to(id, pinned ? { size: this.gs(s) } : { x: m.x, y: m.y, size: this.gs(s) }, 0.12, 'easeIn');
+      if (!pinned && live()) for (let k = 0; k < 3; k++) { await sleep(100); const p = mouthNow(); this.vts.spriteTo(id, { x: p.x, y: p.y }, 0.09, 'linear'); } // stay on the mouth between bites
+      else await sleep(300);
     }
+    if (pinned) await this.vts.unpin(id);
     await this.kill(id);
+    const mouth = mouthNow();
     this.happy(1.8, 1); this.vts.move('jump', 0.7);
     this.particles('heart', 3, () => ({ x: mouth.x, y: mouth.y }), () => ({ x: mouth.x + rnd(-0.08, 0.08), y: mouth.y - 0.2, size: 0.02 }), 1);
   }
