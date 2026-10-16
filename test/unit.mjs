@@ -285,6 +285,18 @@ await t('a huge live keeps its summary file small (but counts everyone)', async 
   assert.equal(s.view(c).giverCount, 3500, 'everyone should still be counted');
   assert.equal(s.view(c).givers[0].coins, 7, 'the biggest givers are kept');
 });
+await t('a gift the app does not know uses the move picked for it (or is switched off)', async () => {
+  const cfg = structuredClone(DEFAULT_CONFIG); cfg.limit = { enabled: false };
+  cfg.fx = { showcaseMin: 0, cats: {}, gifts: {}, newGifts: { 'Brand New Gift': { style: 'wear' }, 'Muted Gift': { off: true } } };
+  const rule = { id: 'g', enabled: true, name: 'g', trigger: { type: 'gift', gifts: '*' }, cooldown: 0, actions: [{ type: 'giftfx', style: 'auto' }] };
+  const plays = [];
+  const e = new Engine({ getConfig: () => cfg, getHead: () => ({ x: .5, y: .3 }), vts: { ready: true, canCustomImages: true, flinch() {} }, images: { guess: () => 'rose' },
+    gifts: { matches: () => true, find: () => null }, effects: { queue: [], play: (st, o) => { plays.push(st); return Promise.resolve(); } }, overlay: { count: () => 0 }, dashboard: () => {}, log: () => {} });
+  await e.fire(rule, { type: 'gift', user: { id: 'a' }, gift: { name: 'Brand New Gift', diamonds: 77 }, count: 1 });
+  await e.fire(rule, { type: 'gift', user: { id: 'a' }, gift: { name: 'Muted Gift', diamonds: 77 }, count: 1 });
+  await e.fire(rule, { type: 'gift', user: { id: 'a' }, gift: { name: '__proto__', diamonds: 77 }, count: 1 });
+  assert.deepEqual(plays, ['wear', 'bonk']);
+});
 await t('version numbers compare correctly (updates only go forward)', async () => {
   assert.ok(newer('1.0.1', '1.0.0')); assert.ok(newer('1.1.0', '1.0.9')); assert.ok(newer('1.0.10', '1.0.9'));
   assert.ok(!newer('1.0.0', '1.0.0')); assert.ok(!newer('1.0.0', '1.9.3'), 'a fresh v1.0.0 over an old test version is not an "update"');

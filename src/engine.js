@@ -221,7 +221,11 @@ export class Engine {
         const fx = cfg.fx || {};
         const own = (e && fx.gifts?.[e.th]) || {};                       // per-gift override
         if (own.off) return;                                              // this gift is switched off
-        let style = a.style && a.style !== 'auto' ? a.style : (own.style || e?.style || (ctx.gift ? 'bonk' : 'love'));
+        // a gift the app does not know yet: its move / on-off chosen in the 🆕 list (🎭 tab)
+        const extra = !e && ctx.gift && fx.newGifts && Object.hasOwn(fx.newGifts, ctx.gift) ? fx.newGifts[ctx.gift] : null;
+        if (extra?.off) return;
+        const extraStyle = extra?.style && extra.style !== 'auto' ? extra.style : null;
+        let style = a.style && a.style !== 'auto' ? a.style : (own.style || e?.style || extraStyle || (ctx.gift ? 'bonk' : 'love'));
         const baseStyle = style;
         const cat = catSettings(fx, style);                               // per-category settings
         if (!cat.enabled) return;

@@ -41,6 +41,7 @@ function handle(m) {
     case 'sessions': renderSessions(m); break;
     case 'renderBanner': drawBanner(m); break;
     case 'summaryFiles': renderSummaryFiles(m); break;
+    case 'giftsSeen': seenGifts = m.gifts || []; renderNewGifts(); fillGiftList(); break;
     case 'sounds': {
       config.customSounds = m.customSounds || [];
       const tg = soundTarget && soundTarget.until > Date.now() ? soundTarget : null; soundTarget = null;
@@ -681,8 +682,37 @@ async function drawBanner({ id, lines, tier }) {
     send({ t: 'bannerImg', id, b64: c.toDataURL('image/png').split(',')[1] });
   } catch { send({ t: 'bannerImg', id, b64: '' }); }
 }
+// 🆕 gifts received in a live that the app does not know yet
+function renderNewGifts() {
+  const box = $('#newGiftList'); if (!box || !config) return;
+  const fx = fxCfg(); fx.newGifts ||= {};
+  const list = seenGifts.filter(g => g.known === false).sort((a, b) => (b.last || 0) - (a.last || 0));
+  const n = $('#newGiftsN'); n.hidden = !list.length; n.textContent = list.length;
+  $('#catalogNames').innerHTML = catalog.map(g => `<option value="${esc(g.th)}">`).join('');
+  if (!list.length) { box.innerHTML = '<p class="hint">ยังไม่มี · หลังไลฟ์ ถ้ามีของขวัญที่แอปยังไม่รู้จัก จะขึ้นที่นี่ให้ตั้งท่าได้</p>'; return; }
+  box.innerHTML = list.map((g, i) => { const o = Object.hasOwn(fx.newGifts, g.name) ? fx.newGifts[g.name] : {}; return `<div class="ng${o.off ? ' off' : ''}" data-i="${i}">
+    <div class="ng-pic">${g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy">` : ''}</div>
+    <div class="ng-name"><b>${esc(g.name)}</b><small>${Number(g.diamonds || 0).toLocaleString()} เหรียญ · ได้รับ ${Number(g.count || 1).toLocaleString()} ชิ้น</small></div>
+    <label class="switch" title="เปิด/ปิดชิ้นนี้"><input type="checkbox" data-on ${o.off ? '' : 'checked'}><span></span></label>
+    <div><label>ท่า</label><select data-style><option value="auto">ตามช่วงราคา</option>${Object.entries(styles).map(([k, v]) => `<option value="${esc(k)}" ${k === o.style ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
+    <div><label>เหมือนของขวัญในแอป</label><div class="row"><input data-match list="catalogNames" placeholder="พิมพ์ชื่อของขวัญ…"><button type="button" class="small" data-domatch>จับคู่</button></div></div>
+    <button type="button" class="small" data-try>▶ ลอง</button>
+  </div>`; }).join('');
+  box.querySelectorAll('.ng').forEach(row => {
+    const g = list[Number(row.dataset.i)];
+    const set = (k, v) => { const cur = { ...(Object.hasOwn(fx.newGifts, g.name) ? fx.newGifts[g.name] : {}), [k]: v }; if (cur.style === 'auto') delete cur.style; if (!cur.off) delete cur.off; if (Object.keys(cur).length) fx.newGifts[g.name] = cur; else delete fx.newGifts[g.name]; save(); };
+    row.querySelector('[data-on]').onchange = e => { set('off', !e.target.checked); row.classList.toggle('off', !e.target.checked); };
+    row.querySelector('[data-style]').onchange = e => { set('style', e.target.value); toast('ตั้งท่าของ ' + g.name + ' แล้ว'); };
+    row.querySelector('[data-domatch]').onclick = () => {
+      const th = row.querySelector('[data-match]').value.trim();
+      if (!catalog.some(c => c.th === th)) return toast('ไม่พบของขวัญชื่อนี้ในแอป');
+      send({ t: 'aliasGift', name: g.name, th }); toast('จับคู่ ' + g.name + ' กับ ' + th + ' แล้ว');
+    };
+    row.querySelector('[data-try]').onclick = () => simGift(g.name, 1, g.diamonds);
+  });
+}
 function renderCats() {
-  renderBig();
+  renderBig(); renderNewGifts();
   const box = $('#catList'); if (!box || !catalog.length) return;
   const q = $('#catQuick');
   if (q) {

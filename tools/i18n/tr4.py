@@ -311,10 +311,25 @@ EXTRA = [
 ("คำราม", "Roar", "ガオー", "吼", "어흥", "Gầm", "Auman", "Rugido"),
 ("ดนตรี", "Tune", "メロディ", "旋律", "멜로디", "Giai điệu", "Melodi", "Melodía"),
 ("น้ำแข็ง", "Ice", "氷", "冰", "얼음", "Băng", "Es", "Hielo"),
+# --- gifts the app does not know yet ---
+("🆕 ของขวัญใหม่ที่แอปยังไม่รู้จัก", "🆕 New gifts the app doesn't know yet", "🆕 アプリがまだ知らない新しいギフト", "🆕 应用还不认识的新礼物", "🆕 앱이 아직 모르는 새 선물", "🆕 Quà mới app chưa biết", "🆕 Hadiah baru yang belum dikenal aplikasi", "🆕 Regalos nuevos que la app aún no conoce"),
+("ของขวัญที่มีคนส่งมาในไลฟ์ แต่ยังไม่อยู่ในรายการของแอป (เช่น ของขวัญใหม่ของ TikTok) ระหว่างนี้จะเล่นท่าตามช่วงราคาไปก่อน เลือกท่าเองได้ หรือจับคู่กับของขวัญในแอปที่เหมือนกัน", "Gifts sent in your live that aren't in the app's list yet (like new TikTok gifts). Until then they play by price range. Pick a move, or match them to the same gift in the app", "ライブで届いたけれど、まだアプリの一覧にないギフト（TikTokの新ギフトなど）。それまでは価格帯の動きになります。動きを選ぶか、アプリ内の同じギフトと紐づけできます", "直播中收到、但还不在应用列表里的礼物（如 TikTok 新礼物）。在此之前按价格区间播放。可以自选动作，或与应用里相同的礼物配对", "라이브에서 받았지만 아직 앱 목록에 없는 선물이에요 (TikTok 새 선물 등). 그동안은 가격대 동작으로 나와요. 동작을 고르거나 앱의 같은 선물과 연결하세요", "Quà được tặng trong live nhưng chưa có trong danh sách của app (như quà mới của TikTok). Tạm thời sẽ chạy theo khoảng giá. Có thể chọn hiệu ứng hoặc ghép với quà giống trong app", "Hadiah yang dikirim di live tapi belum ada di daftar aplikasi (misalnya hadiah baru TikTok). Sementara memakai gerakan sesuai harga. Pilih gerakan, atau cocokkan dengan hadiah yang sama di aplikasi", "Regalos enviados en tu directo que aún no están en la lista (como regalos nuevos de TikTok). Mientras tanto usan el efecto por precio. Elige un efecto o empareja con el mismo regalo de la app"),
+("ยังไม่มี · หลังไลฟ์ ถ้ามีของขวัญที่แอปยังไม่รู้จัก จะขึ้นที่นี่ให้ตั้งท่าได้", "None yet · after a live, gifts the app doesn't know show up here so you can give them a move", "まだありません · ライブ後、アプリが知らないギフトがあればここに表示されます", "暂无 · 直播后，应用不认识的礼物会出现在这里供你设置动作", "아직 없어요 · 라이브 후 앱이 모르는 선물이 있으면 여기에 나와요", "Chưa có · sau live, quà app chưa biết sẽ hiện ở đây để đặt hiệu ứng", "Belum ada · setelah live, hadiah yang belum dikenal muncul di sini", "Aún no hay · tras un directo, los regalos desconocidos aparecerán aquí"),
+("ตามช่วงราคา", "By price range", "価格帯どおり", "按价格区间", "가격대대로", "Theo khoảng giá", "Sesuai harga", "Según el precio"),
+("เหมือนของขวัญในแอป", "Same as a gift in the app", "アプリ内の同じギフト", "与应用里的礼物相同", "앱의 같은 선물", "Giống quà trong app", "Sama dengan hadiah di aplikasi", "Igual que un regalo de la app"),
+("พิมพ์ชื่อของขวัญ…", "Type a gift name…", "ギフト名を入力…", "输入礼物名…", "선물 이름 입력…", "Nhập tên quà…", "Ketik nama hadiah…", "Escribe un regalo…"),
+("จับคู่", "Match", "紐づけ", "配对", "연결", "Ghép", "Cocokkan", "Emparejar"),
+("ไม่พบของขวัญชื่อนี้ในแอป", "No gift with that name in the app", "その名前のギフトはアプリにありません", "应用里没有这个名字的礼物", "앱에 그 이름의 선물이 없어요", "Không có quà tên này trong app", "Tidak ada hadiah dengan nama itu", "No hay ningún regalo con ese nombre"),
+("เปิด/ปิดชิ้นนี้", "Turn this gift on/off", "このギフトをオン/オフ", "开启/关闭此礼物", "이 선물 켜기/끄기", "Bật/tắt quà này", "Nyalakan/matikan hadiah ini", "Activar/desactivar este regalo"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)
 PATS = [
+(r"^([\d,]+) เหรียญ · ได้รับ ([\d,]+) ชิ้น$", "$1 coins · received $2", "$1 コイン · $2 個受け取り", "$1 金币 · 收到 $2 个", "$1 코인 · $2개 받음", "$1 xu · đã nhận $2", "$1 koin · diterima $2", "$1 monedas · recibidos $2"),
+(r"^ตั้งท่าของ (.+) แล้ว$", "Move set for $1", "$1 の動きを設定しました", "已设置 $1 的动作", "$1 동작 설정됨", "Đã đặt hiệu ứng cho $1", "Gerakan $1 diatur", "Efecto de $1 configurado"),
+(r"^จับคู่ (.+) กับ (.+) แล้ว$", "Matched $1 with $2", "$1 を $2 に紐づけました", "已将 $1 与 $2 配对", "$1을(를) $2와 연결했어요", "Đã ghép $1 với $2", "$1 dicocokkan dengan $2", "$1 emparejado con $2"),
+(r"^🆕 ของขวัญที่แอปยังไม่รู้จัก: \"(.+)\" \(([\d,]+) เหรียญ\) — .*$", "🆕 Gift the app doesn't know: \"$1\" ($2 coins) — set its move in the 🎭 tab", "🆕 アプリが知らないギフト:「$1」（$2 コイン）— 🎭 タブで動きを設定", "🆕 应用不认识的礼物：“$1”（$2 金币）— 在 🎭 标签设置动作", "🆕 앱이 모르는 선물: \"$1\" ($2 코인) — 🎭 탭에서 동작 설정", "🆕 Quà app chưa biết: \"$1\" ($2 xu) — đặt hiệu ứng ở tab 🎭", "🆕 Hadiah belum dikenal: \"$1\" ($2 koin) — atur di tab 🎭", "🆕 Regalo desconocido: \"$1\" ($2 monedas) — configúralo en la pestaña 🎭"),
+(r"^จับคู่ \"(.+)\" กับ (.+) แล้ว$", "Matched \"$1\" with $2", "「$1」を $2 に紐づけました", "已将“$1”与 $2 配对", "\"$1\"을(를) $2와 연결했어요", "Đã ghép \"$1\" với $2", "\"$1\" dicocokkan dengan $2", "\"$1\" emparejado con $2"),
 (r"^เปลี่ยนหน้าตาเป็น (.+) แล้ว$", "Look changed to $1", "見た目を $1 に変更しました", "外观已换成 $1", "모양을 $1(으)로 바꿨어요", "Đã đổi giao diện thành $1", "Tampilan diganti ke $1", "Aspecto cambiado a $1"),
 (r"^✅ เชื่อมต่อไลฟ์ @(.+) แล้ว$", "✅ Connected to @$1's live", "✅ @$1 のライブに接続しました", "✅ 已连接 @$1 的直播", "✅ @$1 라이브에 연결됨", "✅ Đã kết nối live @$1", "✅ Terhubung ke live @$1", "✅ Conectado al directo de @$1"),
 (r"^กำลังเชื่อมต่อ… ?(.*)$", "Connecting… $1", "接続中… $1", "连接中… $1", "연결 중… $1", "Đang kết nối… $1", "Menghubungkan… $1", "Conectando… $1"),

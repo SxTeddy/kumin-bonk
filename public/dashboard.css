@@ -520,3 +520,20 @@ nav, main, .updbar { position: relative; z-index: 1; }
 
 .sndbtns { margin-top: 6px; gap: 6px; }
 .cat .sel .sndbtns button { font-size: 12px; padding: 3px 8px; }
+
+/* 🆕 gifts the app does not know yet */
+.newgifts { margin-bottom: var(--gap, 18px); }
+.newgifts .badge { display: inline-block; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--pink); color: var(--on-accent); font-size: 13px; text-align: center; vertical-align: 2px; }
+#newGiftList { display: grid; gap: 8px; margin-top: 10px; }
+.ng { display: grid; grid-template-columns: 52px minmax(140px, 1.2fr) auto minmax(150px, 1fr) minmax(220px, 1.4fr) auto; gap: 10px; align-items: end; padding: 8px 10px; border: var(--bw, 2px) solid var(--line); border-radius: var(--r-md, 12px); background: var(--surface); }
+.ng.off { opacity: .55; }
+.ng label { margin: 0 0 3px; }
+.ng select, .ng input[data-match] { width: 100%; }
+.ng .row { flex-wrap: nowrap; }
+.ng-pic { width: 52px; height: 52px; border-radius: 10px; background: var(--chip); overflow: hidden; align-self: center; }
+.ng-pic img { width: 100%; height: 100%; object-fit: contain; }
+.ng-name { display: grid; align-self: center; min-width: 0; }
+.ng-name b { overflow-wrap: anywhere; }
+.ng-name small { color: var(--muted); }
+.ng .switch { align-self: center; }
+@media (max-width: 900px) { .ng { grid-template-columns: 52px minmax(0, 1fr) auto; } .ng > div:nth-of-type(n+3), .ng [data-try] { grid-column: 1 / -1; } }

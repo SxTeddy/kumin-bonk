@@ -21,7 +21,7 @@ import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -152,6 +152,19 @@ const engine = new Engine({ getConfig: () => config, getHead, vts, images, gifts
 const giftsSeen = new Map(readJson('gifts-seen.json', []).map(g => [g.name, g]));
 let seenDirty = false;
 setInterval(() => { if (seenDirty) { seenDirty = false; writeJson('gifts-seen.json', [...giftsSeen.values()]); writeJson('gift-aliases.json', gifts.learned); } }, 5000);
+// 🆕 gifts the app does not know yet (new on TikTok): listed in the 🎭 tab to give them a move or match them to a known gift
+const giftKey = s => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g) }));
+let seenPush = null;
+const pushSeen = () => { if (!seenPush) seenPush = setTimeout(() => { seenPush = null; toDashboards({ t: 'giftsSeen', gifts: seenList() }); }, 1500); };
+function noteGift(ev) {
+  const name = ev.gift.name, prev = giftsSeen.get(name);
+  if (!prev && giftsSeen.size >= 1000) return;
+  const known = !!gifts.find(ev.gift);
+  giftsSeen.set(name, { name, th: ev.gift.th, image: ev.gift.image || prev?.image, diamonds: ev.gift.diamonds, count: (prev?.count || 0) + (ev.count || 1), last: Date.now() });
+  seenDirty = true;
+  if (!known) { if (!prev) log('gift', `🆕 ของขวัญที่แอปยังไม่รู้จัก: "${name}" (${ev.gift.diamonds} เหรียญ) — ตั้งท่าได้ในแท็บ 🎭 หมวดของขวัญ`); pushSeen(); }
+}
 let viewers = 0;
 // 📊 live summaries, 🙏 thank-you messages, ⌨️ pause shortcut
 const sessions = new Sessions(path.join(DATA, 'sessions.json'), log);
@@ -252,7 +265,7 @@ function onEvent(ev, simulated = false) {
     const learned = simulated ? null : gifts.learn(ev.gift.name, Number(ev.gift.diamonds) || 0);
     if (learned) log('gift', `จำได้แล้ว: "${ev.gift.name}" = ${learned}`);
     ev.gift.th = gifts.thaiName(ev.gift.name) || (CATALOG.some(g => g.th === ev.gift.name) ? ev.gift.name : '');
-    if (!simulated && !giftsSeen.has(ev.gift.name) && giftsSeen.size < 1000) { giftsSeen.set(ev.gift.name, { name: ev.gift.name, th: ev.gift.th, image: ev.gift.image, diamonds: ev.gift.diamonds }); seenDirty = true; }
+    if (!simulated) noteGift(ev);
   }
   if (!simulated) sessions.add(ev);
   if (!simulated) thanks.handle(ev); // the ✨ tab has its own "listen" button for testing
@@ -446,6 +459,16 @@ async function onDashboard(ws, m) {
       toDashboards({ t: 'event', ev, fired: [`ท่า: ${STYLES[style || g.style]}`], simulated: true, time: Date.now() });
       return engine.run({ type: 'giftfx', style: style || 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: ev.count, diamonds: g.coins, entry: g, preview: true });
     }
+    case 'aliasGift': { // "this new TikTok gift is the same as <Thai gift>" (or undo with no th)
+      const name = String(m.name || '').slice(0, 120), key = giftKey(name);
+      if (!key || !giftsSeen.has(name)) return;
+      if (m.th) {
+        const g = CATALOG.find(c => c.th === m.th); if (!g) return;
+        gifts.learned[key] = g.th; log('gift', `จับคู่ "${name}" กับ ${g.th} แล้ว`);
+      } else if (Object.hasOwn(gifts.learned, key)) { delete gifts.learned[key]; log('gift', `ยกเลิกการจับคู่ "${name}" แล้ว`); }
+      seenDirty = true;
+      return toDashboards({ t: 'giftsSeen', gifts: seenList() });
+    }
     case 'bannerImg': {
       const done = bannerWait.get(String(m.id || '')); if (!done) return;
       const b64 = typeof m.b64 === 'string' && m.b64.length < 4e6 ? m.b64 : '';
@@ -514,7 +537,7 @@ async function onDashboard(ws, m) {
       catch (e) { return log('update', e.message, 'warn'); }
     }
     case 'clearOverlay': return overlay.send({ t: 'clear' });
-    case 'resetRules': config.rules = structuredClone(DEFAULT_CONFIG.rules); saveConfig(); send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES }); return;
+    case 'resetRules': config.rules = structuredClone(DEFAULT_CONFIG.rules); saveConfig(); send(ws, { t: 'state', config, gifts: seenList(), catalog: CATALOG, styles: STYLES }); return;
   }
 }
 
@@ -582,7 +605,7 @@ wss.on('connection', (ws, req) => {
     ws.isApp = new URL(req.url, 'http://x').searchParams.get('app') === '1';
     if (ws.isApp) for (const d of dashboards) if (d.isApp) send(d, { t: 'closeWindow' });
     dashboards.add(ws);
-    send(ws, { t: 'state', config, gifts: [...giftsSeen.values()], catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, bigDefault: BIG_DEFAULT, scenes: SCENES, sceneNames: SCENE_NAMES, anchors: ANCHOR, logs, justUpdated, firstRun });
+    send(ws, { t: 'state', config, gifts: seenList(), catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, bigDefault: BIG_DEFAULT, scenes: SCENES, sceneNames: SCENE_NAMES, anchors: ANCHOR, logs, justUpdated, firstRun });
     justUpdated = ''; firstRun = false;
     send(ws, { t: 'status', ...status() });
     send(ws, { t: 'update', ...updater.state });
