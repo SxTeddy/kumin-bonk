@@ -294,6 +294,23 @@ EXTRA = [
 ("สีพื้นหลัง", "Background color", "背景色", "背景色", "배경색", "Màu nền", "Warna latar", "Color de fondo"),
 ("โหมดมืด", "Dark mode", "ダークモード", "深色模式", "다크 모드", "Chế độ tối", "Mode gelap", "Modo oscuro"),
 ("คืนค่าเริ่มต้นแล้ว", "Reset to default", "初期値に戻しました", "已恢复默认", "기본값으로 되돌렸어요", "Đã đặt lại mặc định", "Sudah diatur ulang", "Restablecido"),
+# --- own sounds on categories / gifts ---
+("เสียงของแอป", "App sounds", "アプリの音", "应用音效", "앱 소리", "Âm thanh của app", "Suara aplikasi", "Sonidos de la app"),
+("เสียงของฉัน", "My sounds", "自分の音", "我的音效", "내 소리", "Âm thanh của tôi", "Suara saya", "Mis sonidos"),
+("▶ ฟัง", "▶ Listen", "▶ 聞く", "▶ 试听", "▶ 듣기", "▶ Nghe", "▶ Dengar", "▶ Escuchar"),
+("📁 ใส่เสียงเอง", "📁 Add my sound", "📁 自分の音を追加", "📁 添加我的音效", "📁 내 소리 넣기", "📁 Thêm âm của tôi", "📁 Tambah suara sendiri", "📁 Añadir mi sonido"),
+("ตั้งไว้ว่าปิดเสียง", "Set to no sound", "音なしに設定されています", "已设为无声", "소리 없음으로 설정됨", "Đang đặt là tắt tiếng", "Diatur tanpa suara", "Configurado sin sonido"),
+("ใช้เสียงตามท่าของหมวด", "Uses the move's own sound", "動きに合わせた音を使います", "使用动作自带的音效", "동작에 맞는 소리를 써요", "Dùng âm theo hiệu ứng", "Pakai suara bawaan gerakan", "Usa el sonido del efecto"),
+("ใส่เสียงแล้ว 🎵 ใช้กับหมวดนี้เลย", "Sound added 🎵 now used for this category", "音を追加しました 🎵 このカテゴリーで使います", "已添加音效 🎵 用于此分类", "소리 추가 🎵 이 카테고리에 적용", "Đã thêm âm 🎵 dùng cho nhóm này", "Suara ditambahkan 🎵 dipakai untuk kategori ini", "Sonido añadido 🎵 usado en esta categoría"),
+("ใส่เสียงแล้ว 🎵 ใช้กับชิ้นนี้เลย", "Sound added 🎵 now used for this gift", "音を追加しました 🎵 このギフトで使います", "已添加音效 🎵 用于此礼物", "소리 추가 🎵 이 선물에 적용", "Đã thêm âm 🎵 dùng cho quà này", "Suara ditambahkan 🎵 dipakai untuk hadiah ini", "Sonido añadido 🎵 usado en este regalo"),
+("จุ๊บ", "Kiss", "チュッ", "啵", "쪽", "Chụt", "Cium", "Beso"),
+("ปรบมือ", "Clap", "拍手", "鼓掌", "박수", "Vỗ tay", "Tepuk tangan", "Aplauso"),
+("ตุ้มตึ้ง", "Drum", "ドンドン", "咚咚", "둥둥", "Trống", "Drum", "Tambor"),
+("ปุ๊ด", "Bubble", "ポコッ", "啵噗", "뽁", "Bụp", "Gelembung", "Burbuja"),
+("ครืน", "Rumble", "ゴロゴロ", "轰隆", "우르릉", "Ầm ầm", "Gemuruh", "Retumbo"),
+("คำราม", "Roar", "ガオー", "吼", "어흥", "Gầm", "Auman", "Rugido"),
+("ดนตรี", "Tune", "メロディ", "旋律", "멜로디", "Giai điệu", "Melodi", "Melodía"),
+("น้ำแข็ง", "Ice", "氷", "冰", "얼음", "Băng", "Es", "Hielo"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)

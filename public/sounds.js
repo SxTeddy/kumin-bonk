@@ -41,6 +41,10 @@ const SOUNDS = {
   ice: () => [1760, 2093, 2637, 3136].forEach((f, i) => tone({ f0: f, dur: 0.3, vol: 0.18, delay: i * 0.08 })),
   magic: () => [784, 988, 1175, 1568, 1976].forEach((f, i) => tone({ type: 'triangle', f0: f, dur: 0.35, vol: 0.2, delay: i * 0.07 })),
   munch: () => { noise(0.06, 0.5); tone({ type: 'square', f0: 220, f1: 140, dur: 0.06, vol: 0.2 }); },
+  kiss: () => { tone({ f0: 900, f1: 1600, dur: 0.09, vol: 0.5 }); noise(0.03, 0.25); },
+  clap: () => { noise(0.05, 0.8); setTimeout(() => noise(0.05, 0.7), 60); setTimeout(() => noise(0.08, 0.6), 120); },
+  drum: () => { tone({ type: 'triangle', f0: 170, f1: 55, dur: 0.25, vol: 0.9 }); noise(0.04, 0.3); tone({ type: 'triangle', f0: 230, f1: 80, dur: 0.22, vol: 0.8, delay: 0.16 }); },
+  bubble: () => tone({ f0: 280 + Math.random() * 80, f1: 1300, dur: 0.12, vol: 0.5 }),
   none: () => {},
 };
 

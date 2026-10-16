@@ -517,3 +517,6 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .tweaks .sw button { width: 28px; height: 28px; padding: 0; border-radius: 50%; }
 .tweaks .sw button.on { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--ink); }
 .tweaks .sw input[type=color] { width: 36px; height: 30px; }
+
+.sndbtns { margin-top: 6px; gap: 6px; }
+.cat .sel .sndbtns button { font-size: 12px; padding: 3px 8px; }

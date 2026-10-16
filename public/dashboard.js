@@ -41,7 +41,15 @@ function handle(m) {
     case 'sessions': renderSessions(m); break;
     case 'renderBanner': drawBanner(m); break;
     case 'summaryFiles': renderSummaryFiles(m); break;
-    case 'sounds': config.customSounds = m.customSounds || []; renderSounds(); renderCats(); renderRules(); if (m.added) toast('เพิ่มเสียงแล้ว 🎵'); break;
+    case 'sounds': {
+      config.customSounds = m.customSounds || [];
+      const tg = soundTarget && soundTarget.until > Date.now() ? soundTarget : null; soundTarget = null;
+      if (m.added && tg?.cat) setCat(tg.cat, 'sound', 'u:' + m.added);
+      if (m.added && tg?.gift) { (config.fx.gifts[tg.gift] ||= {}).sound = 'u:' + m.added; save(); const ps = $('#popSound'); if (ps && !$('#giftPop').hidden) ps.innerHTML = soundOptions({ ...FX_SOUNDS, auto: 'ตามหมวด' }, 'u:' + m.added); }
+      renderSounds(); renderCats(); renderRules();
+      if (m.added) toast(tg ? 'ใส่เสียงแล้ว 🎵 ใช้กับ' + (tg.cat ? 'หมวดนี้' : 'ชิ้นนี้') + 'เลย' : 'เพิ่มเสียงแล้ว 🎵');
+      break;
+    }
     case 'log': addLog(m); break;
     case 'event': addFeed(m); if (m.ev.type === 'chat') readChat(m.ev.user?.nickname || m.ev.user?.username, m.ev.user?.username, m.ev.text); if (m.ev.type === 'gift' && !seenGifts.some(g => g.name === m.ev.gift.name)) { seenGifts.push(m.ev.gift); fillGiftList(); } break;
     case 'fired': break;
@@ -610,7 +618,20 @@ $('#btnClear').onclick = () => send({ t: 'clearOverlay' });
 // ---------- categories (per-category & per-gift effect settings) ----------
 // effect sounds + the user's uploaded ones ('u:<id>')
 function soundMap(base) { const o = { ...base }; for (const x of config?.customSounds || []) o['u:' + x.id] = '🎵 ' + x.name; return o; }
-const FX_SOUNDS = { auto: 'ตามท่า', none: 'ปิดเสียง', bonk: 'ป๊อก!', pop: 'ป๊อป', boing: 'ดึ๋ง', ding: 'ติ๊ง', fanfare: 'แตร', crash: 'โครม', whoosh: 'วู้ม', zap: 'ซี้ด', cash: 'กริ๊ง', magic: 'วิ้ง', scream: 'กรี๊ด', munch: 'ง่ำ' };
+const FX_SOUNDS = { auto: 'ตามท่า', none: 'ปิดเสียง', bonk: 'ป๊อก!', pop: 'ป๊อป', boing: 'ดึ๋ง', ding: 'ติ๊ง', fanfare: 'แตร', crash: 'โครม', whoosh: 'วู้ม', zap: 'ซี้ด', cash: 'กริ๊ง', magic: 'วิ้ง', scream: 'กรี๊ด', munch: 'ง่ำ', kiss: 'จุ๊บ', clap: 'ปรบมือ', drum: 'ตุ้มตึ้ง', bubble: 'ปุ๊ด', rumble: 'ครืน', roar: 'คำราม', tune: 'ดนตรี', ice: 'น้ำแข็ง' };
+// sound picker: the app's own sounds + the ones you added yourself (🎵)
+function soundOptions(base, sel) {
+  const opt = ([k, v]) => `<option value="${esc(k)}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`;
+  const mine = (config?.customSounds || []).map(x => ['u:' + x.id, '🎵 ' + x.name]);
+  return `<optgroup label="เสียงของแอป">${Object.entries(base).map(opt).join('')}</optgroup>` + (mine.length ? `<optgroup label="เสียงของฉัน">${mine.map(opt).join('')}</optgroup>` : '');
+}
+// "📁 ใส่เสียงเอง" on a category / gift: pick a file, upload it, then use it right there
+let soundTarget = null;
+function uploadSoundFor(target) { soundTarget = { ...target, until: Date.now() + 120000 }; $('#sndFile').click(); }
+function previewSound(name, vol = 1) {
+  if (!name || name === 'auto' || name === 'none') return toast(name === 'none' ? 'ตั้งไว้ว่าปิดเสียง' : 'ใช้เสียงตามท่าของหมวด');
+  enableSound?.(); KBSound.play(name, (Number(config.throwing.volume) || 0.6) * vol);
+}
 function fxCfg() { config.fx ||= { showcaseMin: 1000, cats: {}, gifts: {} }; config.fx.cats ||= {}; config.fx.gifts ||= {}; return config.fx; }
 function catOf(style) { return { ...catDefault, ...(fxCfg().cats[style] || {}) }; }
 function setCat(style, k, v) { const c = fxCfg().cats; c[style] = { ...(c[style] || {}), [k]: v }; save(); }
@@ -678,7 +699,7 @@ function renderCats() {
     const slider = (k, lab, min, max, step, fmt = v => '×' + v) => `<div class="ctl"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${Number(c[k]) || 0}"><output>${esc(fmt(Number(c[k]) || 0))}</output></div>`;
     el.innerHTML = `<div class="cat-head"><label class="switch"><input type="checkbox" ${c.enabled ? 'checked' : ''}><span></span></label><b>${esc(label)}</b><small>${list.length} ชิ้น</small><button class="small" data-aimcat title="ตั้งจุดที่ท่านี้ไปโดน เช่น ปาก คอ ตัว">🎯 เป้า${c.aim ? ' ✓' : ''}</button><button class="small" data-try>▶ ลอง</button></div>
       ${slider('vol', '🔊 เสียง', 0, 2, 0.1, v => v > 0 ? Math.round(v * 100) + '%' : '🔇 ปิด')}${slider('size', 'ขนาดรูป', 0.4, 2.5, 0.1)}${slider('power', 'ความแรง', 0, 2, 0.1)}${slider('speed', 'ความเร็ว', 0.5, 2, 0.1)}<div class="ctl"><span>สูงสุดต่อครั้ง</span><input type="range" data-k="max" min="1" max="300" step="1" value="${Math.min(300, Number(c.max) || 30)}"><input type="number" class="maxn" min="1" max="300" step="1" value="${Math.min(300, Number(c.max) || 30)}" title="พิมพ์ตัวเลขได้ 1–300"></div>
-      <div class="sel"><div><label>เสียง</label><select data-k="sound">${Object.entries(soundMap(FX_SOUNDS)).map(([k, v]) => `<option value="${esc(k)}" ${k === c.sound ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
+      <div class="sel"><div><label>เสียง</label><select data-k="sound">${soundOptions(FX_SOUNDS, c.sound)}</select><div class="row sndbtns"><button type="button" class="small" data-sndplay>▶ ฟัง</button><button type="button" class="small" data-sndup>📁 ใส่เสียงเอง</button></div></div>
       <div><label>ใช้ท่า</label><select data-k="as"><option value="same">ท่าของหมวดนี้</option>${Object.entries(styles).filter(([k]) => k !== st).map(([k, v]) => `<option value="${k}" ${k === c.as ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div></div>
       <div class="gifts">${list.map(g => `<button data-g="${esc(g.th)}" class="${fxCfg().gifts[g.th] ? 'own' : ''}${fxCfg().gifts[g.th]?.off ? ' offg' : ''}" title="${esc(g.th)} · ${g.coins} เหรียญ"><img src="/gifts/${g.img}.png" alt="${esc(g.th)}" loading="lazy"></button>`).join('') || '<small class="hint">ยังไม่มีของขวัญในหมวดนี้</small>'}</div>`;
     el.querySelector('.switch input').onchange = e => { setCat(st, 'enabled', e.target.checked); el.classList.toggle('off', !e.target.checked); };
@@ -688,6 +709,8 @@ function renderCats() {
     vr.previousElementSibling.onclick = () => { const v = Number(vr.value) > 0 ? 0 : (catOf(st).volPrev || 1); if (v === 0) setCat(st, 'volPrev', Number(vr.value)); vr.value = v; vr.nextElementSibling.textContent = volTxt(v); setCat(st, 'vol', v); };
     el.querySelector('.maxn').onchange = e => { const v = Math.max(1, Math.min(300, Math.round(Number(e.target.value)) || 30)); e.target.value = v; e.target.previousElementSibling.value = v; setCat(st, 'max', v); };
     el.querySelectorAll('select').forEach(sel => sel.onchange = () => setCat(st, sel.dataset.k, sel.value));
+    el.querySelector('[data-sndplay]').onclick = () => previewSound(el.querySelector('select[data-k=sound]').value, Number(catOf(st).vol ?? 1));
+    el.querySelector('[data-sndup]').onclick = () => uploadSoundFor({ cat: st });
     el.querySelector('[data-aimcat]').onclick = () => goAim('cat:' + st);
     // try this category's move (with its cheapest gift: no big-gift show or special scene in the way)
     el.querySelector('[data-try]').onclick = () => { const g = list.find(x => !fxCfg().gifts[x.th]?.off) || list[0] || catalog.find(x => x.style === st); if (g) send({ t: 'previewStyle', style: st, gift: g.th, count: 1 }); };
@@ -701,7 +724,8 @@ function openGiftPop(g, anchor) {
     <label class="check"><label class="switch"><input type="checkbox" id="popOn" ${own.off ? '' : 'checked'}><span></span></label> เปิดใช้ชิ้นนี้</label>
     <label>ท่าของชิ้นนี้</label><select id="popStyle">${Object.entries(styles).map(([k, v]) => `<option value="${k}" ${k === (own.style || g.style) ? 'selected' : ''}>${esc(v)}${k === g.style ? ' (เดิม)' : ''}</option>`).join('')}</select>
     <div class="ctl" style="display:grid;grid-template-columns:92px 1fr 56px;gap:8px;align-items:center"><span>🔊 ความดัง</span><input id="popVol" type="range" min="0" max="2" step="0.1" value="${own.vol ?? catOf(own.style || g.style).vol ?? 1}"><output>${volTxt(Number(own.vol ?? catOf(own.style || g.style).vol ?? 1))}</output></div>
-    <label>เสียงของชิ้นนี้</label><select id="popSound">${Object.entries(soundMap({ ...FX_SOUNDS, auto: 'ตามหมวด' })).map(([k, v]) => `<option value="${k}" ${k === (own.sound || 'auto') ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>
+    <label>เสียงของชิ้นนี้</label><select id="popSound">${soundOptions({ ...FX_SOUNDS, auto: 'ตามหมวด' }, own.sound || 'auto')}</select>
+    <div class="row sndbtns"><button type="button" class="small" id="popSndPlay">▶ ฟัง</button><button type="button" class="small" id="popSndUp">📁 ใส่เสียงเอง</button></div>
     <div class="ctl" style="display:grid;grid-template-columns:92px 1fr 46px;gap:8px;align-items:center"><span>ขนาดชิ้นนี้</span><input id="popSize" type="range" min="0.4" max="2.5" step="0.1" value="${own.size || 1}"><output>×${own.size || 1}</output></div>
     <div class="row"><button class="primary small" id="popTry">▶ ลอง</button><button class="small" id="popAim">🎯 เป้า${own.aim ? ' ✓' : ''}</button><button class="small" id="popReset">คืนค่าเดิม</button><button class="small" id="popClose">ปิด</button></div>`;
   pop.hidden = false;
@@ -720,6 +744,8 @@ function openGiftPop(g, anchor) {
   $('#popOn').onchange = e => { put(); toast(e.target.checked ? `เปิด ${g.th} แล้ว` : `ปิด ${g.th} แล้ว`); };
   $('#popVol').oninput = e => { e.target.nextElementSibling.textContent = volTxt(Number(e.target.value)); put(); };
   $('#popSound').onchange = e => { put(); if (e.target.value !== 'auto') KBSound.play(e.target.value, config.throwing.volume); };
+  $('#popSndPlay').onclick = () => { const v = $('#popSound').value; previewSound(v === 'auto' ? (catOf(own.style || g.style).sound || 'auto') : v, Number($('#popVol')?.value ?? 1)); };
+  $('#popSndUp').onclick = () => uploadSoundFor({ gift: g.th });
   $('#popSize').oninput = e => { e.target.nextElementSibling.textContent = '×' + e.target.value; put(); };
   $('#popTry').onclick = () => send({ t: 'previewStyle', gift: g.th, count: 1 });
   $('#popAim').onclick = () => goAim('gift:' + g.th);
@@ -1385,11 +1411,11 @@ function renderSounds() {
     box.appendChild(d);
   }
 }
-$('#sndAdd').onclick = () => $('#sndFile').click();
+$('#sndAdd').onclick = () => { soundTarget = null; $('#sndFile').click(); };
 $('#sndFile').onchange = e => {
   const f = e.target.files?.[0]; e.target.value = '';
-  if (!f) return;
-  if (f.size > 3 * 1024 * 1024) return toast('ไฟล์เสียงต้องไม่เกิน 3 MB');
+  if (!f) { soundTarget = null; return; }
+  if (f.size > 3 * 1024 * 1024) { soundTarget = null; return toast('ไฟล์เสียงต้องไม่เกิน 3 MB'); }
   const rd = new FileReader();
   rd.onload = () => send({ t: 'addSound', name: f.name, mime: f.type, ext: (f.name.split('.').pop() || ''), data: String(rd.result).split(',')[1] || '' });
   rd.readAsDataURL(f);
