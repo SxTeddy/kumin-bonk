@@ -542,6 +542,7 @@ const LOCAL_HOSTS = () => [`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PO
 const hostOk = req => LOCAL_HOSTS().includes(String(req.headers.host || '').toLowerCase());
 const originOk = req => { const o = req.headers.origin; return !o || LOCAL_HOSTS().some(h => String(o).toLowerCase() === 'http://' + h); };
 const server = http.createServer((req, res) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
   if (!hostOk(req)) { res.writeHead(403); return res.end('forbidden'); }
   const url = new URL(req.url, 'http://x');
   let p = url.pathname;

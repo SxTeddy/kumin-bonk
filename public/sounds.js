@@ -63,7 +63,9 @@ function playFile(id) {
   const v = Math.max(0, Math.min(4, VOL));
   if (!(v > 0.001)) return;
   let a; try { a = audio(); } catch { return playTag(id, v); }
-  if (!bufs[id]) {
+  if (bufs[id]) { const p = bufs[id]; delete bufs[id]; bufs[id] = p; } // most recently used last
+  else {
+    const ids = Object.keys(bufs); if (ids.length >= 8) delete bufs[ids[0]]; // decoded sounds are big: keep 8 in memory
     bufs[id] = fetch('/usound/' + encodeURIComponent(id))
       .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
       .then(b => new Promise((res, rej) => a.decodeAudioData(b, res, rej)));

@@ -4,6 +4,15 @@ import fs from 'node:fs';
 // names from TikTok are used as object keys: never let them be special JavaScript names
 const safeKey = k => (k === '__proto__' || k === 'constructor' || k === 'prototype' || k === 'hasOwnProperty') ? '_' + k : k;
 
+// keep only the top givers (by coins): the summary shows the top 10, a huge live must not make the file huge
+function trimGivers(s, keep) {
+  const all = Object.entries(s.givers || {});
+  if (all.length <= keep) return;
+  all.sort((a, b) => b[1].coins - a[1].coins || b[1].gifts - a[1].gifts);
+  s.moreGivers = (s.moreGivers || 0) + all.length - keep; // how many smaller givers were dropped (still counted)
+  s.givers = Object.fromEntries(all.slice(0, keep));
+}
+
 // ---------- one summary per live ----------
 export class Sessions {
   constructor(file, log) {
@@ -29,6 +38,7 @@ export class Sessions {
   end(stale = false) {
     const c = this.cur; if (!c) return false;
     c.end = stale ? Math.max(c.start, c.updated || c.start) : Date.now(); this.cur = null;
+    trimGivers(c, 100);
     const empty = !c.gifts && !c.likes && !c.chats && !c.follows && c.end - c.start < 120000;
     if (empty) this.list = this.list.filter(s => s !== c);
     this.dirty = true; this.flush();
@@ -46,6 +56,7 @@ export class Sessions {
         const key = safeKey(String(u.id || u.username || u.nickname || '?'));
         const g = c.givers[key] || (c.givers[key] = { name: u.nickname || u.username || '?', username: u.username || '', avatar: u.avatar || '', coins: 0, gifts: 0 });
         g.coins += coins; g.gifts += n; if (u.nickname) g.name = u.nickname;
+        if (Object.keys(c.givers).length > 3000) trimGivers(c, 1000);
         const gname = String(ev.gift?.th || ev.gift?.name || '?');
         const t = c.giftTypes[safeKey(gname)] || (c.giftTypes[safeKey(gname)] = { name: gname, image: ev.gift?.image || '', count: 0, coins: 0 });
         t.count += n; t.coins += coins;
@@ -64,7 +75,7 @@ export class Sessions {
       ...s, live: s === this.cur,
       givers: Object.values(s.givers).sort((a, b) => b.coins - a.coins || b.gifts - a.gifts).slice(0, 10),
       giftTypes: Object.values(s.giftTypes).sort((a, b) => b.coins - a.coins || b.count - a.count).slice(0, 12),
-      giverCount: Object.keys(s.givers).length,
+      giverCount: Object.keys(s.givers).length + (s.moreGivers || 0),
     };
   }
   all() { return this.list.map(s => this.view(s)); }

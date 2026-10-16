@@ -275,6 +275,16 @@ await t('a new install starts with an empty TikTok name', async () => {
   assert.equal(DEFAULT_CONFIG.tiktokUsername, '');
   assert.equal(DEFAULT_CONFIG.autoConnect, false);
 });
+await t('a huge live keeps its summary file small (but counts everyone)', async () => {
+  const s = new Sessions(path.join(tmp, 's3.json')); s.list = [];
+  s.start('big');
+  for (let i = 0; i < 3500; i++) s.add({ type: 'gift', user: { id: 'u' + i, nickname: 'n' + i, avatar: 'https://x/' + 'a'.repeat(200) }, gift: { name: 'Rose', diamonds: 1 + (i % 7) }, count: 1 });
+  assert.ok(Object.keys(s.cur.givers).length <= 3000, 'too many kept during the live');
+  const c = s.end();
+  assert.ok(Object.keys(c.givers).length <= 100, 'too many kept after the live: ' + Object.keys(c.givers).length);
+  assert.equal(s.view(c).giverCount, 3500, 'everyone should still be counted');
+  assert.equal(s.view(c).givers[0].coins, 7, 'the biggest givers are kept');
+});
 await t('version numbers compare correctly (updates only go forward)', async () => {
   assert.ok(newer('1.0.1', '1.0.0')); assert.ok(newer('1.1.0', '1.0.9')); assert.ok(newer('1.0.10', '1.0.9'));
   assert.ok(!newer('1.0.0', '1.0.0')); assert.ok(!newer('1.0.0', '1.9.3'), 'a fresh v1.0.0 over an old test version is not an "update"');
