@@ -7,10 +7,11 @@
 <title>KuminBonk</title>
 <link rel="icon" href="/assets/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Kanit:wght@300;400;500;600&family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/dashboard.css">
 <script src="/i18n.js"></script>
-<script>try { document.documentElement.dataset.theme = localStorage.getItem("kbTheme") || "pink"; } catch (e) {}</script>
+<script>try { var d = document.documentElement, l = JSON.parse(localStorage.getItem("kbLook") || "{}"), st = { studio: ["studio", "side"], arcade: ["arcade", "top"], clean: [l.dark ? "cleandark" : "clean", "side"] }[l.style];
+  d.dataset.theme = st ? st[0] : (localStorage.getItem("kbTheme") || "pink"); d.dataset.style = st ? l.style : "candy"; d.dataset.layout = st ? st[1] : "top"; } catch (e) {}</script>
 </head>
 <body>
 <div class="bubbles" id="bubbles" aria-hidden="true"></div>
@@ -420,7 +421,14 @@
       <div class="mixer" id="mixer"></div>
     </div>
     <div class="card" style="margin-bottom:18px">
-      <h2>🎨 ธีม</h2>
+      <h2>🖼️ หน้าตาแอป</h2>
+      <p class="hint">เลือกแบบที่ชอบ แล้วปรับสี ความโค้ง ความแน่น และขนาดได้เองด้านล่าง</p>
+      <div class="looks" id="looks"></div>
+      <div class="tweaks" id="tweaks"></div>
+      <div class="row" style="margin-top:12px"><button class="small ghost" id="btnLookReset">↺ คืนค่าเริ่มต้นของแบบนี้</button></div>
+    </div>
+    <div class="card" style="margin-bottom:18px" id="themeCard">
+      <h2>🎨 สีของแบบหวานพาสเทล</h2>
       <div class="themes" id="themes"></div>
     </div>
     <div class="grid2">

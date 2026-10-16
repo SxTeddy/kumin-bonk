@@ -30,6 +30,7 @@ function handle(m) {
       config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.bigDefault) bigDefault = m.bigDefault; if (m.scenes) sceneMap = m.scenes; if (m.sceneNames) sceneNames = m.sceneNames; if (m.anchors) anchors = m.anchors;
       (m.logs || []).forEach(addLog);
       if (config.theme && config.theme !== curTheme()) applyTheme(config.theme);
+      if (config.look) applyLook(config.look);
       if (config.lang && window.KBI18N && config.lang !== KBI18N.lang) { KBI18N.setLang(config.lang); renderLangs(); }
       renderAll();
       hideSplash();
@@ -87,11 +88,13 @@ const THEMES = {
   midnight: { name: '🌙 ดำมิดไนท์', note: 'ดำสนิท ไฟนีออนชมพูเรืองแสง มีดาวระยิบ', bg: '#0c0b10', card: '#15131c', accent: '#ff3d8b', floaties: ['star', 'sparkle', 'zap', 'star'] },
   ocean:    { name: '🌊 น้ำเงินทะเลลึก', note: 'น้ำเงินเข้มใต้ทะเล แสงฟ้า ฟองอากาศลอยขึ้น', bg: '#07142b', card: '#0e2142', accent: '#38d6ff', bubbles: true },
 };
-const curTheme = () => THEMES[document.documentElement.dataset.theme] ? document.documentElement.dataset.theme : 'pink';
+// the colour set chosen for the "หวานพาสเทล" look (the other looks bring their own colours)
+let candyTheme = (() => { try { return localStorage.getItem('kbTheme') || 'pink'; } catch { return 'pink'; } })();
+const curTheme = () => THEMES[candyTheme] ? candyTheme : 'pink';
 function fillFloaties() {
   const box = $('#splash .floaties'); if (!box) return;
   box.innerHTML = '';
-  const t = THEMES[curTheme()];
+  const t = look.style === 'candy' ? THEMES[curTheme()] : { floaties: ['star', 'sparkle', 'heart', 'star'] };
   for (let i = 0; i < 14; i++) {
     let el;
     if (t.bubbles) { el = document.createElement('span'); el.className = 'bub'; const d = 10 + Math.random() * 26; el.style.width = el.style.height = d + 'px'; }
@@ -103,7 +106,7 @@ function fillFloaties() {
 }
 function fillBubbles() {
   const box = $('#bubbles'); box.innerHTML = '';
-  if (!THEMES[curTheme()].bubbles) return;
+  if (look.style !== 'candy' || !THEMES[curTheme()].bubbles) return;
   for (let i = 0; i < 16; i++) {
     const b = document.createElement('i'); const d = 6 + Math.random() * 20;
     b.style.width = b.style.height = d + 'px'; b.style.left = Math.random() * 100 + '%';
@@ -113,7 +116,8 @@ function fillBubbles() {
 }
 function applyTheme(t, persist = false) {
   if (!THEMES[t]) t = 'pink';
-  document.documentElement.dataset.theme = t;
+  candyTheme = t;
+  if (look.style === 'candy') document.documentElement.dataset.theme = t;
   try { localStorage.setItem('kbTheme', t); } catch {}
   fillFloaties(); fillBubbles(); renderThemes();
   if (persist && config) { config.theme = t; save(); }
@@ -125,7 +129,83 @@ function renderThemes() {
     <b>${t.name}</b><small>${t.note}</small></button>`).join('');
   box.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { applyTheme(b.dataset.theme, true); toast('เปลี่ยนธีมเป็น ' + THEMES[b.dataset.theme].name + ' แล้ว'); });
 }
-applyTheme(curTheme());
+
+// ---------- app looks (Settings → หน้าตาแอป): 4 layouts, each with its own adjustable colour, corners, spacing and size ----------
+const LOOKS = {
+  candy:  { name: 'หวานพาสเทล', note: 'ชมพูนุ่ม ขอบมน หัวใจลอย (แบบเดิม)', layout: 'top', radius: 16, swatches: ['#ff4f8b', '#a66cff', '#2fa7e0', '#ff8a3d'], pv: ['#fff4f8', '#ffffff', '#ff4f8b', ''] },
+  studio: { name: 'สตูดิโอมืด', note: 'โทนมืดแบบห้องคุมไลฟ์ เมนูด้านซ้าย แสงเรือง', layout: 'side', radius: 12, swatches: ['#38d6ff', '#ff5ca8', '#b48cff', '#7dff9b'], pv: ['#0e1220', '#151b2e', '#38d6ff', '#121729'] },
+  arcade: { name: 'ป๊อปอาร์เขด', note: 'ขอบดำหนา เงาแข็ง สีสดแบบเกม', layout: 'top', radius: 12, swatches: ['#ff6fb5', '#5fd3ff', '#ffd84d', '#9b7bff'], pv: ['#ffe66d', '#ffffff', '#ff6fb5', ''] },
+  clean:  { name: 'เรียบมินิมอล', note: 'ขาวสะอาด เส้นบาง อ่านง่าย เมนูด้านซ้าย', layout: 'side', radius: 8, swatches: ['#2563eb', '#0d9488', '#db2777', '#111827'], pv: ['#ffffff', '#f3f4f6', '#2563eb', '#f9fafb'] },
+};
+const DENSITY = { compact: ['กระชับ', 12, 14, 12, 10], normal: ['ปกติ', 18, 20, 18, 14], airy: ['โปร่ง', 26, 28, 26, 20] };
+const ARCADE_BG = ['#ffe66d', '#bff3dd', '#ffd6ea', '#d9e4ff'];
+const LOOK_DEFAULT = { style: 'candy', accent: '', radius: null, density: 'normal', zoom: 1, glow: true, shadow: 5, bg: '', dark: false };
+let look = (() => { try { return { ...LOOK_DEFAULT, ...JSON.parse(localStorage.getItem('kbLook') || '{}') }; } catch { return { ...LOOK_DEFAULT }; } })();
+const hexOk = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
+const inkOn = hex => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 165 ? '#1d1a2f' : '#ffffff'; };
+function applyLook(l = look) {
+  look = { ...LOOK_DEFAULT, ...(l || {}) }; if (!LOOKS[look.style]) look.style = 'candy';
+  const d = document.documentElement, st = d.style, L = LOOKS[look.style];
+  d.dataset.style = look.style; d.dataset.layout = L.layout; d.dataset.glow = look.glow ? 'on' : 'off';
+  d.dataset.theme = look.style === 'candy' ? curTheme() : look.style === 'clean' && look.dark ? 'cleandark' : look.style;
+  for (const k of ['--pink', '--pink-2', '--pink-3', '--pink-soft', '--on-accent', '--glow', '--radius', '--r-sm', '--r-md', '--pad-y', '--pad-x', '--gap', '--pad-c', '--sd', '--arcade-bg']) st.removeProperty(k);
+  if (hexOk(look.accent)) {
+    const a = look.accent;
+    st.setProperty('--pink', a); st.setProperty('--pink-2', `color-mix(in srgb, ${a} 78%, #ffffff)`); st.setProperty('--pink-3', `color-mix(in srgb, ${a} 55%, var(--card))`);
+    st.setProperty('--pink-soft', `color-mix(in srgb, ${a} 16%, var(--card))`); st.setProperty('--on-accent', inkOn(a)); st.setProperty('--glow', a + '55');
+  }
+  if (look.radius != null) { const r = Math.max(0, Math.min(32, Number(look.radius) || 0)); st.setProperty('--radius', r + 'px'); st.setProperty('--r-sm', Math.round(r * 0.6) + 'px'); st.setProperty('--r-md', Math.round(r * 0.75) + 'px'); }
+  const dn = DENSITY[look.density] || DENSITY.normal;
+  if (look.density !== 'normal') { st.setProperty('--pad-y', dn[1] + 'px'); st.setProperty('--pad-x', dn[2] + 'px'); st.setProperty('--gap', dn[3] + 'px'); st.setProperty('--pad-c', dn[4] + 'px'); }
+  if (look.style === 'arcade') { st.setProperty('--sd', Math.max(0, Math.min(10, Number(look.shadow ?? 5))) + 'px'); if (hexOk(look.bg)) st.setProperty('--arcade-bg', look.bg); }
+  const z = Math.max(0.85, Math.min(1.2, Number(look.zoom) || 1));
+  document.body.style.zoom = z !== 1 ? String(z) : '';
+  try { localStorage.setItem('kbLook', JSON.stringify(look)); } catch {}
+  fillFloaties(); fillBubbles(); renderLooks();
+}
+function setLook(patch, msg) {
+  applyLook({ ...look, ...patch });
+  if (config) { config.look = { ...look }; save(); }
+  if (msg) toast(msg);
+}
+function renderLooks() {
+  const box = $('#looks'); if (!box) return;
+  const L = LOOKS[look.style];
+  box.innerHTML = Object.entries(LOOKS).map(([k, v]) => { const [bg, card, ac, side] = v.pv; return `<button class="look ${k === look.style ? 'on' : ''}" data-look="${k}" aria-pressed="${k === look.style}">
+    <div class="pv" style="background:${bg}">${side ? `<s style="background:${side}"></s>` : ''}<i style="background:${card};left:${side ? '36%' : '8px'};right:8px"></i><u style="background:${ac};left:${side ? '36%' : '8px'};width:46px"></u></div>
+    <b>${esc(v.name)}</b><small>${esc(v.note)}</small></button>`; }).join('');
+  box.querySelectorAll('[data-look]').forEach(b => b.onclick = () => { const k = b.dataset.look; if (k !== look.style) setLook({ style: k, accent: '', radius: null, bg: '' }, 'เปลี่ยนหน้าตาเป็น ' + LOOKS[k].name + ' แล้ว'); });
+  const acc = hexOk(look.accent) ? look.accent : '';
+  const rad = look.radius ?? L.radius;
+  const zoomPct = Math.round((Number(look.zoom) || 1) * 100);
+  let h = `<div class="tw"><span>สีหลัก</span><div class="sw">${L.swatches.map(c => `<button type="button" data-acc="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}<input type="color" id="lkAcc" value="${acc || L.swatches[0]}" aria-label="เลือกสีเอง"></div><button type="button" class="small ghost" data-acc="">ค่าเดิม</button></div>`;
+  h += `<div class="tw"><label for="lkRad" style="margin:0;color:inherit;font-size:inherit">ความโค้งมุม</label><input type="range" id="lkRad" min="0" max="28" step="1" value="${rad}"><output>${rad}px</output></div>`;
+  h += `<div class="tw"><span>ความแน่น</span><div class="seg">${Object.entries(DENSITY).map(([k, v]) => `<button type="button" data-den="${k}" class="${k === look.density ? 'on' : ''}">${v[0]}</button>`).join('')}</div><span></span></div>`;
+  h += `<div class="tw"><label for="lkZoom" style="margin:0;color:inherit;font-size:inherit">ขนาดหน้า</label><input type="range" id="lkZoom" min="85" max="120" step="5" value="${zoomPct}"><output>${zoomPct}%</output></div>`;
+  if (look.style === 'studio') h += `<div class="tw"><span>แสงเรือง</span><label class="check" style="margin:0"><input type="checkbox" id="lkGlow" ${look.glow ? 'checked' : ''}> เปิด</label><span></span></div>`;
+  if (look.style === 'arcade') {
+    h += `<div class="tw"><label for="lkShadow" style="margin:0;color:inherit;font-size:inherit">ความลึกเงา</label><input type="range" id="lkShadow" min="0" max="10" step="1" value="${look.shadow ?? 5}"><output>${look.shadow ?? 5}px</output></div>`;
+    h += `<div class="tw"><span>สีพื้นหลัง</span><div class="sw">${ARCADE_BG.map((c, i) => `<button type="button" data-bg="${c}" class="${(look.bg || ARCADE_BG[0]) === c ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div><span></span></div>`;
+  }
+  if (look.style === 'clean') h += `<div class="tw"><span>โหมดมืด</span><label class="check" style="margin:0"><input type="checkbox" id="lkDark" ${look.dark ? 'checked' : ''}> เปิด</label><span></span></div>`;
+  const tw = $('#tweaks'); tw.innerHTML = h;
+  tw.querySelectorAll('[data-acc]').forEach(b => b.onclick = () => setLook({ accent: b.dataset.acc === L.swatches[0] ? '' : b.dataset.acc }));
+  tw.querySelectorAll('.sw button[data-acc]').forEach(b => b.classList.toggle('on', (acc || L.swatches[0]) === b.dataset.acc));
+  $('#lkAcc').onchange = e => setLook({ accent: e.target.value });
+  $('#lkRad').oninput = e => { e.target.nextElementSibling.textContent = e.target.value + 'px'; applyLook({ ...look, radius: Number(e.target.value) }); };
+  $('#lkRad').onchange = e => setLook({ radius: Number(e.target.value) });
+  tw.querySelectorAll('[data-den]').forEach(b => b.onclick = () => setLook({ density: b.dataset.den }));
+  $('#lkZoom').onchange = e => setLook({ zoom: Number(e.target.value) / 100 });
+  $('#lkZoom').oninput = e => { e.target.nextElementSibling.textContent = e.target.value + '%'; };
+  const g = $('#lkGlow'); if (g) g.onchange = e => setLook({ glow: e.target.checked });
+  const sh = $('#lkShadow'); if (sh) { sh.oninput = e => { e.target.nextElementSibling.textContent = e.target.value + 'px'; applyLook({ ...look, shadow: Number(e.target.value) }); }; sh.onchange = e => setLook({ shadow: Number(e.target.value) }); }
+  tw.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => setLook({ bg: b.dataset.bg === ARCADE_BG[0] ? '' : b.dataset.bg }));
+  const dk = $('#lkDark'); if (dk) dk.onchange = e => setLook({ dark: e.target.checked });
+  const tc = $('#themeCard'); if (tc) tc.hidden = look.style !== 'candy';
+}
+$('#btnLookReset').onclick = () => setLook({ accent: '', radius: null, density: 'normal', zoom: 1, glow: true, shadow: 5, bg: '', dark: false }, 'คืนค่าเริ่มต้นแล้ว');
+applyLook(look);
+renderThemes();
 
 // ---------- language ----------
 function renderLangs() {

@@ -21,7 +21,7 @@ import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -73,6 +73,12 @@ function sanitizeConfig(c) {
   if (!Array.isArray(c.customSounds)) c.customSounds = [];
   c.customSounds = c.customSounds.filter(x => x && /^[a-z0-9]{1,20}$/.test(String(x.id)) && /^[a-z0-9]{1,20}\.(mp3|wav|ogg|webm|m4a|aac)$/.test(String(x.file)));
   if (c.lang && !['th', 'en', 'ja', 'zh', 'ko', 'vi', 'id', 'es'].includes(c.lang)) c.lang = 'th';
+  if (c.look && typeof c.look === 'object') { // app look (Settings → หน้าตาแอป): only known values reach the page's styles
+    const l = c.look, hex = v => /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : '';
+    c.look = { style: ['candy', 'studio', 'arcade', 'clean'].includes(l.style) ? l.style : 'candy', accent: hex(l.accent), radius: l.radius == null ? null : intIn(l.radius, 0, 32, null),
+      density: ['compact', 'normal', 'airy'].includes(l.density) ? l.density : 'normal', zoom: Math.min(1.2, Math.max(0.85, Number(l.zoom) || 1)),
+      glow: l.glow !== false, shadow: intIn(l.shadow, 0, 10, 5), bg: hex(l.bg), dark: !!l.dark };
+  } else delete c.look;
   return c;
 }
 function saveConfig() {
