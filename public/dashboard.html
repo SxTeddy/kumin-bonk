@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="th">
+<head>
+<!-- KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KuminBonk</title>
+<link rel="icon" href="/assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/dashboard.css">
+<script src="/i18n.js"></script>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("kbTheme") || "pink"; } catch (e) {}</script>
+</head>
+<body>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
+<div id="splash" class="splash">
+  <div class="floaties" aria-hidden="true"></div>
+  <div class="mascot"><img src="/assets/icon.svg" alt=""><span class="shadow"></span></div>
+  <b id="splashTitle">กำลังเปิด KuminBonk</b>
+  <small id="splashSub">เตรียมของขวัญแป๊บนึงนะ~</small>
+  <div class="dots"><i></i><i></i><i></i></div>
+  <small class="credit">สร้างโดย HXZ !</small>
+</div>
+<div id="yay" class="yay" hidden>
+  <div class="confetti" aria-hidden="true"></div>
+  <div class="yay-card">
+    <div class="mascot small"><img src="/assets/icon.svg" alt=""></div>
+    <h2 id="yayTitle">อัปเดตแล้ว! 🎉</h2>
+    <p class="hint" id="yaySub">มีอะไรใหม่บ้าง</p>
+    <ul id="yayNotes"></ul>
+    <button class="primary" id="btnYay">เย้! ไปกันเลย ✨</button>
+  </div>
+</div>
+<header>
+  <div class="brand"><img src="/assets/icon.svg" alt=""><div><b>KuminBonk</b><small>TikTok → VTube Studio · สร้างโดย HXZ !</small></div></div>
+  <div class="pills">
+    <button class="pill sound-off" id="pSound" title="เสียงเอฟเฟกต์เล่นจากหน้านี้">🔇 กดเพื่อเปิดเสียง</button>
+    <button class="pill pause-pill" id="pPause" title="พักเอฟเฟกต์ชั่วคราว">⏸ พักเอฟเฟกต์</button>
+    <span class="pill" id="pTik"><i></i>TikTok</span>
+    <span class="pill" id="pVts"><i></i>VTube Studio</span>
+    <span class="pill" id="pObs" style="display:none"><i></i>Overlay</span>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div id="pauseBar" class="pausebar" hidden>
+  <b>⏸ พักเอฟเฟกต์อยู่</b><span id="pauseBarText"></span>
+  <button id="btnResume" class="primary small">▶ เล่นต่อ</button>
+</div>
+
+<div id="updBar" class="updbar" hidden>
+  <div class="upd-mascot"><img src="/assets/icon.svg" alt=""></div>
+  <div class="upd-body">
+    <b id="updTitle"></b>
+    <small id="updText"></small>
+    <div class="prog" id="updProg" hidden><div class="fill" id="updFill"><img class="runner" src="/assets/heart.svg" alt=""></div><span id="updPct"></span></div>
+  </div>
+  <div class="upd-btns"><button id="btnRestart" class="primary" hidden>เปลี่ยนเป็นชุดใหม่เลย 💖</button><button id="btnLater" class="small ghost" hidden>ไว้ทีหลัง</button></div>
+</div>
+<nav id="tabs">
+  <button data-tab="home" class="on">🏠 หน้าหลัก</button>
+  <button data-tab="cats">🎭 หมวดของขวัญ</button>
+  <button data-tab="rules">🎁 กฎ</button>
+  <button data-tab="test">🧪 ทดสอบ</button>
+  <button data-tab="aim">🎯 เล็งหัว</button>
+  <button data-tab="chat">💬 อ่านแชต</button>
+  <button data-tab="helpers">✨ ตัวช่วยไลฟ์</button>
+  <button data-tab="summary">📊 สรุปไลฟ์</button>
+  <button data-tab="settings">⚙️ ตั้งค่า</button>
+  <button data-tab="lang">🌐 ภาษา</button>
+</nav>
+
+<main>
+  <!-- HOME -->
+  <section id="home" class="tab on">
+    <div class="grid2">
+      <div class="card">
+        <h2>เชื่อมต่อไลฟ์ TikTok</h2>
+        <label>ชื่อ TikTok (ไม่ต้องใส่ @)</label>
+        <div class="row">
+          <input id="tUser" placeholder="พิมพ์ชื่อบัญชี TikTok ของคุณ" autocomplete="off" spellcheck="false">
+          <button class="primary" id="btnConnect">เชื่อมต่อ</button>
+          <button id="btnDisconnect">ตัดการเชื่อมต่อ</button>
+        </div>
+        <label class="check"><input type="checkbox" id="autoConnect"> เชื่อมต่ออัตโนมัติตอนเปิดโปรแกรม</label>
+        <p class="hint" id="tikDetail">ต้องเปิดไลฟ์ก่อน แล้วค่อยกดเชื่อมต่อ</p>
+      </div>
+      <div class="card">
+        <h2>เช็กลิสต์ก่อนไลฟ์</h2>
+        <ol class="steps">
+          <li id="ckVts">เปิด VTube Studio → ตั้งค่า → เปิด <b>Start API (allow plugins)</b> แล้วกด <b>Allow</b> เมื่อมีหน้าต่างถาม</li>
+          <li id="ckPerm">ตอน VTube Studio ถามว่าให้ KuminBonk <b>โหลดรูปเป็นไอเท็ม</b> ได้ไหม → กด <b>Allow</b> (ของที่ปาจะบินอยู่ในหน้าต่าง VTS เลย TikTok LIVE Studio จึงเห็นด้วย)</li>
+          <li id="ckSound">กดปุ่ม <b>🔇 กดเพื่อเปิดเสียง</b> ด้านบน แล้วเปิดหน้านี้ค้างไว้ เสียงป๊อก! จะออกลำโพงคอม (ใน TikTok LIVE Studio เปิดเสียงคอมพิวเตอร์ไว้ด้วย)</li>
+          <li>ไปแท็บ <b>🎯 เล็งหัว</b> ลากเป้าไปไว้ที่หัวตัวละคร (ดูเป้าสีชมพูในหน้าต่าง VTube Studio)</li>
+          <li>แท็บ <b>🧪 ทดสอบ</b> กดส่งกุหลาบดูว่าโดนหัวไหม</li>
+        </ol>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>เกิดอะไรขึ้นในไลฟ์</h2>
+        <ul class="feed" id="feed"><li class="empty">ยังไม่มีอะไร — ลองแท็บทดสอบดูก่อนได้</li></ul>
+      </div>
+      <div class="card">
+        <h2>บันทึกการทำงาน</h2>
+        <ul class="feed log" id="log"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section id="cats" class="tab">
+    <div class="toolbar">
+      <p>ของขวัญแต่ละชิ้นอยู่ในหมวดตามรูป ปรับแต่ละหมวดแยกกันได้ กดรูปของขวัญเพื่อย้ายหมวดหรือตั้งขนาดเฉพาะชิ้นนั้น</p>
+      <div class="row">
+        <label class="inline">อวดของขวัญใหญ่กลางจอเมื่อราคาตั้งแต่
+          <select id="showcaseMin"><option value="0">ปิด</option><option value="100">100</option><option value="500">500</option><option value="1000">1,000</option><option value="5000">5,000</option><option value="10000">10,000</option></select> เหรียญ</label>
+        <button id="btnCatsAllOn" class="small">✅ เปิดทุกหมวด</button>
+        <button id="btnCatsAllOff" class="small">⛔ ปิดทุกหมวด</button>
+        <button id="btnCatsReset" class="ghost">คืนค่าทุกหมวด</button>
+      </div>
+      <div class="card bigcard" id="bigCard">
+        <h2>👑 ของขวัญแพง</h2>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgTiers"> ยิ่งแพงยิ่งอลัง</label>
+          <span class="hint">ระดับ 1 = ตามช่อง "อวดของขวัญใหญ่" ด้านบน · ระดับ 2 ตั้งแต่</span><input type="number" id="bgT2" min="1" class="num"><span class="hint">· ระดับ 3 ตั้งแต่</span><input type="number" id="bgT3" min="1" class="num"><span class="hint">เหรียญ</span>
+          <button class="small" data-tier="1">▶ ระดับ 1</button><button class="small" data-tier="2">▶ ระดับ 2</button><button class="small" data-tier="3">▶ ระดับ 3</button>
+        </div>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgBanner"> ป้ายชื่อคนส่งบนจอ</label><span class="hint">ตั้งแต่</span><input type="number" id="bgBannerMin" min="1" class="num"><span class="hint">เหรียญ</span>
+          <input id="bgLine1" class="line" maxlength="60"><input id="bgLine2" class="line" maxlength="60">
+        </div>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgSpot"> พักของอื่นให้ของแพงเล่นเดี่ยว</label><span class="hint">ตั้งแต่</span><input type="number" id="bgSpotMin" min="1" class="num"><span class="hint">เหรียญ</span>
+        </div>
+        <div class="bigrow">
+          <label class="check"><input type="checkbox" id="bgScenes"> ฉากพิเศษเฉพาะชิ้น</label>
+          <div class="scenes" id="bgSceneList"></div>
+        </div>
+        <p class="hint">{name} = ชื่อคนส่ง · {gift} = ของขวัญ · {count} = จำนวน · ป้ายชื่อต้องเปิดหน้าต่างแอปไว้ (แอปวาดป้ายให้)</p>
+      </div>
+      <p class="hint">กดสวิตช์ของแต่ละหมวดเพื่อเปิด/ปิด · กดรูปของขวัญเพื่อเปิด/ปิดหรือตั้งค่าทีละชิ้น (ชิ้นที่ปิดจะเป็นสีจาง)</p>
+      <div class="catquick" id="catQuick"></div>
+    </div>
+    <div id="catList" class="catlist"></div>
+  </section>
+
+  <!-- RULES -->
+  <section id="rules" class="tab">
+    <div class="toolbar">
+      <p>แต่ละกฎ = <b>เมื่อเกิดอะไร</b> → <b>ให้ทำอะไรบ้าง</b> (ทำตามลำดับจากบนลงล่าง) บันทึกอัตโนมัติ</p>
+      <div class="row">
+        <button class="primary" id="btnAddRule">+ เพิ่มกฎใหม่</button>
+        <button id="btnRefreshVts" title="ดึงรายชื่อคีย์ลัด/ท่าทาง/ไอเท็มจาก VTube Studio">↻ ดึงข้อมูลจาก VTS</button>
+        <button id="btnResetRules" class="ghost">คืนค่าเริ่มต้น</button>
+      </div>
+    </div>
+    <div id="ruleList"></div>
+    <p class="saved" id="savedNote">บันทึกแล้ว ✓</p>
+  </section>
+
+  <!-- TEST -->
+  <section id="test" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <h2>จำลองของขวัญ</h2>
+        <div class="fields">
+          <div><label>ชื่อของขวัญ</label><input id="sGift" list="giftNames" value="กุหลาบ"></div>
+          <div><label>จำนวน</label><input id="sCount" type="number" min="1" value="5"></div>
+          <div><label>ราคา (เหรียญ)</label><input id="sDiamonds" type="number" min="1" value="1"></div>
+          <div><label>ชื่อคนส่ง</label><input id="sName" value="คนทดสอบ"></div>
+        </div>
+        <div class="row quick">
+          <button class="primary" id="btnSimGift">🎁 ส่งของขวัญ</button>
+          <button data-quick="Rose,1,1">🌹 กุหลาบ ×1</button>
+          <button data-quick="Rose,10,1">🌹 กุหลาบ ×10</button>
+          <button data-quick="Finger Heart,3,5">🫰 หัวใจนิ้ว ×3 (5)</button>
+          <button data-quick="Doughnut,1,30">🍩 โดนัท (30)</button>
+          <button data-quick="Hat and Mustache,1,99">🎩 หมวกกับหนวด (99)</button>
+          <button data-quick="Swan,1,699">🦢 หงส์ (699)</button>
+          <button data-quick="Galaxy,1,1000">🌌 กาแล็กซี (1,000)</button>
+          <button data-quick="Lion,1,29999">🦁 สิงโต (29,999)</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>จำลองอย่างอื่น</h2>
+        <div class="row quick">
+          <button data-sim="follow">➕ ฟอลโลว์</button>
+          <button data-sim="share">🔗 แชร์</button>
+          <button data-sim="like">❤️ ไลค์ ×100</button>
+          <button data-sim="join">👋 คนเข้าไลฟ์</button>
+        </div>
+        <label>พิมพ์แชต</label>
+        <div class="row"><input id="sChat" value="!bonk"><button id="btnSimChat">💬 ส่งแชต</button></div>
+        <hr>
+        <div class="row">
+          <button id="btnClear" class="ghost">ล้างของบนจอ</button>
+          
+        </div>
+        <p class="hint">ของจะบินในหน้าต่าง VTube Studio เสียงออกจากหน้านี้ (กดเปิดเสียงด้านบนก่อน)</p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>ลองดูท่าของขวัญแต่ละชิ้น</h2>
+      <p class="hint">กดรูปของขวัญเพื่อดูท่าในหน้าต่าง VTube Studio (ต้องเชื่อม VTS แล้ว) · จำนวน <input id="fxCount" type="number" min="1" max="99" value="1" style="width:70px"></p>
+      <div id="fxGallery"></div>
+    </div>
+  </section>
+
+  <!-- AIM -->
+  <section id="aim" class="tab">
+    <div class="grid2 aimgrid">
+      <div class="card">
+        <h2 id="aimTitle">เล็งหัวตัวละคร</h2>
+        <div class="aimfor">
+          <label>เป้าสำหรับ</label>
+          <select id="aimFor"></select>
+          <input id="aimGift" list="aimGiftList" placeholder="🔍 หรือพิมพ์ชื่อของขวัญ">
+          <datalist id="aimGiftList"></datalist>
+        </div>
+        <p id="aimHelp">คลิกหรือลากในกรอบด้านล่าง ให้เป้าสีชมพูใน<b>หน้าต่าง VTube Studio</b> ไปอยู่ตรง<b>หัว</b>ตัวละคร แล้วกดบันทึก</p>
+        <p class="hint">กรอบนี้ = หน้าต่าง VTube Studio ทั้งหน้าต่าง</p>
+        <div id="pad"><div id="padHead" hidden></div><div id="padDot"></div><div class="padlabel">หน้าต่าง VTube Studio</div></div>
+        <div class="row"><button class="primary" id="btnCalibSave">💾 บันทึกตำแหน่ง</button>
+          <button id="btnAimReset" hidden>↺ กลับค่าเริ่มต้น</button>
+          <button id="btnLock">📌 ล็อกกับโมเดล</button><button id="btnUnlock" class="small" hidden>🔓 ปลดล็อก</button>
+          <label class="check" id="followWrap"><input type="checkbox" id="followModel"> ขยับตามโมเดลอัตโนมัติ (ถ้าลากโมเดลใน VTS)</label></div>
+        <p class="hint" id="aimPos"></p>
+        <div class="lockbox" id="lockBox"></div>
+      </div>
+      <div class="card">
+        <h2>ปรับละเอียด</h2>
+        <div class="nudge">
+          <button data-n="0,-1">▲</button>
+          <div><button data-n="-1,0">◀</button><button data-n="1,0">▶</button></div>
+          <button data-n="0,1">▼</button>
+        </div>
+        <p class="hint">กดลูกศรทีละนิด หรือใช้ปุ่มลูกศรบนคีย์บอร์ดตอนอยู่หน้านี้</p>
+        <button id="btnTestAim">🌹 ปาทดสอบ 3 ดอก</button>
+        <h2 style="margin-top:18px">ตั้งเป้าแยกตามหมวดของขวัญ</h2>
+        <p class="hint">ตั้งหัวให้ตรงก่อน แล้วกดหมวดด้านล่าง (เช่น ขนมเข้าปาก → ปาก, คล้องคอ → คอ, รถชน → ตัว) หรือของขวัญชิ้นเดียว แล้วลากจุดไปตรงที่อยากให้โดน
+          จุดจาง ๆ คือหัว · ถ้าขยับหัว/โมเดล เป้าของหมวดจะเลื่อนตามไปด้วย · ของขวัญที่ตั้งเฉพาะชิ้นจะใช้ค่าของชิ้นนั้นก่อนหมวด</p>
+        <div id="aimList" class="aimlist"></div>
+        <p class="hint">ปุ่มสีชมพูเต็ม = กำลังตั้งอันนี้ · ✓ สีเขียว = ตั้งเป้าเองแล้ว (อยากลบ: กดอันนั้น แล้วกด "กลับค่าเริ่มต้น") · ลากจุดแล้วต้องกด 💾 บันทึกตำแหน่ง ไม่งั้นจะคืนค่าเดิม</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHAT READER -->
+  <section id="chat" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><h2 style="margin:0">💬 อ่านแชตไลฟ์ออกเสียง</h2>
+          <label class="switch" title="เปิด/ปิดอ่านแชต"><input type="checkbox" id="ctOn"><span></span></label></div>
+        <p class="hint">อ่านทุกข้อความที่คนดูพิมพ์ในไลฟ์ เสียงออกลำโพงคอม (ใน TikTok LIVE Studio เปิดจับเสียงคอมพิวเตอร์ไว้) · ต้องเปิดหน้าต่างแอปค้างไว้</p>
+        <label>แบบเสียง</label>
+        <div class="seg" id="ctMode">
+          <button data-m="one">🎙️ เสียงเดียว</button><button data-m="auto">🌏 ตามภาษา</button><button data-m="perUser">🎭 คนละเสียง</button>
+        </div>
+        <p class="hint" id="ctModeHint"></p>
+        <label>เสียงหลัก</label>
+        <div class="row"><select id="ctVoice" style="flex:1"></select><button id="ctVoiceClear" class="small" hidden>✕ ยกเลิก</button></div>
+        <label>สไตล์เสียง</label>
+        <div class="chips" id="ctStyles"></div>
+        <p class="hint" id="ctStyleHint" style="margin-top:0"></p>
+        <div class="sliders" style="margin-top:6px">
+          <div class="slider"><label>ความเร็ว</label><input type="range" id="ctRate" min="0.5" max="2" step="0.05"><output></output></div>
+          <div class="slider"><label>ระดับเสียง (สูง-ต่ำ)</label><input type="range" id="ctPitch" min="0.5" max="2" step="0.05"><output></output></div>
+          <div class="slider"><label>ความดัง</label><input type="range" id="ctVol" min="0" max="1" step="0.05"><output></output></div>
+        </div>
+        <label>อ่านอะไร</label>
+        <div class="seg" id="ctWhat">
+          <button data-w="both">👤💬 ชื่อ + ข้อความ</button><button data-w="text">💬 ข้อความอย่างเดียว</button><button data-w="name">👤 ชื่ออย่างเดียว</button>
+        </div>
+        <div id="ctTplBox">
+          <input id="ctTemplate" placeholder="{name} บอกว่า {text}" style="width:100%;margin-top:8px">
+          <p class="hint">{name} = ชื่อคนดู · {text} = ข้อความ</p>
+        </div>
+        <h2 class="mt">ลองฟัง</h2>
+        <div class="row"><input id="ctTest" placeholder="พิมพ์อะไรก็ได้ ภาษาไหนก็ได้ เช่น Hello / こんにちは / 안녕" style="flex:1"><button class="primary" id="ctTestBtn">▶ อ่าน</button></div>
+        <div class="row" style="margin-top:8px"><button id="ctSkip">⏭ ข้ามข้อความนี้</button><button id="ctStop">⏹ หยุดทั้งหมด</button><span class="hint" id="ctQueue" style="margin:0"></span></div>
+      </div>
+      <div class="card">
+        <h2>🚫 คำต้องห้าม</h2>
+        <p class="hint">ข้อความที่มีคำเหล่านี้จะไม่ถูกอ่าน (เช็กทั้งชื่อและข้อความ ไม่สนตัวพิมพ์เล็กใหญ่/ช่องว่าง)</p>
+        <div class="row"><input id="ctBanIn" placeholder="พิมพ์คำแล้วกดเพิ่ม (หลายคำคั่นด้วย , ได้)" style="flex:1"><button class="primary" id="ctBanAdd">+ เพิ่ม</button></div>
+        <div class="chips" id="ctBanned" style="margin-top:10px"></div>
+        <label>เจอคำต้องห้ามแล้ว</label>
+        <select id="ctBanMode">
+          <option value="skip">ไม่อ่านข้อความนั้นเลย</option>
+          <option value="remove">อ่าน แต่ตัดคำนั้นออก</option>
+          <option value="beep">อ่าน แต่แทนคำนั้นด้วย "ปี๊บ"</option>
+        </select>
+        <h2 class="mt">🙈 ไม่อ่านคนเหล่านี้</h2>
+        <div class="row"><input id="ctUserIn" placeholder="ชื่อ หรือ @ไอดี คนดู" style="flex:1"><button id="ctUserAdd">+ เพิ่ม</button></div>
+        <div class="chips" id="ctUsers" style="margin-top:10px"></div>
+        <h2 class="mt">ตัวกรองอื่น ๆ</h2>
+        <label class="check"><input type="checkbox" id="ctSkipCmd"> ไม่อ่านคำสั่งที่ขึ้นต้นด้วย ! (เช่น !bonk)</label>
+        <label class="check"><input type="checkbox" id="ctSkipLink"> ไม่อ่านข้อความที่มีลิงก์</label>
+        <label class="check"><input type="checkbox" id="ctSkipEmoji"> ไม่อ่านข้อความที่มีแต่อีโมจิ</label>
+        <label class="check"><input type="checkbox" id="ctLaugh"> อ่าน 555 เป็น "ฮ่า ๆ" และตัดตัวอักษรซ้ำยาว ๆ</label>
+        <div class="row" style="margin-top:8px"><label style="margin:0">ยาวสุด</label><input type="number" id="ctMaxLen" min="20" max="400" style="width:90px"><span class="hint" style="margin:0">ตัวอักษร</span>
+          <label style="margin:0 0 0 10px">คิวสูงสุด</label><input type="number" id="ctMaxQ" min="1" max="50" style="width:80px"><span class="hint" style="margin:0">ข้อความ</span></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">🎚️ คลังเสียง</h2><span class="hint" id="libCount" style="margin:0"></span></div>
+      <p class="hint">กด ▶ ฟังเสียงตัวอย่าง · กด ⭐ เก็บเข้า "ชุดเสียงคนละเสียง" (กดอีกครั้ง = เอาออก) · กด "ใช้" ตั้งเป็นเสียงหลัก (กด ✕ ยกเลิก เพื่อเลิกใช้) (โหมด 🎭 คนละเสียง จะสุ่มเสียงจากที่ติดดาวให้คนดูแต่ละคน) · เสียงที่มีป้าย 🌐 พูดได้หลายภาษา (รวมภาษาไทย)</p>
+      <div class="chips" id="libGroups"></div>
+      <p class="hint" id="libFunHint" hidden style="margin-top:0">😜 กวน ๆ = เสียงฝรั่ง/ญี่ปุ่น/จีนที่พูดไทยได้ (สำเนียงตลก ๆ) และเสียงเด็ก · ใช้คู่กับสไตล์ 😜 กวนตีน / 💅 ประชด / 🦥 ยานคาง / 📢 โฆษก ด้านบน</p>
+      <div class="row"><select id="libLang"></select><input id="libQ" placeholder="🔍 ค้นหาชื่อเสียง" style="flex:1"><label class="check" style="margin:0"><input type="checkbox" id="libFav"> เฉพาะที่ติดดาว</label>
+        <button id="libStarAll" class="small">⭐ ติดดาวเสียงไทย + หลายภาษาทั้งหมด</button><button id="libStarNone" class="small">✕ ล้างดาวทั้งหมด</button><button id="ctReset" class="small danger">↺ คืนค่าเสียงทั้งหมด</button></div>
+      <div class="voicelib" id="voiceLib"></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>🌏 เสียงของแต่ละภาษา</h2>
+        <p class="hint" id="ctLangHint">ใช้ตอนเลือกแบบ "ตามภาษา" หรือ "คนละเสียง" — แอปดูตัวอักษรในข้อความแล้วเลือกเสียงภาษานั้นให้เอง</p>
+        <div id="ctLangs" class="langs"></div>
+      </div>
+      <div class="card">
+        <h2>ล่าสุด</h2>
+        <ul class="feed" id="ctFeed"><li class="empty">ยังไม่มีแชต</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE HELPERS -->
+  <section id="helpers" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <div class="fhead"><h2>⏸ พักเอฟเฟกต์</h2></div>
+        <p class="hint">กดพักตอนเล่นเกมหรือไม่อยากให้อะไรบังหน้า ของขวัญที่ส่งมาระหว่างพักจะรอไว้ แล้วค่อย ๆ ปล่อยออกมาตอนกดเล่นต่อ</p>
+        <div class="row mt8"><button id="btnPause2" class="primary">⏸ พักเอฟเฟกต์</button><button id="btnClearQ" class="small">🗑 ล้างของที่รอ</button><span id="pauseInfo" class="hint"></span></div>
+        <label class="check"><input type="checkbox" id="pzHotkeyOn"> ใช้คีย์ลัด (กดได้แม้กำลังเล่นเกมอยู่)</label>
+        <div class="row"><select id="pzHotkey" style="max-width:220px"></select><span id="pzHkState" class="hint"></span></div>
+        <label class="check"><input type="checkbox" id="pzKeep"> เก็บของขวัญที่ส่งมาตอนพักไว้เล่นทีหลัง</label>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🔥 คอมโบ</h2><label class="switch"><input type="checkbox" id="cbOn"><span></span></label></div>
+        <p class="hint">คนเดิมส่งของขวัญเดิมรัว ๆ เอฟเฟกต์จะใหญ่และแรงขึ้นเรื่อย ๆ ยิ่งรัวยิ่งมัน</p>
+        <div class="sliders" id="cbSliders"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🔒 จำกัดเอฟเฟกต์ต่อนาที</h2><label class="switch"><input type="checkbox" id="lmOn"><span></span></label></div>
+        <p class="hint">กันเครื่องหน่วงตอนของขวัญเข้ารัว ๆ ถ้าเกินจำนวนนี้จะรอคิวก่อน และถ้ารอเยอะเกินไปจะตัดของราคาถูกทิ้งก่อน</p>
+        <div class="sliders" id="lmSliders"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🙏 ขอบคุณอัตโนมัติ</h2><label class="switch"><input type="checkbox" id="thOn"><span></span></label></div>
+        <p class="hint">แอปพูดขอบคุณให้เอง ใช้เสียงเดียวกับอ่านแชต (ตั้งเสียงได้ในแท็บ 💬 อ่านแชต) · ต้องเปิดหน้าต่างแอปไว้ · ถ้าส่งรัว ๆ จะรอให้ส่งเสร็จก่อนแล้วขอบคุณครั้งเดียว</p>
+        <label>ขอบคุณเมื่อของขวัญรวมตั้งแต่ (เหรียญ)</label>
+        <input type="number" id="thMin" min="0" style="max-width:140px">
+        <label>ข้อความขอบคุณของขวัญ</label>
+        <input id="thGift">
+        <small class="hint">{name} = ชื่อคนส่ง · {gift} = ของขวัญ · {count} = จำนวน · {coins} = เหรียญรวม</small>
+        <label class="check"><input type="checkbox" id="thFollow"> ขอบคุณคนที่ฟอลโลว์</label>
+        <input id="thFollowText">
+        <label class="check"><input type="checkbox" id="thShare"> ขอบคุณคนที่แชร์ไลฟ์</label>
+        <input id="thShareText">
+        <div class="row mt8"><button id="thTest" class="small">▶ ลองฟัง</button></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🎮 คำสั่งฟรีของคนดู</h2></div>
+        <p class="hint">คนดูพิมพ์คำสั่งในแชตแล้วตัวละครขยับ ไม่ต้องส่งของขวัญ · แต่ละคนต้องรอก่อนใช้คำสั่งซ้ำ กันสแปม</p>
+        <div class="sliders" id="cmdSliders"></div>
+        <div id="cmdList" class="cmdlist"></div>
+        <label>เพิ่มคำสั่งสำเร็จรูป</label>
+        <div class="row" id="cmdPresets"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🎵 เสียงของฉัน</h2></div>
+        <p class="hint">อัปโหลดเสียงเอง (mp3 / wav / ogg ไม่เกิน 3 MB) แล้วเลือกใช้ได้ในแท็บ 🎭 หมวดของขวัญ (ทั้งหมวดหรือทีละชิ้น) และในกฎ</p>
+        <input type="file" id="sndFile" accept="audio/*,.mp3,.wav,.ogg,.m4a" hidden>
+        <div class="row mt8"><button id="sndAdd" class="primary small">+ เพิ่มไฟล์เสียง</button></div>
+        <div id="sndList" class="sndlist"></div>
+      </div>
+      <div class="card">
+        <div class="fhead"><h2>🗂️ โปรไฟล์การตั้งค่า</h2></div>
+        <p class="hint">บันทึกการตั้งค่าตอนนี้ (กฎ ท่าของขวัญ การปาของ เสียงอ่านแชต ตัวช่วยไลฟ์) เป็นชุด แล้วสลับได้ในคลิกเดียว เช่น "ไลฟ์เกม" กับ "ไลฟ์คุย"</p>
+        <div class="row mt8"><input id="pfName" placeholder="ชื่อโปรไฟล์ เช่น ไลฟ์เกม" maxlength="30"><button id="pfSave" class="primary small">💾 บันทึกเป็นโปรไฟล์</button></div>
+        <div id="pfList" class="pflist"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE SUMMARY -->
+  <section id="summary" class="tab">
+    <div class="card">
+      <div class="fhead"><h2>📊 สรุปไลฟ์</h2><label class="check" style="margin:0"><input type="checkbox" id="smOn"> เก็บสรุปทุกไลฟ์</label></div>
+      <p class="hint">เริ่มนับเองตอนเชื่อมต่อไลฟ์ TikTok และเก็บไว้ 30 ไลฟ์ล่าสุด</p>
+      <div class="row mt8"><select id="smPick" style="flex:1;max-width:420px"></select><button class="small" id="smSave">💾 บันทึกเป็นไฟล์</button><button class="small" id="smOpen">📄 เปิดอ่าน</button><button class="small" id="smDel">ลบ</button></div>
+      <div id="smBody"></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <div class="fhead"><h2>📁 โฟลเดอร์สรุปไลฟ์</h2><button class="small primary" id="smFolder">📂 เปิดโฟลเดอร์</button></div>
+      <p class="hint">ทุกไลฟ์ที่จบจะถูกบันทึกเป็นไฟล์ในโฟลเดอร์นี้ เปิดอ่านได้ด้วยเว็บเบราว์เซอร์ เก็บไว้ได้ตลอด ไม่หายแม้ลบออกจากแอป</p>
+      <label class="check"><input type="checkbox" id="smFiles"> บันทึกเป็นไฟล์อัตโนมัติเมื่อไลฟ์จบ</label>
+      <label>ที่เก็บไฟล์ (ว่าง = โฟลเดอร์ Documents)</label>
+      <input id="smDir" placeholder="" data-noi18n>
+      <div id="smFileList" class="pflist"></div>
+    </div>
+  </section>
+
+  <!-- LANGUAGE -->
+  <section id="lang" class="tab">
+    <div class="card">
+      <h2>🌐 เลือกภาษาของแอป</h2>
+      <p class="hint">เปลี่ยนภาษาของเมนูและปุ่มทั้งหมดในแอป · ชื่อของขวัญและข้อความบางส่วนจากโปรแกรมยังเป็นภาษาไทย</p>
+      <div class="langpick" id="langPick" data-noi18n></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="tab">
+    <div class="card" style="margin-bottom:18px">
+      <h2>🔊 ระดับเสียง</h2>
+      <p class="hint">กด 🔊 เพื่อปิด/เปิดเสียงแต่ละอย่าง · ความดังของแต่ละหมวดของขวัญตั้งได้ในแท็บ 🎭 หมวดของขวัญ (และทีละชิ้นโดยกดรูปของขวัญ)</p>
+      <div class="mixer" id="mixer"></div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <h2>🎨 ธีม</h2>
+      <div class="themes" id="themes"></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>การปาของ</h2>
+        <label>ให้ของบินที่ไหน</label>
+        <select id="optTarget">
+          <option value="vts">ในหน้าต่าง VTube Studio (แนะนำสำหรับ TikTok LIVE Studio)</option>
+          <option value="overlay">Overlay (Browser/Link source ใน OBS หรือ LIVE Studio)</option>
+        </select>
+        <div class="sliders" id="throwSliders"></div>
+        <label class="check"><input type="checkbox" id="optSound"> เปิดเสียงเอฟเฟกต์</label>
+        <label class="check"><input type="checkbox" id="optEyes"> หลับตาตอนโดนตี</label>
+      </div>
+      <div class="card">
+        <h2>ข้อความขอบคุณบนจอ (ไม่บังคับ)</h2>
+        <p class="hint">การกระทำ "💬 ข้อความบนจอ" ต้องใช้ overlay: ใน TikTok LIVE Studio กด <b>เพิ่มแหล่งที่มา → ลิงก์ (Link)</b> แล้ววางลิงก์นี้ ขนาด 1920×1080 ถ้าลิงก์ขึ้นเป็นจุดเล็ก ๆ แปลว่า LIVE Studio มีบั๊ก ข้ามส่วนนี้ไปได้ ของที่ปายังบินใน VTS ตามปกติ</p>
+        <div class="row"><input id="obsUrl" readonly><button id="btnCopy">คัดลอก</button></div>
+        <h2 class="mt">การเชื่อมต่อ</h2>
+        <label>Euler Stream API key (ไม่ใส่ก็ได้ — ใส่เมื่อเชื่อมต่อบ่อยแล้วโดนจำกัด)</label>
+        <input id="optKey" placeholder="ว่างไว้ = ใช้แบบฟรี" autocomplete="off">
+        <label>พอร์ต VTube Studio API</label>
+        <input id="optVtsPort" type="number" value="8001">
+        <h2 class="mt">เสียงอ่านแชต</h2>
+        <p class="hint">ย้ายไปอยู่แท็บ 💬 อ่านแชต แล้ว (กฎ "อ่านออกเสียง" ก็ใช้เสียงจากแท็บนั้น)</p>
+        <h2 class="mt">โปรแกรม</h2>
+        <p class="hint" id="verInfo">เวอร์ชัน –</p>
+        <p class="hint">KuminBonk สร้างโดย <b>HXZ !</b> · © 2026 HXZ ! · <a href="/legal/LICENSE.txt" target="_blank" rel="noopener">เงื่อนไขการใช้งาน</a> · <a href="/legal/THIRD-PARTY-NOTICES.txt" target="_blank" rel="noopener">ไลบรารีที่ใช้</a></p>
+        <div class="row"><button id="btnCheckUpd">ตรวจหาอัปเดต</button><button id="btnRollback" hidden>↩ ย้อนกลับเวอร์ชันก่อนหน้า</button></div>
+        <h2 class="mt">สำรองการตั้งค่า</h2>
+        <p class="hint">สำรองให้อัตโนมัติทุกครั้งก่อนอัปเดต / ย้อนเวอร์ชัน / กู้คืน (เก็บ 10 ชุดล่าสุด)</p>
+        <div class="row"><button id="btnBackup">💾 สำรองตอนนี้</button></div>
+        <div class="row"><select id="backupList"></select><button id="btnRestore">กู้คืนชุดนี้</button></div>
+        <p class="hint">ปิดหน้าต่างนี้ = ปิดโปรแกรม · มีทางลัด KuminBonk บนเดสก์ท็อปและในเมนู Start ให้แล้ว</p>
+        <button id="btnQuit" class="danger">⏻ ปิดโปรแกรม</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<datalist id="giftNames"></datalist>
+<div id="toast"></div>
+<div id="giftPop" class="pop" hidden></div>
+<script src="/sounds.js"></script>
+<script src="/dashboard.js"></script>
+</body>
+</html>

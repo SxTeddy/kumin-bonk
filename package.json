@@ -1,0 +1,25 @@
+{
+  "name": "kumin-bonk",
+  "version": "1.0.0",
+  "description": "KuminBonk — TikTok LIVE gifts trigger effects on your VTuber model in VTube Studio. Created by HXZ !",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "build": "node tools/build.mjs",
+    "check": "node tools/check.mjs"
+  },
+  "keywords": [],
+  "author": "HXZ !",
+  "license": "SEE LICENSE IN LICENSE",
+  "dependencies": {
+    "tiktok-live-connector": "^2.5.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6",
+    "resedit": "^2.0.3"
+  },
+  "type": "module"
+}
