@@ -154,7 +154,7 @@ let seenDirty = false;
 setInterval(() => { if (seenDirty) { seenDirty = false; writeJson('gifts-seen.json', [...giftsSeen.values()]); writeJson('gift-aliases.json', gifts.learned); } }, 5000);
 // 🆕 gifts the app does not know yet (new on TikTok): listed in the 🎭 tab to give them a move or match them to a known gift
 const giftKey = s => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g) }));
+const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g), matched: Object.hasOwn(gifts.learned, giftKey(g.name)) ? gifts.learned[giftKey(g.name)] : '' }));
 let seenPush = null;
 const pushSeen = () => { if (!seenPush) seenPush = setTimeout(() => { seenPush = null; toDashboards({ t: 'giftsSeen', gifts: seenList() }); }, 1500); };
 function noteGift(ev) {

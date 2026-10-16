@@ -321,10 +321,14 @@ EXTRA = [
 ("จับคู่", "Match", "紐づけ", "配对", "연결", "Ghép", "Cocokkan", "Emparejar"),
 ("ไม่พบของขวัญชื่อนี้ในแอป", "No gift with that name in the app", "その名前のギフトはアプリにありません", "应用里没有这个名字的礼物", "앱에 그 이름의 선물이 없어요", "Không có quà tên này trong app", "Tidak ada hadiah dengan nama itu", "No hay ningún regalo con ese nombre"),
 ("เปิด/ปิดชิ้นนี้", "Turn this gift on/off", "このギフトをオン/オフ", "开启/关闭此礼物", "이 선물 켜기/끄기", "Bật/tắt quà này", "Nyalakan/matikan hadiah ini", "Activar/desactivar este regalo"),
+("จับคู่ไว้แล้ว:", "Matched:", "紐づけ済み:", "已配对：", "연결됨:", "Đã ghép:", "Sudah dicocokkan:", "Emparejados:"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)
 PATS = [
+(r"^ยกเลิกการจับคู่ (.+) แล้ว$", "Unmatched $1", "$1 の紐づけを解除しました", "已取消 $1 的配对", "$1 연결 해제됨", "Đã bỏ ghép $1", "Pencocokan $1 dibatalkan", "$1 desemparejado"),
+(r"^ยกเลิกการจับคู่ (.+)$", "Unmatch $1", "$1 の紐づけを解除", "取消 $1 的配对", "$1 연결 해제", "Bỏ ghép $1", "Batalkan pencocokan $1", "Desemparejar $1"),
+(r"^ยกเลิกการจับคู่ \"(.+)\" แล้ว$", "Unmatched \"$1\"", "「$1」の紐づけを解除しました", "已取消“$1”的配对", "\"$1\" 연결 해제됨", "Đã bỏ ghép \"$1\"", "Pencocokan \"$1\" dibatalkan", "\"$1\" desemparejado"),
 (r"^([\d,]+) เหรียญ · ได้รับ ([\d,]+) ชิ้น$", "$1 coins · received $2", "$1 コイン · $2 個受け取り", "$1 金币 · 收到 $2 个", "$1 코인 · $2개 받음", "$1 xu · đã nhận $2", "$1 koin · diterima $2", "$1 monedas · recibidos $2"),
 (r"^ตั้งท่าของ (.+) แล้ว$", "Move set for $1", "$1 の動きを設定しました", "已设置 $1 的动作", "$1 동작 설정됨", "Đã đặt hiệu ứng cho $1", "Gerakan $1 diatur", "Efecto de $1 configurado"),
 (r"^จับคู่ (.+) กับ (.+) แล้ว$", "Matched $1 with $2", "$1 を $2 に紐づけました", "已将 $1 与 $2 配对", "$1을(를) $2와 연결했어요", "Đã ghép $1 với $2", "$1 dicocokkan dengan $2", "$1 emparejado con $2"),

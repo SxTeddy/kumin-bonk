@@ -683,8 +683,16 @@ async function drawBanner({ id, lines, tier }) {
   } catch { send({ t: 'bannerImg', id, b64: '' }); }
 }
 // 🆕 gifts received in a live that the app does not know yet
-function renderNewGifts() {
+let newGiftsLater = false;
+function renderNewGifts(force = false) {
   const box = $('#newGiftList'); if (!box || !config) return;
+  // someone is typing / choosing in the list: don't rebuild it under their fingers (gifts keep arriving during a live)
+  const ae = document.activeElement;
+  if (!force && box.contains(ae) && ae.matches('input:not([type=checkbox]), select')) { newGiftsLater = true; return; }
+  newGiftsLater = false;
+  const done = seenGifts.filter(g => g.matched);
+  $('#matchedGifts').innerHTML = done.length ? `<small class="hint">จับคู่ไว้แล้ว:</small> ${done.map((g, i) => `<span class="chip">${esc(g.name)} → ${esc(g.matched)} <button type="button" class="small ghost" data-unmatch="${i}" aria-label="ยกเลิกการจับคู่ ${esc(g.name)}">✕</button></span>`).join(' ')}` : '';
+  $('#matchedGifts').querySelectorAll('[data-unmatch]').forEach(b => b.onclick = () => { const g = done[Number(b.dataset.unmatch)]; send({ t: 'aliasGift', name: g.name, th: '' }); toast('ยกเลิกการจับคู่ ' + g.name + ' แล้ว'); });
   const fx = fxCfg(); fx.newGifts ||= {};
   const list = seenGifts.filter(g => g.known === false).sort((a, b) => (b.last || 0) - (a.last || 0));
   const n = $('#newGiftsN'); n.hidden = !list.length; n.textContent = list.length;
@@ -711,6 +719,7 @@ function renderNewGifts() {
     row.querySelector('[data-try]').onclick = () => simGift(g.name, 1, g.diamonds);
   });
 }
+$('#newGiftList')?.addEventListener('focusout', () => setTimeout(() => { if (newGiftsLater) renderNewGifts(); }, 50));
 function renderCats() {
   renderBig(); renderNewGifts();
   const box = $('#catList'); if (!box || !catalog.length) return;

@@ -537,3 +537,6 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .ng-name small { color: var(--muted); }
 .ng .switch { align-self: center; }
 @media (max-width: 900px) { .ng { grid-template-columns: 52px minmax(0, 1fr) auto; } .ng > div:nth-of-type(n+3), .ng [data-try] { grid-column: 1 / -1; } }
+.matched { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.matched .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--chip); font-size: 13px; }
+.matched .chip button { padding: 0 6px; border: 0; }
