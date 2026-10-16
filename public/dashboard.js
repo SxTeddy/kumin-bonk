@@ -143,7 +143,7 @@ const LOOK_DEFAULT = { style: 'candy', accent: '', radius: null, density: 'norma
 let look = (() => { try { return { ...LOOK_DEFAULT, ...JSON.parse(localStorage.getItem('kbLook') || '{}') }; } catch { return { ...LOOK_DEFAULT }; } })();
 const hexOk = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
 const inkOn = hex => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 165 ? '#1d1a2f' : '#ffffff'; };
-function applyLook(l = look) {
+function applyLook(l = look, rerender = true) {
   look = { ...LOOK_DEFAULT, ...(l || {}) }; if (!LOOKS[look.style]) look.style = 'candy';
   const d = document.documentElement, st = d.style, L = LOOKS[look.style];
   d.dataset.style = look.style; d.dataset.layout = L.layout; d.dataset.glow = look.glow ? 'on' : 'off';
@@ -161,7 +161,7 @@ function applyLook(l = look) {
   const z = Math.max(0.85, Math.min(1.2, Number(look.zoom) || 1));
   document.body.style.zoom = z !== 1 ? String(z) : '';
   try { localStorage.setItem('kbLook', JSON.stringify(look)); } catch {}
-  fillFloaties(); fillBubbles(); renderLooks();
+  if (rerender) { fillFloaties(); fillBubbles(); renderLooks(); }
 }
 function setLook(patch, msg) {
   applyLook({ ...look, ...patch });
@@ -192,13 +192,13 @@ function renderLooks() {
   tw.querySelectorAll('[data-acc]').forEach(b => b.onclick = () => setLook({ accent: b.dataset.acc === L.swatches[0] ? '' : b.dataset.acc }));
   tw.querySelectorAll('.sw button[data-acc]').forEach(b => b.classList.toggle('on', (acc || L.swatches[0]) === b.dataset.acc));
   $('#lkAcc').onchange = e => setLook({ accent: e.target.value });
-  $('#lkRad').oninput = e => { e.target.nextElementSibling.textContent = e.target.value + 'px'; applyLook({ ...look, radius: Number(e.target.value) }); };
+  $('#lkRad').oninput = e => { e.target.nextElementSibling.textContent = e.target.value + 'px'; applyLook({ ...look, radius: Number(e.target.value) }, false); }; // live preview while dragging (the slider is not rebuilt)
   $('#lkRad').onchange = e => setLook({ radius: Number(e.target.value) });
   tw.querySelectorAll('[data-den]').forEach(b => b.onclick = () => setLook({ density: b.dataset.den }));
   $('#lkZoom').onchange = e => setLook({ zoom: Number(e.target.value) / 100 });
   $('#lkZoom').oninput = e => { e.target.nextElementSibling.textContent = e.target.value + '%'; };
   const g = $('#lkGlow'); if (g) g.onchange = e => setLook({ glow: e.target.checked });
-  const sh = $('#lkShadow'); if (sh) { sh.oninput = e => { e.target.nextElementSibling.textContent = e.target.value + 'px'; applyLook({ ...look, shadow: Number(e.target.value) }); }; sh.onchange = e => setLook({ shadow: Number(e.target.value) }); }
+  const sh = $('#lkShadow'); if (sh) { sh.oninput = e => { e.target.nextElementSibling.textContent = e.target.value + 'px'; applyLook({ ...look, shadow: Number(e.target.value) }, false); }; sh.onchange = e => setLook({ shadow: Number(e.target.value) }); }
   tw.querySelectorAll('[data-bg]').forEach(b => b.onclick = () => setLook({ bg: b.dataset.bg === ARCADE_BG[0] ? '' : b.dataset.bg }));
   const dk = $('#lkDark'); if (dk) dk.onchange = e => setLook({ dark: e.target.checked });
   const tc = $('#themeCard'); if (tc) tc.hidden = look.style !== 'candy';
