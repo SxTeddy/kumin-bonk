@@ -42,7 +42,7 @@ function handle(m) {
     case 'renderBanner': drawBanner(m); break;
     case 'summaryFiles': renderSummaryFiles(m); break;
     case 'giftsSeen': { const before = listAt; seenGifts = m.gifts || []; listGifts = m.listGifts || []; listAt = m.listAt || 0; renderNewGifts(); fillGiftList(); if (listChecking && listAt !== before) { listChecking = false; toast('เช็ครายการของขวัญจาก TikTok แล้ว'); } break; }
-    case 'giftListFail': if (m.manual) { listChecking = false; renderNewGifts(true); toast('เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ'); } break;
+    case 'giftListFail': if (m.manual) { listChecking = false; renderNewGifts(true); toast(m.live ? 'TikTok ยังไม่ส่งรายการของขวัญมา ลองกดใหม่อีกครั้งนะ' : 'เชื่อมต่อไลฟ์ก่อน แล้วค่อยกดเช็คนะ'); } break;
     case 'sounds': {
       config.customSounds = m.customSounds || [];
       const tg = soundTarget && soundTarget.until > Date.now() ? soundTarget : null; soundTarget = null;
@@ -698,7 +698,10 @@ function showNewGift(name) {
   row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600);
 }
 let newGiftsLater = false, listChecking = false;
-$('#btnGiftList').onclick = () => { if (lastStatus && lastStatus.tiktok?.status !== 'live') return toast('เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ'); listChecking = true; renderNewGifts(true); send({ t: 'refreshGiftList' }); };
+let lastStatus = null;
+const isLive = () => lastStatus?.tiktok?.status === 'live';
+function giftListBtn() { const b = $('#btnGiftList'); if (b) { b.disabled = !isLive() || listChecking; b.title = isLive() ? '' : 'กดได้ตอนเชื่อมต่อไลฟ์อยู่'; } }
+$('#btnGiftList').onclick = () => { if (!isLive()) return toast('เชื่อมต่อไลฟ์ก่อน แล้วค่อยกดเช็คนะ'); listChecking = true; renderNewGifts(true); send({ t: 'refreshGiftList' }); };
 function renderNewGifts(force = false) {
   const box = $('#newGiftList'); if (!box || !config) return;
   // someone is typing / choosing in the list: don't rebuild it under their fingers (gifts keep arriving during a live)
@@ -710,7 +713,8 @@ function renderNewGifts(force = false) {
   $('#matchedGifts').querySelectorAll('[data-unmatch]').forEach(b => b.onclick = () => { const g = done[Number(b.dataset.unmatch)]; send({ t: 'aliasGift', name: g.name, th: '' }); toast('ยกเลิกการจับคู่ ' + g.name + ' แล้ว'); });
   const fx = fxCfg(); fx.newGifts ||= {};
   const list = newGiftList();
-  $('#listInfo').textContent = listChecking ? 'กำลังเช็ค…' : listAt ? 'เช็คล่าสุด ' + new Date(listAt).toLocaleString() : 'ยังไม่เคยเช็ค · แอปเช็คให้เองตอนเชื่อมต่อไลฟ์';
+  $('#listInfo').textContent = listChecking ? 'กำลังเช็ค…' : listAt ? 'เช็คล่าสุด ' + new Date(listAt).toLocaleString() : isLive() ? 'ยังไม่เคยเช็ค' : 'ยังไม่เคยเช็ค · กดได้ตอนเชื่อมต่อไลฟ์อยู่';
+  giftListBtn();
   const n = $('#newGiftsN'); n.hidden = !list.length; n.textContent = list.length;
   $('#catalogNames').innerHTML = catalog.map(g => `<option value="${esc(g.th)}">`).join('');
   if (!list.length) { box.innerHTML = '<p class="hint">ยังไม่มี · หลังไลฟ์ ถ้ามีของขวัญที่แอปยังไม่รู้จัก จะขึ้นที่นี่ให้ตั้งท่าได้</p>'; return; }
@@ -1382,9 +1386,10 @@ connect();
 
 
 // ---------- ✨ live helpers ----------
-let lastStatus = null;
 function renderPause(s) {
+  const wasLive = isLive();
   lastStatus = s;
+  if (wasLive !== isLive()) renderNewGifts(true);
   const on = !!s.paused, q = s.queued || 0;
   const pill = $('#pPause');
   pill.classList.toggle('on', on);

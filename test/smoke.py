@@ -58,6 +58,8 @@ with sync_playwright() as p:
     pg.fill('#pfName', 'test'); pg.click('#pfSave'); pg.wait_for_timeout(200)
     pg.click('.pflist [data-use] >> nth=0'); pg.wait_for_timeout(500)
     pg.click('#tabs button[data-tab=cats]'); pg.wait_for_timeout(300)
+    if not pg.is_disabled('#btnGiftList'): fails.append('gift-list button clickable while not live')
+    if 'กดได้ตอนเชื่อมต่อไลฟ์อยู่' not in pg.inner_text('#listInfo'): fails.append('gift-list hint missing while not live')
     pg.click('#catQuick button >> nth=0'); pg.wait_for_timeout(200)
     if pg.locator('#catQuick button.off').count() != 1: fails.append('quick category toggle failed')
     pg.click('#catQuick button >> nth=0'); pg.wait_for_timeout(200)

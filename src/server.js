@@ -22,7 +22,7 @@ import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.0.4';
+const VERSION = '1.0.5';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -174,7 +174,7 @@ async function checkGiftList(manual = false) {
     const fresh = listNew().length;
     log('gift', `🔄 เช็ครายการของขวัญ TikTok แล้ว: ${r.list.length} ชิ้น · ของขวัญใหม่ที่แอปยังไม่รู้จัก ${fresh} ชิ้น · จับชื่อเพิ่ม ${r.learned} ชิ้น`);
     toDashboards({ t: 'giftsSeen', gifts: seenList(), listGifts: listNew(), listAt: tikGifts.at });
-  } catch (e) { if (manual) log('gift', `เช็ครายการของขวัญไม่ได้: ${e.message}`, 'warn'); toDashboards({ t: 'giftListFail', manual }); }
+  } catch (e) { if (manual) log('gift', `เช็ครายการของขวัญไม่ได้: ${e.message}`, 'warn'); toDashboards({ t: 'giftListFail', manual, live: tiktok.status === 'live' }); }
 }
 let seenPush = null;
 const pushSeen = () => { if (!seenPush) seenPush = setTimeout(() => { seenPush = null; toDashboards({ t: 'giftsSeen', gifts: seenList(), listGifts: listNew(), listAt: tikGifts.at }); }, 1500); };
