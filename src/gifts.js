@@ -274,12 +274,12 @@ const priceCount = new Map();
 for (const g of CATALOG) priceCount.set(g.coins, (priceCount.get(g.coins) || 0) + 1);
 
 export class GiftMatcher {
-  constructor(learned = {}) { this.learned = Object.assign(Object.create(null), learned && typeof learned === 'object' ? learned : {}); } // english name (lowercase) -> thai name
+  constructor(learned = {}) { this.learned = Object.assign(Object.create(null), learned && typeof learned === 'object' ? learned : {}); this.notCatalog = new Set(); } // english name (lowercase) -> thai name · notCatalog: names TikTok's gift list says are new gifts
 
   // Remember the Thai name of an English gift name when its price points to exactly one gift.
   learn(enName, coins) {
     const key = norm(enName);
-    if (!key || this.learned[key] || CATALOG.some(g => norm(g.en) === key || norm(g.th) === key)) return null;
+    if (!key || this.notCatalog.has(key) || this.learned[key] || CATALOG.some(g => norm(g.en) === key || norm(g.th) === key)) return null;
     const same = CATALOG.filter(g => g.coins === coins);
     if (same.length === 1) { this.learned[key] = same[0].th; return same[0].th; }
     return null;
@@ -290,7 +290,7 @@ export class GiftMatcher {
     const name = norm(gift.name);
     let g = CATALOG.find(c => norm(c.en) === name || norm(c.th) === name);
     if (!g && this.learned[name]) g = byTh.get(norm(this.learned[name]));
-    if (!g && priceCount.get(Number(gift.diamonds)) === 1) g = CATALOG.find(c => c.coins === Number(gift.diamonds));
+    if (!g && !this.notCatalog.has(name) && priceCount.get(Number(gift.diamonds)) === 1) g = CATALOG.find(c => c.coins === Number(gift.diamonds));
     return g || null;
   }
 

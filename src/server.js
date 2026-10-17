@@ -16,12 +16,13 @@ import crypto from 'node:crypto';
 import { Images } from './images.js';
 import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects, SCENES, SCENE_NAMES, MAX_ITEMS } from './effects.js';
+import { mergeGiftLists } from './giftlist.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.0.3';
+const VERSION = '1.0.4';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -155,8 +156,26 @@ setInterval(() => { if (seenDirty) { seenDirty = false; writeJson('gifts-seen.js
 // 🆕 gifts the app does not know yet (new on TikTok): listed in the 🎭 tab to give them a move or match them to a known gift
 const giftKey = s => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g), matched: Object.hasOwn(gifts.learned, giftKey(g.name)) ? gifts.learned[giftKey(g.name)] : '' }));
+// 🔄 TikTok's current gift list (checked when the live connects, at most every 12 hours, or with the button)
+let tikGifts = readJson('tiktok-gifts.json', { at: 0, list: [] });
+if (!Array.isArray(tikGifts.list)) tikGifts = { at: 0, list: [] };
+const listNew = () => tikGifts.list.filter(g => !g.known && !gifts.find({ name: g.name, diamonds: g.coins }));
+if (tikGifts.thaiOk !== false) for (const g of tikGifts.list) if (!g.known) gifts.notCatalog.add(giftKey(g.name));
+async function checkGiftList(manual = false) {
+  if (!manual && Date.now() - (tikGifts.at || 0) < 12 * 3600e3) return;
+  try {
+    const { th, en } = await tiktok.fetchGiftLists();
+    const r = mergeGiftLists(th, en, CATALOG, gifts.learned);
+    tikGifts = { at: Date.now(), list: r.list, thaiOk: r.thaiOk };
+    gifts.notCatalog.clear(); if (r.thaiOk) for (const g of r.list) if (!g.known) gifts.notCatalog.add(giftKey(g.name));
+    writeJson('tiktok-gifts.json', tikGifts); seenDirty = true;
+    const fresh = listNew().length;
+    log('gift', `🔄 เช็ครายการของขวัญ TikTok แล้ว: ${r.list.length} ชิ้น · ของขวัญใหม่ที่แอปยังไม่รู้จัก ${fresh} ชิ้น · จับชื่อเพิ่ม ${r.learned} ชิ้น`);
+    toDashboards({ t: 'giftsSeen', gifts: seenList(), listGifts: listNew(), listAt: tikGifts.at });
+  } catch (e) { if (manual) log('gift', `เช็ครายการของขวัญไม่ได้: ${e.message}`, 'warn'); toDashboards({ t: 'giftListFail', manual }); }
+}
 let seenPush = null;
-const pushSeen = () => { if (!seenPush) seenPush = setTimeout(() => { seenPush = null; toDashboards({ t: 'giftsSeen', gifts: seenList() }); }, 1500); };
+const pushSeen = () => { if (!seenPush) seenPush = setTimeout(() => { seenPush = null; toDashboards({ t: 'giftsSeen', gifts: seenList(), listGifts: listNew(), listAt: tikGifts.at }); }, 1500); };
 function noteGift(ev) {
   const name = ev.gift.name, prev = giftsSeen.get(name);
   if (!prev && giftsSeen.size >= 1000) return;
@@ -274,6 +293,7 @@ function onEvent(ev, simulated = false) {
   toDashboards({ t: 'event', ev, fired, simulated, time: Date.now(), combo, queued: !simulated && (engine.paused || engine.queue.length > 0) && fired.length > 0 });
 }
 tiktok.on('event', e => onEvent(e));
+tiktok.on('connected', () => setTimeout(() => checkGiftList(false), 4000));
 
 const COORD_KEYS = ['modelID', 'artMeshID', 'vertexID1', 'vertexID2', 'vertexID3', 'vertexWeight1', 'vertexWeight2', 'vertexWeight3'];
 async function syncTracking() {
@@ -459,15 +479,16 @@ async function onDashboard(ws, m) {
       toDashboards({ t: 'event', ev, fired: [`ท่า: ${STYLES[style || g.style]}`], simulated: true, time: Date.now() });
       return engine.run({ type: 'giftfx', style: style || 'auto' }, { name: 'คนทดสอบ', gift: g.th, count: ev.count, diamonds: g.coins, entry: g, preview: true });
     }
+    case 'refreshGiftList': return checkGiftList(true);
     case 'aliasGift': { // "this new TikTok gift is the same as <Thai gift>" (or undo with no th)
       const name = String(m.name || '').slice(0, 120), key = giftKey(name);
-      if (!key || !giftsSeen.has(name)) return;
+      if (!key || !(giftsSeen.has(name) || tikGifts.list.some(g => g.name === name))) return;
       if (m.th) {
         const g = CATALOG.find(c => c.th === m.th); if (!g) return;
         gifts.learned[key] = g.th; log('gift', `จับคู่ "${name}" กับ ${g.th} แล้ว`);
       } else if (Object.hasOwn(gifts.learned, key)) { delete gifts.learned[key]; log('gift', `ยกเลิกการจับคู่ "${name}" แล้ว`); }
       seenDirty = true;
-      return toDashboards({ t: 'giftsSeen', gifts: seenList() });
+      return toDashboards({ t: 'giftsSeen', gifts: seenList(), listGifts: listNew(), listAt: tikGifts.at });
     }
     case 'bannerImg': {
       const done = bannerWait.get(String(m.id || '')); if (!done) return;
@@ -605,7 +626,7 @@ wss.on('connection', (ws, req) => {
     ws.isApp = new URL(req.url, 'http://x').searchParams.get('app') === '1';
     if (ws.isApp) for (const d of dashboards) if (d.isApp) send(d, { t: 'closeWindow' });
     dashboards.add(ws);
-    send(ws, { t: 'state', config, gifts: seenList(), catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, bigDefault: BIG_DEFAULT, scenes: SCENES, sceneNames: SCENE_NAMES, anchors: ANCHOR, logs, justUpdated, firstRun });
+    send(ws, { t: 'state', config, gifts: seenList(), listGifts: listNew(), listAt: tikGifts.at, catalog: CATALOG, styles: STYLES, catDefault: CAT_DEFAULT, bigDefault: BIG_DEFAULT, scenes: SCENES, sceneNames: SCENE_NAMES, anchors: ANCHOR, logs, justUpdated, firstRun });
     justUpdated = ''; firstRun = false;
     send(ws, { t: 'status', ...status() });
     send(ws, { t: 'update', ...updater.state });

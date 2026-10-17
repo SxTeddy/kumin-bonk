@@ -12,6 +12,8 @@ import { privateIp } from '../src/images.js';
 import { GiftMatcher } from '../src/gifts.js';
 import { Effects } from '../src/effects.js';
 import { newer } from '../src/updater.js';
+import { mergeGiftLists } from '../src/giftlist.js';
+import { CATALOG } from '../src/gifts.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const results = [];
@@ -296,6 +298,26 @@ await t('a gift the app does not know uses the move picked for it (or is switche
   await e.fire(rule, { type: 'gift', user: { id: 'a' }, gift: { name: 'Muted Gift', diamonds: 77 }, count: 1 });
   await e.fire(rule, { type: 'gift', user: { id: 'a' }, gift: { name: '__proto__', diamonds: 77 }, count: 1 });
   assert.deepEqual(plays, ['wear', 'bonk']);
+});
+await t("TikTok's gift list teaches English names and finds new gifts", async () => {
+  const known = CATALOG.find(c => !c.en && c.coins > 1000), img = n => ({ url_list: ['https://p16.tiktokcdn.com/' + n + '.webp'] });
+  const th = [{ id: 1, name: known.th, diamond_count: known.coins, image: img('a') }, { id: 2, name: 'ม้าบินสายฟ้า', diamond_count: 42999, image: img('b') }, { id: 3, name: 'กุหลาบ', diamond_count: 1 }];
+  const en = [{ id: 1, name: 'Shiny Thing', diamond_count: known.coins, image: img('a') }, { id: 2, name: 'Thunder Pegasus', diamond_count: 42999, image: img('b') }, { id: 3, name: 'Rose', diamond_count: 1 }];
+  const learned = Object.create(null);
+  const r = mergeGiftLists(th, en, CATALOG, learned);
+  assert.equal(learned['shiny thing'], known.th, 'english name not linked to the thai gift');
+  assert.equal(r.learned, 1);
+  const fresh = r.list.filter(g => !g.known);
+  assert.deepEqual(fresh.map(g => [g.name, g.label, g.coins]), [['Thunder Pegasus', 'ม้าบินสายฟ้า', 42999]]);
+  assert.ok(fresh[0].image.startsWith('https://'));
+  const m = new GiftMatcher(); m.notCatalog.add('thunder pegasus');
+  const unique = CATALOG.find(c => CATALOG.filter(x => x.coins === c.coins).length === 1);
+  assert.equal(m.find({ name: 'Thunder Pegasus', diamonds: unique.coins }), null, 'a new gift must not be guessed by price');
+  assert.equal(mergeGiftLists([{ id: 9, name: 'x', image: { url_list: ['javascript:alert(1)'] } }], [], CATALOG, learned).list[0].image, '', 'unsafe picture link kept');
+  // TikTok answered in English for both: no flood of "new" gifts, only prices we don't have at all
+  const engOnly = CATALOG.slice(0, 50).map((c, i) => ({ id: 100 + i, name: 'Gift ' + i, diamond_count: c.coins }));
+  const r2 = mergeGiftLists(engOnly.concat([{ id: 999, name: 'Odd Price', diamond_count: 123457 }]), engOnly, CATALOG, Object.create(null));
+  assert.deepEqual(r2.list.filter(g => !g.known).map(g => g.name), ['Odd Price']);
 });
 await t('version numbers compare correctly (updates only go forward)', async () => {
   assert.ok(newer('1.0.1', '1.0.0')); assert.ok(newer('1.1.0', '1.0.9')); assert.ok(newer('1.0.10', '1.0.9'));

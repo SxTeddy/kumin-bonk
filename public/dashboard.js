@@ -6,7 +6,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 let config = null;
 let vtsLists = { hotkeys: [], expressions: [], items: [] };
-let seenGifts = [];
+let seenGifts = [], listGifts = [], listAt = 0; // listGifts: new gifts from TikTok's own gift list
 let catalog = []; // Thai gift list {coins, th, en, img, style}
 let anchors = {}; // style -> where it lands relative to the head
 let styles = {};  // effect style id -> Thai description
@@ -27,7 +27,7 @@ function connect() {
 function handle(m) {
   switch (m.t) {
     case 'state':
-      config = m.config; seenGifts = m.gifts || []; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.bigDefault) bigDefault = m.bigDefault; if (m.scenes) sceneMap = m.scenes; if (m.sceneNames) sceneNames = m.sceneNames; if (m.anchors) anchors = m.anchors;
+      config = m.config; seenGifts = m.gifts || []; listGifts = m.listGifts || []; listAt = m.listAt || 0; if (m.catalog) catalog = m.catalog; if (m.styles) styles = m.styles; if (m.catDefault) catDefault = m.catDefault; if (m.bigDefault) bigDefault = m.bigDefault; if (m.scenes) sceneMap = m.scenes; if (m.sceneNames) sceneNames = m.sceneNames; if (m.anchors) anchors = m.anchors;
       (m.logs || []).forEach(addLog);
       if (config.theme && config.theme !== curTheme()) applyTheme(config.theme);
       if (config.look) applyLook(config.look);
@@ -41,7 +41,8 @@ function handle(m) {
     case 'sessions': renderSessions(m); break;
     case 'renderBanner': drawBanner(m); break;
     case 'summaryFiles': renderSummaryFiles(m); break;
-    case 'giftsSeen': seenGifts = m.gifts || []; renderNewGifts(); fillGiftList(); break;
+    case 'giftsSeen': { const before = listAt; seenGifts = m.gifts || []; listGifts = m.listGifts || []; listAt = m.listAt || 0; renderNewGifts(); fillGiftList(); if (listChecking && listAt !== before) { listChecking = false; toast('เช็ครายการของขวัญจาก TikTok แล้ว'); } break; }
+    case 'giftListFail': if (m.manual) { listChecking = false; renderNewGifts(true); toast('เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ'); } break;
     case 'sounds': {
       config.customSounds = m.customSounds || [];
       const tg = soundTarget && soundTarget.until > Date.now() ? soundTarget : null; soundTarget = null;
@@ -683,7 +684,8 @@ async function drawBanner({ id, lines, tier }) {
   } catch { send({ t: 'bannerImg', id, b64: '' }); }
 }
 // 🆕 gifts received in a live that the app does not know yet
-let newGiftsLater = false;
+let newGiftsLater = false, listChecking = false;
+$('#btnGiftList').onclick = () => { if (lastStatus && lastStatus.tiktok?.status !== 'live') return toast('เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ'); listChecking = true; renderNewGifts(true); send({ t: 'refreshGiftList' }); };
 function renderNewGifts(force = false) {
   const box = $('#newGiftList'); if (!box || !config) return;
   // someone is typing / choosing in the list: don't rebuild it under their fingers (gifts keep arriving during a live)
@@ -694,13 +696,16 @@ function renderNewGifts(force = false) {
   $('#matchedGifts').innerHTML = done.length ? `<small class="hint">จับคู่ไว้แล้ว:</small> ${done.map((g, i) => `<span class="chip">${esc(g.name)} → ${esc(g.matched)} <button type="button" class="small ghost" data-unmatch="${i}" aria-label="ยกเลิกการจับคู่ ${esc(g.name)}">✕</button></span>`).join(' ')}` : '';
   $('#matchedGifts').querySelectorAll('[data-unmatch]').forEach(b => b.onclick = () => { const g = done[Number(b.dataset.unmatch)]; send({ t: 'aliasGift', name: g.name, th: '' }); toast('ยกเลิกการจับคู่ ' + g.name + ' แล้ว'); });
   const fx = fxCfg(); fx.newGifts ||= {};
-  const list = seenGifts.filter(g => g.known === false).sort((a, b) => (b.last || 0) - (a.last || 0));
+  const got = seenGifts.filter(g => g.known === false).sort((a, b) => (b.last || 0) - (a.last || 0));
+  // + gifts in TikTok's gift list that nobody has sent yet (set them up before the live)
+  const list = [...got, ...listGifts.filter(x => !got.some(g => g.name === x.name)).map(x => ({ name: x.name, label: x.label, image: x.image, diamonds: x.coins, count: 0 }))];
+  $('#listInfo').textContent = listChecking ? 'กำลังเช็ค…' : listAt ? 'เช็คล่าสุด ' + new Date(listAt).toLocaleString() : 'ยังไม่เคยเช็ค · แอปเช็คให้เองตอนเชื่อมต่อไลฟ์';
   const n = $('#newGiftsN'); n.hidden = !list.length; n.textContent = list.length;
   $('#catalogNames').innerHTML = catalog.map(g => `<option value="${esc(g.th)}">`).join('');
   if (!list.length) { box.innerHTML = '<p class="hint">ยังไม่มี · หลังไลฟ์ ถ้ามีของขวัญที่แอปยังไม่รู้จัก จะขึ้นที่นี่ให้ตั้งท่าได้</p>'; return; }
   box.innerHTML = list.map((g, i) => { const o = Object.hasOwn(fx.newGifts, g.name) ? fx.newGifts[g.name] : {}; return `<div class="ng${o.off ? ' off' : ''}" data-i="${i}">
     <div class="ng-pic">${g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy">` : ''}</div>
-    <div class="ng-name"><b>${esc(g.name)}</b><small>${Number(g.diamonds || 0).toLocaleString()} เหรียญ · ได้รับ ${Number(g.count || 1).toLocaleString()} ชิ้น</small></div>
+    <div class="ng-name"><b>${esc(g.label && g.label !== g.name ? g.label + ' (' + g.name + ')' : g.name)}</b><small>${Number(g.diamonds || 0).toLocaleString()} เหรียญ · ${g.count ? 'ได้รับ ' + Number(g.count).toLocaleString() + ' ชิ้น' : 'ยังไม่มีใครส่ง'}</small></div>
     <label class="switch" title="เปิด/ปิดชิ้นนี้"><input type="checkbox" data-on ${o.off ? '' : 'checked'}><span></span></label>
     <div><label>ท่า</label><select data-style><option value="auto">ตามช่วงราคา</option>${Object.entries(styles).map(([k, v]) => `<option value="${esc(k)}" ${k === o.style ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
     <div><label>เหมือนของขวัญในแอป</label><div class="row"><input data-match list="catalogNames" placeholder="พิมพ์ชื่อของขวัญ…"><button type="button" class="small" data-domatch>จับคู่</button></div></div>

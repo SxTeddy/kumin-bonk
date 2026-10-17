@@ -63,6 +63,7 @@ export class TikTokSource extends EventEmitter {
       this.retryDelay = 5000;
       this.setStatus('live', `room ${state?.roomId ?? ''}`.trim());
       this.log('tiktok', `เชื่อมต่อไลฟ์ของ @${this.username} แล้ว`);
+      this.emit('connected');
     } catch (err) {
       if (this.conn !== conn) return;
       const msg = friendlyError(err);
@@ -79,6 +80,20 @@ export class TikTokSource extends EventEmitter {
     this.retryDelay = Math.min(this.retryDelay * 2, 60000);
     this.log('tiktok', `จะลองใหม่ใน ${Math.round(d / 1000)} วินาที`);
     this.retryTimer = setTimeout(() => this._open(), d);
+  }
+
+  // 🔄 TikTok's gift list for this room, in Thai and English (same gift id in both → which English name is which Thai gift)
+  async fetchGiftLists() {
+    const conn = this.conn, wc = conn?.webClient, roomId = conn?.roomId;
+    if (!wc || !roomId || typeof wc.getJsonObjectFromWebcastApi !== 'function') throw new Error('ต้องเชื่อมต่อไลฟ์ก่อน');
+    const get = async (lang, browser) => {
+      const r = await wc.getJsonObjectFromWebcastApi('gift/list/', { ...wc.clientParams, room_id: roomId, app_language: lang, webcast_language: lang, browser_language: browser }, true);
+      return Array.isArray(r?.data?.gifts) ? r.data.gifts : [];
+    };
+    const th = await get('th', 'th-TH').catch(() => []);
+    const en = await get('en', 'en-US').catch(() => []);
+    if (!th.length && !en.length) throw new Error('TikTok ไม่ส่งรายการของขวัญมา');
+    return { th, en };
   }
 
   async disconnect(silent = false) {
