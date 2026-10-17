@@ -224,7 +224,7 @@ export class Engine {
         // a gift the app does not know yet: its move / on-off chosen in the 🆕 list (🎭 tab)
         const extra = !e && ctx.gift && fx.newGifts && Object.hasOwn(fx.newGifts, ctx.gift) ? fx.newGifts[ctx.gift] : null;
         if (extra?.off) return;
-        const extraStyle = extra?.style && extra.style !== 'auto' ? extra.style : null;
+        const extraStyle = extra?.style && extra.style !== 'auto' ? extra.style : (!e && ctx.gift ? this.gifts.guess?.(ctx.gift) || null : null); // picked, else guessed from the name
         let style = a.style && a.style !== 'auto' ? a.style : (own.style || e?.style || extraStyle || (ctx.gift ? 'bonk' : 'love'));
         const baseStyle = style;
         const cat = catSettings(fx, style);                               // per-category settings

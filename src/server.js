@@ -155,12 +155,13 @@ let seenDirty = false;
 setInterval(() => { if (seenDirty) { seenDirty = false; writeJson('gifts-seen.json', [...giftsSeen.values()]); writeJson('gift-aliases.json', gifts.learned); } }, 5000);
 // 🆕 gifts the app does not know yet (new on TikTok): listed in the 🎭 tab to give them a move or match them to a known gift
 const giftKey = s => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g), matched: Object.hasOwn(gifts.learned, giftKey(g.name)) ? gifts.learned[giftKey(g.name)] : '' }));
+const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g), guess: gifts.guess(g.name), matched: Object.hasOwn(gifts.learned, giftKey(g.name)) ? gifts.learned[giftKey(g.name)] : '' }));
 // 🔄 TikTok's current gift list (checked when the live connects, at most every 12 hours, or with the button)
 let tikGifts = readJson('tiktok-gifts.json', { at: 0, list: [] });
 if (!Array.isArray(tikGifts.list)) tikGifts = { at: 0, list: [] };
-const listNew = () => tikGifts.list.filter(g => !g.known && !gifts.find({ name: g.name, diamonds: g.coins }));
+const listNew = () => tikGifts.list.filter(g => !g.known && !gifts.find({ name: g.name, diamonds: g.coins })).map(g => ({ ...g, guess: gifts.guess(g.name) }));
 if (tikGifts.thaiOk !== false) for (const g of tikGifts.list) if (!g.known) gifts.notCatalog.add(giftKey(g.name));
+for (const g of tikGifts.list) if (g.label) gifts.labels.set(giftKey(g.name), g.label);
 async function checkGiftList(manual = false) {
   if (!manual && Date.now() - (tikGifts.at || 0) < 12 * 3600e3) return;
   try {
@@ -168,6 +169,7 @@ async function checkGiftList(manual = false) {
     const r = mergeGiftLists(th, en, CATALOG, gifts.learned);
     tikGifts = { at: Date.now(), list: r.list, thaiOk: r.thaiOk };
     gifts.notCatalog.clear(); if (r.thaiOk) for (const g of r.list) if (!g.known) gifts.notCatalog.add(giftKey(g.name));
+    gifts.labels.clear(); for (const g of r.list) if (g.label) gifts.labels.set(giftKey(g.name), g.label);
     writeJson('tiktok-gifts.json', tikGifts); seenDirty = true;
     const fresh = listNew().length;
     log('gift', `🔄 เช็ครายการของขวัญ TikTok แล้ว: ${r.list.length} ชิ้น · ของขวัญใหม่ที่แอปยังไม่รู้จัก ${fresh} ชิ้น · จับชื่อเพิ่ม ${r.learned} ชิ้น`);

@@ -38,3 +38,38 @@ export function mergeGiftLists(th, en, catalog, learned) {
   list.sort((a, b) => b.coins - a.coins);
   return { learned: added, list, thaiOk };
 }
+
+// 🏷️ Which category (move) a gift the app doesn't know yet most likely belongs to, from words in its name
+// (English name from live events, Thai name from TikTok's list). null = no idea: plays by price range.
+const GUESS = [
+  ['rocket', ['rocket', 'shuttle', 'spaceship', 'จรวด', 'ยานอวกาศ']],
+  ['meteor', ['meteor', 'comet', 'อุกกาบาต', 'ดาวตก']],
+  ['zap', ['lightning', 'thunder', 'สายฟ้า', 'ฟ้าผ่า']],
+  ['spider', ['spider', 'แมงมุม']],
+  ['punch', ['boxing', 'punch', 'knockout', 'ต่อย', 'ชก']],
+  ['balloon', ['balloon', 'ลูกโป่ง']],
+  ['money', ['money', 'cash', 'gem gun', 'coin', 'gold mine', 'เงิน', 'เหรียญ']],
+  ['roar', ['lion', 'tiger', 'dragon', 'dino*', 'gorilla', 'wolf', 'shark', 'สิงโต', 'เสือ', 'มังกร', 'ไดโนเสาร์', 'กอริลลา', 'หมาป่า']],
+  ['drive', ['car', 'train', 'motor', 'bike', 'race', 'racing', 'bus', 'carriage', 'yacht', 'ship', 'boat', 'tractor', 'รถ', 'เรือ']],
+  ['flyby', ['plane', 'jet', 'airship', 'bird', 'eagle', 'hawk', 'falcon', 'pegasus', 'phoenix', 'whale', 'butterfly', 'ufo', 'เครื่องบิน', 'นก', 'อินทรี', 'ผีเสื้อ', 'วาฬ', 'ฟีนิกซ์']],
+  ['music', ['guitar', 'drum', 'mic', 'piano', 'sax', 'violin', 'music', 'dj', 'concert', 'กีตาร์', 'กลอง', 'ไมค์', 'ดนตรี', 'เปียโน']],
+  ['eat', ['donut', 'doughnut', 'cake', 'ice cream', 'candy', 'cookie', 'burger', 'pizza', 'coffee', 'tea', 'potato', 'sausage', 'watermelon', 'cherry', 'fruit', 'โดนัท', 'เค้ก', 'ไอศกรีม', 'ไอติม', 'ขนม', 'กาแฟ', 'ชา', 'แตงโม']],
+  ['wear', ['hat', 'cap', 'crown', 'glasses', 'headset', 'headphone', 'tiara', 'helmet', 'หมวก', 'มงกุฎ', 'แว่น', 'หูฟัง']],
+  ['neck', ['necklace', 'scarf', 'garland', 'medal', 'สร้อย', 'พวงมาลัย', 'ผ้าพันคอ']],
+  ['ice', ['ice', 'snow', 'frozen', 'น้ำแข็ง', 'หิมะ']],
+  ['fire', ['fire', 'flame', 'ไฟลุก', 'เปลวไฟ']],
+  ['animal', ['cat', 'kitten', 'dog', 'corgi', 'puppy', 'bunny', 'rabbit', 'panda', 'duck', 'chick', 'seal', 'penguin', 'meerkat', 'monkey', 'bear', 'fox', 'hamster', 'แมว', 'หมา', 'สุนัข', 'กระต่าย', 'แพนด้า', 'เป็ด', 'หมี', 'ลิง', 'จิ้งจอก']],
+  ['ball', ['ball', 'football', 'soccer', 'tennis', 'บอล', 'ฟุตบอล']],
+  ['flower', ['flower', 'rose', 'rosa', 'bouquet', 'blossom', 'tulip', 'ดอกไม้', 'กุหลาบ', 'ดอก']],
+  ['party', ['firework', 'confetti', 'party', 'celebrat*', 'anniversary', 'festival', 'พลุ', 'ปาร์ตี้', 'ฉลอง']],
+  ['magic', ['magic', 'wand', 'unicorn', 'fairy', 'galaxy', 'universe', 'castle', 'เวทมนตร์', 'ยูนิคอร์น', 'ปราสาท', 'กาแล็กซี']],
+  ['love', ['heart', 'love', 'kiss', 'หัวใจ', 'รัก', 'จูบ']],
+  ['pat', ['thumbs', 'clap', 'applause', 'hand', 'ปรบมือ', 'นิ้วโป้ง']],
+];
+export function guessStyle(name = '', label = '') {
+  const s = (' ' + String(name) + ' ' + String(label) + ' ').toLowerCase();
+  // English words match whole words (a plural s is fine; 'word*' = any ending), Thai words match anywhere
+  const hit = w => /^[a-z *]+$/.test(w) ? new RegExp(`(^|[^a-z])${w.replace('*', '[a-z]*')}${w.endsWith('*') ? '' : '(e?s)?'}([^a-z]|$)`).test(s) : s.includes(w);
+  for (const [style, words] of GUESS) if (words.some(hit)) return style;
+  return null;
+}

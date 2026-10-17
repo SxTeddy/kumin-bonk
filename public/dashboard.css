@@ -540,3 +540,7 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .matched { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .matched .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--chip); font-size: 13px; }
 .matched .chip button { padding: 0 6px; border: 0; }
+.cat .gifts button.newg { outline: 2px dashed var(--pink); outline-offset: -2px; }
+.cat .gifts button.newg::after { content: "NEW"; position: absolute; left: 1px; top: 1px; font-size: 9px; line-height: 1; padding: 2px 3px; border-radius: 4px; background: var(--pink); color: var(--on-accent); }
+.cat .gifts button.newg span { font-size: 12px; }
+.ng.flash { box-shadow: 0 0 0 3px var(--pink); transition: box-shadow .3s; }

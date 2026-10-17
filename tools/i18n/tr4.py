@@ -328,10 +328,12 @@ EXTRA = [
 ("ยังไม่เคยเช็ค · แอปเช็คให้เองตอนเชื่อมต่อไลฟ์", "Not checked yet · the app checks when the live connects", "まだチェックしていません · ライブ接続時に自動でチェックします", "尚未检查 · 连接直播时会自动检查", "아직 확인 안 함 · 라이브 연결 때 자동으로 확인해요", "Chưa kiểm tra · app tự kiểm tra khi kết nối live", "Belum dicek · aplikasi mengecek saat live terhubung", "Aún no revisado · se revisa al conectar el directo"),
 ("เช็ครายการของขวัญจาก TikTok แล้ว", "Checked TikTok's gift list", "TikTokのギフト一覧をチェックしました", "已检查 TikTok 礼物列表", "TikTok 선물 목록을 확인했어요", "Đã kiểm tra danh sách quà TikTok", "Daftar hadiah TikTok sudah dicek", "Lista de regalos de TikTok revisada"),
 ("เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ", "Can't check — connect to your live first", "チェックできません — 先にライブに接続してね", "无法检查 — 请先连接直播", "확인할 수 없어요 — 먼저 라이브에 연결하세요", "Không kiểm tra được — hãy kết nối live trước", "Tidak bisa dicek — hubungkan live dulu", "No se puede revisar — conecta el directo primero"),
+("หมวด", "Category", "カテゴリー", "分类", "카테고리", "Nhóm", "Kategori", "Categoría"),
 ]
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)
 PATS = [
+(r"^อัตโนมัติ: (.+)$", "Auto: $1", "自動: $1", "自动：$1", "자동: $1", "Tự động: $1", "Otomatis: $1", "Automático: $1"),
 (r"^เช็คล่าสุด (.+)$", "Last checked $1", "最終チェック $1", "上次检查 $1", "마지막 확인 $1", "Kiểm tra lần cuối $1", "Terakhir dicek $1", "Última revisión $1"),
 (r"^([\d,]+) เหรียญ · ยังไม่มีใครส่ง$", "$1 coins · not sent yet", "$1 コイン · まだ誰も送っていません", "$1 金币 · 还没人送", "$1 코인 · 아직 아무도 안 보냄", "$1 xu · chưa ai tặng", "$1 koin · belum ada yang kirim", "$1 monedas · aún no enviado"),
 (r"^🔄 เช็ครายการของขวัญ TikTok แล้ว: ([\d,]+) ชิ้น · ของขวัญใหม่ที่แอปยังไม่รู้จัก ([\d,]+) ชิ้น · จับชื่อเพิ่ม ([\d,]+) ชิ้น$", "🔄 Checked TikTok's gift list: $1 gifts · $2 new to the app · $3 names matched", "🔄 TikTokのギフト一覧をチェック: $1 個 · 新しいギフト $2 個 · 名前の紐づけ $3 個", "🔄 已检查 TikTok 礼物列表：$1 个 · 新礼物 $2 个 · 新配对名称 $3 个", "🔄 TikTok 선물 목록 확인: $1개 · 새 선물 $2개 · 이름 연결 $3개", "🔄 Đã kiểm tra quà TikTok: $1 món · mới $2 món · ghép tên $3 món", "🔄 Daftar hadiah TikTok dicek: $1 · baru $2 · nama dicocokkan $3", "🔄 Lista de TikTok revisada: $1 regalos · $2 nuevos · $3 nombres emparejados"),

@@ -684,6 +684,19 @@ async function drawBanner({ id, lines, tier }) {
   } catch { send({ t: 'bannerImg', id, b64: '' }); }
 }
 // 🆕 gifts received in a live that the app does not know yet
+// gifts the app doesn't know yet: received in a live + new ones in TikTok's gift list (nobody sent yet)
+function newGiftList() {
+  const got = seenGifts.filter(g => g.known === false).sort((a, b) => (b.last || 0) - (a.last || 0));
+  return [...got, ...listGifts.filter(x => !got.some(g => g.name === x.name)).map(x => ({ name: x.name, label: x.label, image: x.image, diamonds: x.coins, count: 0, guess: x.guess }))];
+}
+// the category a new gift is in: picked by the streamer, else guessed from its name, else none (plays by price)
+function newGiftCat(g) { const o = Object.hasOwn(fxCfg().newGifts || {}, g.name) ? fxCfg().newGifts[g.name] : {}; return o.style || g.guess || ''; }
+function showNewGift(name) {
+  $('#tabs button[data-tab="cats"]').click();
+  const i = newGiftList().findIndex(g => g.name === name), row = $(`#newGiftList .ng[data-i="${i}"]`);
+  if (!row) return;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600);
+}
 let newGiftsLater = false, listChecking = false;
 $('#btnGiftList').onclick = () => { if (lastStatus && lastStatus.tiktok?.status !== 'live') return toast('เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ'); listChecking = true; renderNewGifts(true); send({ t: 'refreshGiftList' }); };
 function renderNewGifts(force = false) {
@@ -696,9 +709,7 @@ function renderNewGifts(force = false) {
   $('#matchedGifts').innerHTML = done.length ? `<small class="hint">จับคู่ไว้แล้ว:</small> ${done.map((g, i) => `<span class="chip">${esc(g.name)} → ${esc(g.matched)} <button type="button" class="small ghost" data-unmatch="${i}" aria-label="ยกเลิกการจับคู่ ${esc(g.name)}">✕</button></span>`).join(' ')}` : '';
   $('#matchedGifts').querySelectorAll('[data-unmatch]').forEach(b => b.onclick = () => { const g = done[Number(b.dataset.unmatch)]; send({ t: 'aliasGift', name: g.name, th: '' }); toast('ยกเลิกการจับคู่ ' + g.name + ' แล้ว'); });
   const fx = fxCfg(); fx.newGifts ||= {};
-  const got = seenGifts.filter(g => g.known === false).sort((a, b) => (b.last || 0) - (a.last || 0));
-  // + gifts in TikTok's gift list that nobody has sent yet (set them up before the live)
-  const list = [...got, ...listGifts.filter(x => !got.some(g => g.name === x.name)).map(x => ({ name: x.name, label: x.label, image: x.image, diamonds: x.coins, count: 0 }))];
+  const list = newGiftList();
   $('#listInfo').textContent = listChecking ? 'กำลังเช็ค…' : listAt ? 'เช็คล่าสุด ' + new Date(listAt).toLocaleString() : 'ยังไม่เคยเช็ค · แอปเช็คให้เองตอนเชื่อมต่อไลฟ์';
   const n = $('#newGiftsN'); n.hidden = !list.length; n.textContent = list.length;
   $('#catalogNames').innerHTML = catalog.map(g => `<option value="${esc(g.th)}">`).join('');
@@ -707,7 +718,7 @@ function renderNewGifts(force = false) {
     <div class="ng-pic">${g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy">` : ''}</div>
     <div class="ng-name"><b>${esc(g.label && g.label !== g.name ? g.label + ' (' + g.name + ')' : g.name)}</b><small>${Number(g.diamonds || 0).toLocaleString()} เหรียญ · ${g.count ? 'ได้รับ ' + Number(g.count).toLocaleString() + ' ชิ้น' : 'ยังไม่มีใครส่ง'}</small></div>
     <label class="switch" title="เปิด/ปิดชิ้นนี้"><input type="checkbox" data-on ${o.off ? '' : 'checked'}><span></span></label>
-    <div><label>ท่า</label><select data-style><option value="auto">ตามช่วงราคา</option>${Object.entries(styles).map(([k, v]) => `<option value="${esc(k)}" ${k === o.style ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
+    <div><label>หมวด</label><select data-style><option value="auto">${g.guess && styles[g.guess] ? 'อัตโนมัติ: ' + esc(styles[g.guess]) : 'ตามช่วงราคา'}</option>${Object.entries(styles).map(([k, v]) => `<option value="${esc(k)}" ${k === o.style ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
     <div><label>เหมือนของขวัญในแอป</label><div class="row"><input data-match list="catalogNames" placeholder="พิมพ์ชื่อของขวัญ…"><button type="button" class="small" data-domatch>จับคู่</button></div></div>
     <button type="button" class="small" data-try>▶ ลอง</button>
   </div>`; }).join('');
@@ -715,7 +726,7 @@ function renderNewGifts(force = false) {
     const g = list[Number(row.dataset.i)];
     const set = (k, v) => { const cur = { ...(Object.hasOwn(fx.newGifts, g.name) ? fx.newGifts[g.name] : {}), [k]: v }; if (cur.style === 'auto') delete cur.style; if (!cur.off) delete cur.off; if (Object.keys(cur).length) fx.newGifts[g.name] = cur; else delete fx.newGifts[g.name]; save(); };
     row.querySelector('[data-on]').onchange = e => { set('off', !e.target.checked); row.classList.toggle('off', !e.target.checked); };
-    row.querySelector('[data-style]').onchange = e => { set('style', e.target.value); toast('ตั้งท่าของ ' + g.name + ' แล้ว'); };
+    row.querySelector('[data-style]').onchange = e => { set('style', e.target.value); renderCats(); toast('ตั้งท่าของ ' + g.name + ' แล้ว'); };
     row.querySelector('[data-domatch]').onclick = () => {
       const th = row.querySelector('[data-match]').value.trim();
       if (!catalog.some(c => c.th === th)) return toast('ไม่พบของขวัญชื่อนี้ในแอป');
@@ -736,6 +747,7 @@ function renderCats() {
   $('#showcaseMin').value = String(fxCfg().showcaseMin ?? 1000);
   const groups = {};
   for (const g of catalog) (groups[giftStyle(g)] ||= []).push(g);
+  const newGroups = {}; for (const g of newGiftList()) { const st = newGiftCat(g); if (st && styles[st]) (newGroups[st] ||= []).push(g); }
   box.innerHTML = '';
   for (const [st, label] of Object.entries(styles)) {
     const c = catOf(st), list = (groups[st] || []).sort((a, b) => a.coins - b.coins);
@@ -745,7 +757,7 @@ function renderCats() {
       ${slider('vol', '🔊 เสียง', 0, 2, 0.1, v => v > 0 ? Math.round(v * 100) + '%' : '🔇 ปิด')}${slider('size', 'ขนาดรูป', 0.4, 2.5, 0.1)}${slider('power', 'ความแรง', 0, 2, 0.1)}${slider('speed', 'ความเร็ว', 0.5, 2, 0.1)}<div class="ctl"><span>สูงสุดต่อครั้ง</span><input type="range" data-k="max" min="1" max="300" step="1" value="${Math.min(300, Number(c.max) || 30)}"><input type="number" class="maxn" min="1" max="300" step="1" value="${Math.min(300, Number(c.max) || 30)}" title="พิมพ์ตัวเลขได้ 1–300"></div>
       <div class="sel"><div><label>เสียง</label><select data-k="sound">${soundOptions(FX_SOUNDS, c.sound)}</select><div class="row sndbtns"><button type="button" class="small" data-sndplay>▶ ฟัง</button><button type="button" class="small" data-sndup>📁 ใส่เสียงเอง</button></div></div>
       <div><label>ใช้ท่า</label><select data-k="as"><option value="same">ท่าของหมวดนี้</option>${Object.entries(styles).filter(([k]) => k !== st).map(([k, v]) => `<option value="${k}" ${k === c.as ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div></div>
-      <div class="gifts">${list.map(g => `<button data-g="${esc(g.th)}" class="${fxCfg().gifts[g.th] ? 'own' : ''}${fxCfg().gifts[g.th]?.off ? ' offg' : ''}" title="${esc(g.th)} · ${g.coins} เหรียญ"><img src="/gifts/${g.img}.png" alt="${esc(g.th)}" loading="lazy"></button>`).join('') || '<small class="hint">ยังไม่มีของขวัญในหมวดนี้</small>'}</div>`;
+      <div class="gifts">${list.map(g => `<button data-g="${esc(g.th)}" class="${fxCfg().gifts[g.th] ? 'own' : ''}${fxCfg().gifts[g.th]?.off ? ' offg' : ''}" title="${esc(g.th)} · ${g.coins} เหรียญ"><img src="/gifts/${g.img}.png" alt="${esc(g.th)}" loading="lazy"></button>`).join('')}${(newGroups[st] || []).map(g => `<button class="newg${fxCfg().newGifts?.[g.name]?.off ? ' offg' : ''}" data-newg="${esc(g.name)}" title="🆕 ${esc(g.label || g.name)} · ${Number(g.diamonds || 0)} เหรียญ">${g.image ? `<img src="${esc(g.image)}" alt="${esc(g.label || g.name)}" loading="lazy">` : `<span>${esc((g.label || g.name).slice(0, 2))}</span>`}</button>`).join('')}${list.length || newGroups[st]?.length ? '' : '<small class="hint">ยังไม่มีของขวัญในหมวดนี้</small>'}</div>`;
     el.querySelector('.switch input').onchange = e => { setCat(st, 'enabled', e.target.checked); el.classList.toggle('off', !e.target.checked); };
     el.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { const v = Number(r.value); if (r.dataset.k === 'max') r.nextElementSibling.value = v; else r.nextElementSibling.textContent = r.dataset.k === 'vol' ? volTxt(v) : '×' + v; setCat(st, r.dataset.k, v); });
     const vr = el.querySelector('input[data-k=vol]'); // click the label to mute / unmute this category
@@ -758,7 +770,8 @@ function renderCats() {
     el.querySelector('[data-aimcat]').onclick = () => goAim('cat:' + st);
     // try this category's move (with its cheapest gift: no big-gift show or special scene in the way)
     el.querySelector('[data-try]').onclick = () => { const g = list.find(x => !fxCfg().gifts[x.th]?.off) || list[0] || catalog.find(x => x.style === st); if (g) send({ t: 'previewStyle', style: st, gift: g.th, count: 1 }); };
-    el.querySelectorAll('.gifts button').forEach(b => b.onclick = ev => openGiftPop(catalog.find(g => g.th === b.dataset.g), ev.currentTarget));
+    el.querySelectorAll('.gifts button[data-g]').forEach(b => b.onclick = ev => openGiftPop(catalog.find(g => g.th === b.dataset.g), ev.currentTarget));
+    el.querySelectorAll('.gifts button[data-newg]').forEach(b => b.onclick = () => showNewGift(b.dataset.newg));
     box.appendChild(el);
   }
 }

@@ -273,8 +273,10 @@ const byTh = new Map(CATALOG.map(g => [norm(g.th), g]));
 const priceCount = new Map();
 for (const g of CATALOG) priceCount.set(g.coins, (priceCount.get(g.coins) || 0) + 1);
 
+import { guessStyle } from './giftlist.js';
+
 export class GiftMatcher {
-  constructor(learned = {}) { this.learned = Object.assign(Object.create(null), learned && typeof learned === 'object' ? learned : {}); this.notCatalog = new Set(); } // english name (lowercase) -> thai name · notCatalog: names TikTok's gift list says are new gifts
+  constructor(learned = {}) { this.learned = Object.assign(Object.create(null), learned && typeof learned === 'object' ? learned : {}); this.notCatalog = new Set(); this.labels = new Map(); } // english name (lowercase) -> thai name · notCatalog: names TikTok's gift list says are new gifts
 
   // Remember the Thai name of an English gift name when its price points to exactly one gift.
   learn(enName, coins) {
@@ -293,6 +295,9 @@ export class GiftMatcher {
     if (!g && !this.notCatalog.has(name) && priceCount.get(Number(gift.diamonds)) === 1) g = CATALOG.find(c => c.coins === Number(gift.diamonds));
     return g || null;
   }
+
+  // category a gift the app doesn't know yet probably belongs to (from its English name + Thai name from TikTok's list)
+  guess(enName) { return guessStyle(enName, this.labels.get(norm(enName)) || ''); }
 
   thaiName(enName) {
     const key = norm(enName);

@@ -12,7 +12,7 @@ import { privateIp } from '../src/images.js';
 import { GiftMatcher } from '../src/gifts.js';
 import { Effects } from '../src/effects.js';
 import { newer } from '../src/updater.js';
-import { mergeGiftLists } from '../src/giftlist.js';
+import { mergeGiftLists, guessStyle } from '../src/giftlist.js';
 import { CATALOG } from '../src/gifts.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -318,6 +318,11 @@ await t("TikTok's gift list teaches English names and finds new gifts", async ()
   const engOnly = CATALOG.slice(0, 50).map((c, i) => ({ id: 100 + i, name: 'Gift ' + i, diamond_count: c.coins }));
   const r2 = mergeGiftLists(engOnly.concat([{ id: 999, name: 'Odd Price', diamond_count: 123457 }]), engOnly, CATALOG, Object.create(null));
   assert.deepEqual(r2.list.filter(g => !g.known).map(g => g.name), ['Odd Price']);
+});
+await t('new gifts go to a sensible category by their name', async () => {
+  assert.equal(guessStyle('Golden Sports Car'), 'drive'); assert.equal(guessStyle('Cute Sausage'), 'eat'); assert.equal(guessStyle('Leon the Kitten'), 'animal');
+  assert.equal(guessStyle('', 'หมวกแม่มด'), 'wear'); assert.equal(guessStyle('Card'), null, 'car inside another word'); assert.equal(guessStyle('Mystery Box'), null);
+  const m = new GiftMatcher(); m.labels.set('box of joy', 'โดนัทยักษ์'); assert.equal(m.guess('Box of Joy'), 'eat', 'thai name from TikTok list not used');
 });
 await t('version numbers compare correctly (updates only go forward)', async () => {
   assert.ok(newer('1.0.1', '1.0.0')); assert.ok(newer('1.1.0', '1.0.9')); assert.ok(newer('1.0.10', '1.0.9'));
