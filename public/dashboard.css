@@ -95,7 +95,7 @@ button.small { padding: 4px 10px; font-size: 13px; }
 .switch span::before { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); transition: .2s; }
 .switch input:checked + span { background: var(--mint); }
 .switch input:checked + span::before { transform: translateX(20px); }
-.saved { position: fixed; right: 24px; bottom: 20px; background: var(--toast); color: var(--toast-ink); padding: 6px 14px; border-radius: 999px; opacity: 0; transition: .3s; margin: 0; }
+.saved { position: fixed; right: 24px; bottom: 20px; background: var(--toast); color: var(--toast-ink); padding: 6px 14px; border-radius: 999px; opacity: 0; transition: .3s; margin: 0; z-index: 200; pointer-events: none; }
 .saved.show { opacity: .9; }
 
 .fields { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr; gap: 10px; }
@@ -117,7 +117,7 @@ hr { border: 0; border-top: 2px dashed var(--line); margin: 16px 0; }
 .slider label { margin: 0; color: var(--ink); font-size: 14px; }
 .slider output { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 input[type=range] { accent-color: var(--pink); padding: 0; border: 0; }
-#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--toast); color: var(--toast-ink); padding: 10px 18px; border-radius: 12px; opacity: 0; transition: .25s; pointer-events: none; }
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--toast); color: var(--toast-ink); padding: 10px 18px; border-radius: 12px; opacity: 0; transition: .25s; pointer-events: none; z-index: 200; }
 #toast.show { opacity: 1; transform: translateX(-50%); }
 
 @media (max-width: 860px) {
