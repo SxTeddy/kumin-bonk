@@ -116,6 +116,14 @@
 
   <!-- CATEGORIES -->
   <section id="cats" class="tab">
+    <div class="card newgifts" id="newGifts">
+      <h2>🆕 ของขวัญใหม่ที่แอปยังไม่รู้จัก <span class="badge" id="newGiftsN" hidden></span></h2>
+      <p class="hint">ของขวัญที่ยังไม่อยู่ในรายการของแอป ทั้งที่มีคนส่งมาในไลฟ์ และที่เพิ่งมีในรายการของขวัญของ TikTok (แอปเช็คให้เองตอนเชื่อมต่อไลฟ์) ระหว่างนี้จะเล่นท่าตามช่วงราคาไปก่อน เลือกท่าเองได้ หรือจับคู่กับของขวัญในแอปที่เหมือนกัน</p>
+      <div class="row" style="margin-top:8px"><button type="button" class="small" id="btnGiftList">🔄 เช็ครายการของขวัญจาก TikTok</button><small class="hint" id="listInfo" style="margin:0"></small></div>
+      <div id="newGiftList"></div>
+      <div id="matchedGifts" class="matched"></div>
+      <datalist id="catalogNames"></datalist>
+    </div>
     <div class="toolbar">
       <p>ของขวัญแต่ละชิ้นอยู่ในหมวดตามรูป ปรับแต่ละหมวดแยกกันได้ กดรูปของขวัญเพื่อย้ายหมวดหรือตั้งขนาดเฉพาะชิ้นนั้น</p>
       <div class="row">
@@ -147,14 +155,6 @@
       </div>
       <p class="hint">กดสวิตช์ของแต่ละหมวดเพื่อเปิด/ปิด · กดรูปของขวัญเพื่อเปิด/ปิดหรือตั้งค่าทีละชิ้น (ชิ้นที่ปิดจะเป็นสีจาง)</p>
       <div class="catquick" id="catQuick"></div>
-    </div>
-    <div class="card newgifts" id="newGifts">
-      <h2>🆕 ของขวัญใหม่ที่แอปยังไม่รู้จัก <span class="badge" id="newGiftsN" hidden></span></h2>
-      <p class="hint">ของขวัญที่ยังไม่อยู่ในรายการของแอป ทั้งที่มีคนส่งมาในไลฟ์ และที่เพิ่งมีในรายการของขวัญของ TikTok (แอปเช็คให้เองตอนเชื่อมต่อไลฟ์) ระหว่างนี้จะเล่นท่าตามช่วงราคาไปก่อน เลือกท่าเองได้ หรือจับคู่กับของขวัญในแอปที่เหมือนกัน</p>
-      <div class="row" style="margin-top:8px"><button type="button" class="small" id="btnGiftList">🔄 เช็ครายการของขวัญจาก TikTok</button><small class="hint" id="listInfo" style="margin:0"></small></div>
-      <div id="newGiftList"></div>
-      <div id="matchedGifts" class="matched"></div>
-      <datalist id="catalogNames"></datalist>
     </div>
     <div id="catList" class="catlist"></div>
   </section>
