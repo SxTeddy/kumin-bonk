@@ -38,6 +38,10 @@ function handle(m) {
       else if (m.firstRun) setTimeout(showWelcome, 800);
       break;
     case 'status': renderStatus(m); renderPause(m); break;
+    case 'media': config.media = m.media || []; if (m.board) config.board = m.board; renderPads(); break;
+    case 'padPlay': padPlay(m); break;
+    case 'padStop': padStop(); break;
+    case 'wState': wView = { ...m, timer: { ...m.timer, at: Date.now() } }; renderTimerState(); break;
     case 'sessions': renderSessions(m); break;
     case 'renderBanner': drawBanner(m); break;
     case 'summaryFiles': renderSummaryFiles(m); break;
@@ -371,7 +375,7 @@ function renderAll() {
   $('#optEyes').checked = config.throwing.eyesClose;
   $('#followModel').checked = config.head.followModel;
   renderSliders(); renderRules(); fillGiftList(); renderAimFor(); renderGallery(); renderCats();
-  renderHelpers(); renderJar(); renderMixer();
+  renderHelpers(); renderJar(); renderPads(); renderWidgets(); renderSubs(); renderMixer();
 }
 
 function fillGiftList() {
@@ -1523,9 +1527,9 @@ const JAR_SHAPES = [['jar', '🫙 โหลแก้ว'], ['tall', '🧪 ทร
   ['factory', '🏭 โรงงานของขวัญ'], ['gacha', '🍬 ตู้กาชาปอง'], ['chest', '💰 หีบสมบัติ'], ['piggy', '🐷 กระปุกหมู'], ['aquarium', '🐠 ตู้ปลา'],
   ['cauldron', '🧪 หม้อแม่มด'], ['giftbox', '🎁 กล่องของขวัญ'], ['basket', '🧺 ตะกร้าปิกนิก'], ['boba', '🧋 แก้วชานม'], ['bag', '🛍️ ถุงช้อปปิ้ง'],
   ['bucket', '🪣 ถังทราย'], ['claw', '🕹️ ตู้คีบตุ๊กตา'], ['trophy', '🏆 ถ้วยรางวัล'], ['mailbox', '📮 ตู้ไปรษณีย์'], ['vending', '🥤 ตู้กดน้ำ'],
-  ['hourglass', '⏳ นาฬิกาทราย'], ['pumpkin', '🎃 ฟักทองฮาโลวีน'], ['snowglobe', '❄️ ลูกแก้วหิมะ'], ['flowerpot', '🪴 กระถางดอกไม้'], ['moneybag', '💰 ถุงเงิน']];
+  ['hourglass', '⏳ นาฬิกาทราย'], ['pumpkin', '🎃 ฟักทองฮาโลวีน'], ['snowglobe', '❄️ ลูกแก้วหิมะ'], ['flowerpot', '🪴 กระถางดอกไม้'], ['moneybag', '💰 ถุงเงิน'], ['lava', '🫧 โคมลาวา'], ['truck', '🚚 รถขนของขวัญ']];
 const JAR_GLASS = ['jar', 'tall', 'round', 'heart'];
-const JAR_OPEN = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot'];
+const JAR_OPEN = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot', 'truck'];
 const JAR_LOOK = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true };
 function renderJar() {
   const j = sec('jar');
@@ -1682,3 +1686,196 @@ function renderMixer() {
   });
 }
 $('#tabs button[data-tab=settings]').addEventListener('click', () => renderMixer());
+
+// ---------- 🎛️ soundboard ----------
+const PAD_COLORS = ['#ff7aa8', '#ffb547', '#7c5cff', '#5ce1e6', '#ff4f8b', '#7cf29c', '#e0a82e', '#3ecf8e', '#4f8bff', '#ff6b4f'];
+let padEditing = null;
+const playing = new Set(); // <audio> elements of pads playing in this window
+function sliderList(box, obj, list, after) { // sliders for a nested settings object
+  box.innerHTML = '';
+  for (const [key, label, min, max, step, fmt = v => v] of list) {
+    const d = document.createElement('div'); d.className = 'slider';
+    d.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${Number(obj[key]) || 0}"><output>${esc(fmt(Number(obj[key]) || 0))}</output>`;
+    d.querySelector('input').oninput = e => { const n = Number(e.target.value); obj[key] = n; d.querySelector('output').textContent = fmt(n); save(); after?.(key, n); };
+    box.appendChild(d);
+  }
+}
+const mediaById = id => (config.media || []).find(m => m.id === id);
+function padLabel(p) { if (p.src.startsWith('b:')) return '🔊 ' + (FX_SOUNDS[p.src.slice(2)] || p.src.slice(2)); const m = mediaById(p.src.slice(2)); return m ? (m.kind === 'video' ? '🎬 ' : '🎵 ') + m.name : '⚠️'; }
+function renderPads() {
+  const b = sec('board'); b.pads ||= [];
+  $('#pads').innerHTML = b.pads.map((p, i) => `<button type="button" class="pad" data-pad="${i}" style="background:${esc(p.color)}"><span class="tag">${p.src.startsWith('m:') ? (mediaById(p.src.slice(2))?.kind === 'video' ? '🎬' : '🎵') : ''}</span><span class="em">${esc(p.emoji)}</span><span class="nm">${esc(p.name)}</span><span class="ed" data-ped="${i}" title="แก้ปุ่ม">✏️</span></button>`).join('') || '<p class="hint">ยังไม่มีปุ่ม กด + เพิ่มปุ่ม</p>';
+  $('#pads').querySelectorAll('[data-pad]').forEach(el => el.onclick = e => {
+    const p = b.pads[Number(el.dataset.pad)]; if (!p) return;
+    if (e.target.closest('[data-ped]')) return editPad(p.id);
+    el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 120);
+    send({ t: 'playPad', id: p.id });
+  });
+  sliderList($('#padVol'), b, [['volume', 'ความดังรวมของแผงปุ่ม', 0, 1, 0.05, v => Math.round(v * 100) + '%']]);
+  const so = $('#padStopOthers'); so.checked = !!b.stopOthers; so.onchange = () => { b.stopOthers = so.checked; save(); };
+  $('#stageUrl').value = `${location.origin}/stage`;
+  renderMediaList(); renderGiftSongs();
+  if (padEditing) editPad(padEditing, true);
+}
+function editPad(id, keep) {
+  const b = sec('board'), p = b.pads.find(x => x.id === id); const box = $('#padEdit');
+  if (!p) { box.hidden = true; padEditing = null; return; }
+  padEditing = id; box.hidden = false;
+  const em = $('#peEmoji'), nm = $('#peName'), co = $('#peColor'), src = $('#peSrc');
+  if (!keep || document.activeElement !== nm) nm.value = p.name;
+  if (!keep || document.activeElement !== em) em.value = p.emoji;
+  co.value = p.color;
+  em.oninput = () => { p.emoji = em.value || '🎵'; save(); renderPadsOnly(); };
+  nm.oninput = () => { p.name = nm.value; save(); renderPadsOnly(); };
+  co.oninput = () => { p.color = co.value; save(); renderPadsOnly(); };
+  const own = (config.media || []).map(m => `<option value="m:${esc(m.id)}" ${p.src === 'm:' + m.id ? 'selected' : ''}>${m.kind === 'video' ? '🎬' : '🎵'} ${esc(m.name)}</option>`).join('');
+  const app = Object.entries(FX_SOUNDS).filter(([k]) => !['auto', 'none'].includes(k)).map(([k, v]) => `<option value="b:${k}" ${p.src === 'b:' + k ? 'selected' : ''}>🔊 ${esc(v)}</option>`).join('');
+  src.innerHTML = (own ? `<optgroup label="ไฟล์ของฉัน">${own}</optgroup>` : '') + `<optgroup label="เสียงของแอป">${app}</optgroup>`;
+  src.onchange = () => { p.src = src.value; p.start = 0; p.end = 0; save(); renderPadsOnly(); editPad(id, true); };
+  const isFile = p.src.startsWith('m:');
+  sliderList($('#peSliders'), p, [['vol', 'ความดังของปุ่มนี้', 0, 1.5, 0.05, v => Math.round(v * 100) + '%'], ...(isFile ? [['start', 'เริ่มเล่นที่วินาที', 0, 600, 0.5, v => v + 's'], ['end', 'หยุดที่วินาที (0 = เล่นจนจบ)', 0, 600, 0.5, v => v ? v + 's' : '∞']] : [])]);
+  const lp = $('#peLoop'); lp.checked = !!p.loop; lp.onchange = () => { p.loop = lp.checked; save(); };
+  $('#pePlay').onclick = () => send({ t: 'playPad', id: p.id });
+  $('#peDone').onclick = () => { box.hidden = true; padEditing = null; };
+  $('#peDel').onclick = () => { b.pads = b.pads.filter(x => x.id !== id); b.giftSongs = (b.giftSongs || []).filter(g => g.pad !== id); box.hidden = true; padEditing = null; save(); renderPads(); toast('ลบปุ่มแล้ว'); };
+}
+function renderPadsOnly() { const keep = padEditing; padEditing = null; renderPads(); padEditing = keep; }
+$('#btnPadAdd').onclick = () => {
+  const b = sec('board'); b.pads ||= [];
+  if (b.pads.length >= 48) return toast('มีปุ่มได้สูงสุด 48 ปุ่ม');
+  const id = 'p' + Date.now().toString(36);
+  b.pads.push({ id, name: 'ปุ่มใหม่', emoji: '🎵', color: PAD_COLORS[b.pads.length % PAD_COLORS.length], src: 'b:ding', vol: 1, start: 0, end: 0, loop: false });
+  save(); renderPads(); editPad(id);
+};
+$('#btnPadStop').onclick = () => send({ t: 'stopPads' });
+$('#btnMediaUp').onclick = () => $('#mediaFile').click();
+$('#mediaFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (f.size > 40 * 1024 * 1024) return toast('ไฟล์ต้องไม่เกิน 40 MB');
+  toast('กำลังอัปโหลด…');
+  try {
+    const r = await fetch('/api/media?name=' + encodeURIComponent(f.name), { method: 'POST', headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-KB': '1' }, body: f });
+    const j = await r.json();
+    if (!r.ok) return toast(j.error || 'อัปโหลดไม่สำเร็จ');
+    const b = sec('board'); b.pads ||= [];
+    const id = 'p' + Date.now().toString(36);
+    b.pads.push({ id, name: f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 30), emoji: j.kind === 'video' ? '🎬' : '🎵', color: PAD_COLORS[b.pads.length % PAD_COLORS.length], src: 'm:' + j.id, vol: 1, start: 0, end: 0, loop: false });
+    if (!(config.media || []).some(x => x.id === j.id)) (config.media ||= []).push({ id: j.id, name: f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 60), kind: j.kind });
+    save(); renderPads(); editPad(id); toast('เพิ่มปุ่มใหม่จากไฟล์แล้ว');
+  } catch { toast('อัปโหลดไม่สำเร็จ'); }
+};
+function renderMediaList() {
+  const list = config.media || [];
+  $('#mediaList').innerHTML = list.length ? list.map(m => `<div class="mrow"><span>${m.kind === 'video' ? '🎬' : '🎵'}</span><span class="nm">${esc(m.name)}</span><button class="small ghost" data-mdel="${esc(m.id)}">🗑</button></div>`).join('') : '<p class="hint">ยังไม่มีไฟล์ กด 📁 อัปโหลดเพลง/คลิป</p>';
+  $('#mediaList').querySelectorAll('[data-mdel]').forEach(b => b.onclick = () => { send({ t: 'delMedia', id: b.dataset.mdel }); toast('ลบไฟล์แล้ว (ปุ่มที่ใช้ไฟล์นี้ถูกลบด้วย)'); });
+}
+function renderGiftSongs() {
+  const b = sec('board'); b.giftSongs ||= [];
+  const pads = b.pads || [];
+  $('#giftSongs').innerHTML = b.giftSongs.length ? b.giftSongs.map((g, i) => `<div class="gsrow"><label class="check" style="margin:0"><input type="checkbox" data-gson="${i}" ${g.on !== false ? 'checked' : ''}></label><input list="catalogNames" data-gsgift="${i}" value="${esc(g.gift)}" placeholder="ชื่อของขวัญ เช่น กุหลาบ" style="flex:1"><span>×</span><input type="number" min="1" data-gsmin="${i}" value="${g.min || 1}" title="ส่งทีเดียวกี่อันขึ้นไป"><span>→</span><select data-gspad="${i}">${pads.map(p => `<option value="${esc(p.id)}" ${p.id === g.pad ? 'selected' : ''}>${esc(p.emoji + ' ' + p.name)}</option>`).join('')}</select><button class="small ghost" data-gsdel="${i}">✕</button></div>`).join('') : '<p class="hint">ยังไม่ได้ตั้ง กด + เพิ่ม</p>';
+  const box = $('#giftSongs');
+  box.querySelectorAll('[data-gson]').forEach(el => el.onchange = () => { b.giftSongs[el.dataset.gson].on = el.checked; save(); });
+  box.querySelectorAll('[data-gsgift]').forEach(el => el.oninput = () => { b.giftSongs[el.dataset.gsgift].gift = el.value; save(); });
+  box.querySelectorAll('[data-gsmin]').forEach(el => el.oninput = () => { b.giftSongs[el.dataset.gsmin].min = Math.max(1, Number(el.value) || 1); save(); });
+  box.querySelectorAll('[data-gspad]').forEach(el => el.onchange = () => { b.giftSongs[el.dataset.gspad].pad = el.value; save(); });
+  box.querySelectorAll('[data-gsdel]').forEach(el => el.onclick = () => { b.giftSongs.splice(Number(el.dataset.gsdel), 1); save(); renderGiftSongs(); });
+}
+$('#btnGsAdd').onclick = () => { const b = sec('board'); if (!(b.pads || []).length) return toast('เพิ่มปุ่มในแผงก่อนนะ'); (b.giftSongs ||= []).push({ id: 'g' + Date.now().toString(36), gift: 'กุหลาบ', pad: b.pads[0].id, min: 1, on: true }); save(); renderGiftSongs(); };
+$('#btnStageCopy').onclick = () => navigator.clipboard.writeText($('#stageUrl').value).then(() => toast('คัดลอกลิงก์แล้ว'));
+// a pad plays here (sound, or the sound of a clip when there's no stage)
+function padPlay(m) {
+  const p = m.pad, vol = Math.min(1, (p.vol ?? 1) * (m.volume ?? 1));
+  if (m.stopOthers) padStop();
+  if (p.src.startsWith('b:')) return KBSound.play(p.src.slice(2), vol);
+  const a = new Audio(m.url); a.volume = vol; a.loop = !!p.loop;
+  a.currentTime = p.start || 0;
+  a.ontimeupdate = () => { if (p.end && a.currentTime >= p.end) { if (p.loop) a.currentTime = p.start || 0; else { a.pause(); playing.delete(a); } } };
+  a.onended = () => playing.delete(a);
+  playing.add(a); a.play().catch(() => toast('เล่นเสียงไม่ได้ ลองกดที่หน้าแอปหนึ่งครั้งก่อน'));
+}
+function padStop() { for (const a of playing) { try { a.pause(); } catch {} } playing.clear(); }
+$('#tabs button[data-tab=sboard]').addEventListener('click', () => renderPads());
+
+// ---------- 🖼️ on-screen widgets ----------
+let wView = null;
+const W_SLIDERS = {
+  garden: [['minCoins', 'ปลูกเฉพาะของขวัญราคาตั้งแต่ (เหรียญ)', 0, 1000, 1], ['max', 'ดอกไม้ในสวนได้มากสุด', 10, 200, 5]],
+  fireworks: [['minCoins', 'ยิงพลุเฉพาะของขวัญราคาตั้งแต่ (เหรียญ)', 0, 1000, 1], ['bigAt', 'ส่งรวมกี่เหรียญได้พลุลูกใหญ่', 10, 10000, 10], ['volume', 'ความดังเสียงพลุ', 0, 1, 0.05, v => Math.round(v * 100) + '%']],
+  timer: [['startMin', 'เวลาเริ่มต้น (นาที)', 0, 600, 5], ['perCoin', 'ทุก 1 เหรียญ เพิ่ม (วินาที)', 0, 120, 1], ['perFollow', 'ฟอลโลว์ 1 ครั้ง เพิ่ม (วินาที)', 0, 600, 5], ['perShare', 'แชร์ 1 ครั้ง เพิ่ม (วินาที)', 0, 600, 5], ['per100Likes', 'ทุก 100 ไลค์ เพิ่ม (วินาที)', 0, 600, 1], ['maxHours', 'นับได้มากสุด (ชั่วโมง)', 1, 72, 1]],
+  board: [['rows', 'โชว์กี่อันดับ', 3, 10, 1]],
+  goal: [['target', 'เป้าหมาย', 10, 100000, 10, v => Number(v).toLocaleString()]],
+};
+const hms = s => { s = Math.max(0, Math.round(s)); return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(v => String(v).padStart(2, '0')).join(':'); };
+function renderWidgets() {
+  const w = sec('widgets');
+  const rl = $('#wResetOnLive'); rl.checked = w.resetOnLive !== false; rl.onchange = () => { w.resetOnLive = rl.checked; save(); };
+  for (const k of Object.keys(W_SLIDERS)) {
+    const c = w[k] ||= {};
+    const on = $(`[data-won="${k}"]`); on.checked = c.on !== false; on.onchange = () => { c.on = on.checked; save(); };
+    $(`[data-wurl="${k}"]`).value = `${location.origin}/${k}`;
+    const pv = $(`[data-wprev="${k}"]`); if (!pv.src) pv.src = `/${k}?preview=1`;
+    sliderList($(`[data-wsl="${k}"]`), c, W_SLIDERS[k]);
+  }
+  document.querySelectorAll('#widgets [data-wt]').forEach(el => { const [k, f] = el.dataset.wt.split('.'); el.value = w[k]?.[f] ?? ''; el.oninput = () => { w[k][f] = el.value; save(); }; });
+  document.querySelectorAll('#widgets [data-wc]').forEach(el => { const [k, f] = el.dataset.wc.split('.'); el.value = w[k]?.[f] || '#ff7aa8'; el.oninput = () => { w[k][f] = el.value; save(); }; });
+  document.querySelectorAll('#widgets [data-ws]').forEach(el => { const [k, f] = el.dataset.ws.split('.'); el.value = w[k]?.[f]; el.onchange = () => { w[k][f] = el.value; save(); }; });
+  document.querySelectorAll('#widgets [data-wck]').forEach(el => { const [k, f] = el.dataset.wck.split('.'); el.checked = w[k]?.[f] !== false; el.onchange = () => { w[k][f] = el.checked; save(); }; });
+  renderTimerState();
+}
+function renderTimerState() {
+  const el = $('#tState'); if (!el) return;
+  const t = wView?.timer; if (!t) { el.textContent = '--:--:--'; return; }
+  const left = t.running ? t.left - (Date.now() - t.at) / 1000 : t.left;
+  el.textContent = `${hms(left)} ${t.running ? '▶' : '⏸'}`;
+}
+setInterval(() => { if ($('#widgets').classList.contains('on')) renderTimerState(); }, 500);
+document.querySelectorAll('[data-wcopy]').forEach(b => b.onclick = () => navigator.clipboard.writeText($(`[data-wurl="${b.dataset.wcopy}"]`).value).then(() => toast('คัดลอกลิงก์แล้ว')));
+document.querySelectorAll('[data-wtest]').forEach(b => b.onclick = () => send({ t: 'wTest' }));
+document.querySelectorAll('[data-wreset]').forEach(b => b.onclick = () => { send({ t: 'wReset', what: b.dataset.wreset }); toast('ล้างแล้ว'); });
+document.querySelectorAll('[data-tc]').forEach(b => b.onclick = () => send({ t: 'timer', cmd: b.dataset.tc, sec: Number(b.dataset.sec) || 0 }));
+$('#tabs button[data-tab=widgets]').addEventListener('click', () => renderWidgets());
+
+// ---------- 📝 live subtitles ----------
+const SPEECH_LANGS = [['th-TH', 'ไทย'], ['en-US', 'English'], ['ja-JP', '日本語'], ['ko-KR', '한국어'], ['zh-CN', '中文'], ['vi-VN', 'Tiếng Việt'], ['id-ID', 'Indonesia'], ['es-ES', 'Español'], ['lo-LA', 'ລາວ'], ['ms-MY', 'Melayu']];
+const TR_LANGS = [['en', 'English'], ['th', 'ไทย'], ['ja', '日本語'], ['zh-CN', '中文'], ['ko', '한국어'], ['vi', 'Tiếng Việt'], ['id', 'Indonesia'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch'], ['pt', 'Português'], ['ru', 'Русский'], ['ar', 'العربية'], ['hi', 'हिन्दी'], ['ms', 'Melayu'], ['tl', 'Filipino'], ['lo', 'ລາວ'], ['my', 'မြန်မာ'], ['km', 'ខ្មែរ']];
+let rec = null, recOn = false, recLine = 0;
+function renderSubs() {
+  const s = sec('subs'); s.tr ||= [];
+  $('#subsUrl').value = `${location.origin}/subs`;
+  const pv = $('#subsPrev'); if (!pv.src) pv.src = '/subs?preview=1';
+  const lang = $('#subsLang'); lang.innerHTML = SPEECH_LANGS.map(([k, v]) => `<option value="${k}" ${k === s.lang ? 'selected' : ''}>${esc(v)}</option>`).join('');
+  lang.onchange = () => { s.lang = lang.value; save(); if (recOn) { stopRec(); startRec(); } };
+  $('#subsTr').innerHTML = TR_LANGS.map(([k, v]) => `<button type="button" class="chip ${s.tr.includes(k) ? 'on' : ''}" data-trl="${k}">${esc(v)}</button>`).join('');
+  $('#subsTr').querySelectorAll('[data-trl]').forEach(b => b.onclick = () => {
+    const k = b.dataset.trl;
+    if (s.tr.includes(k)) s.tr = s.tr.filter(x => x !== k); else if (s.tr.length >= 4) return toast('เลือกได้สูงสุด 4 ภาษา'); else s.tr.push(k);
+    save(); renderSubs();
+  });
+  sliderList($('#subsSl'), s, [['size', 'ขนาดตัวหนังสือ', 16, 90, 1, v => v + 'px'], ['bgAlpha', 'ความเข้มพื้นหลัง', 0, 1, 0.05, v => Math.round(v * 100) + '%'], ['lines', 'โชว์กี่บรรทัด', 1, 4, 1], ['seconds', 'ขึ้นค้างไว้ (วินาที)', 2, 30, 1]]);
+  const co = $('#subsColor'), bg = $('#subsBg'); co.value = s.color || '#ffffff'; bg.value = s.bg || '#000000';
+  co.oninput = () => { s.color = co.value; save(); }; bg.oninput = () => { s.bg = bg.value; save(); };
+  $('#btnSubsOn').textContent = recOn ? '⏹ หยุดฟัง' : '🎙️ เริ่มฟัง';
+  $('#subsState').textContent = recOn ? 'กำลังฟังอยู่…' : (window.SpeechRecognition || window.webkitSpeechRecognition) ? '' : 'เครื่องนี้ฟังเสียงไม่ได้ (ต้องเปิดด้วย Edge หรือ Chrome)';
+}
+function startRec() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast('เครื่องนี้ฟังเสียงไม่ได้ (ต้องเปิดด้วย Edge หรือ Chrome)');
+  rec = new SR(); rec.lang = sec('subs').lang || 'th-TH'; rec.continuous = true; rec.interimResults = true;
+  rec.onresult = e => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i], text = r[0].transcript.trim(); if (!text) continue;
+      const id = 'l' + (recLine + i);
+      send({ t: 'subLine', id, text, final: r.isFinal });
+      $('#subsNow').textContent = text;
+    }
+    recLine += 0; // ids follow the result index
+  };
+  rec.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { recOn = false; toast('ยังไม่ได้อนุญาตให้ใช้ไมค์'); renderSubs(); } };
+  rec.onend = () => { if (recOn) { recLine += 1000; try { rec.start(); } catch {} } };
+  recOn = true; try { rec.start(); } catch {}
+  renderSubs();
+}
+function stopRec() { recOn = false; try { rec?.stop(); } catch {} rec = null; renderSubs(); }
+$('#btnSubsOn').onclick = () => recOn ? stopRec() : startRec();
+$('#btnSubsCopy').onclick = () => navigator.clipboard.writeText($('#subsUrl').value).then(() => toast('คัดลอกลิงก์แล้ว'));
+$('#tabs button[data-tab=subs]').addEventListener('click', () => renderSubs());

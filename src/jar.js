@@ -31,10 +31,10 @@ export const JAR_DEFAULT = {
 };
 export const JAR_SHAPES = ['jar', 'tall', 'round', 'heart', // glass jars
   'factory', 'gacha', 'chest', 'piggy', 'aquarium', 'cauldron', 'giftbox', 'basket', 'boba', 'bag', // themed containers (public/jar-themes.js)
-  'bucket', 'claw', 'trophy', 'mailbox', 'vending', 'hourglass', 'pumpkin', 'snowglobe', 'flowerpot', 'moneybag'];
+  'bucket', 'claw', 'trophy', 'mailbox', 'vending', 'hourglass', 'pumpkin', 'snowglobe', 'flowerpot', 'moneybag', 'lava', 'truck'];
 export const JAR_LIDS = ['metal', 'cork', 'cloth', 'none'];
 // containers without a lid: when they're full, gifts spill out over the rim instead of being poured out
-export const OPEN_THEMES = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot'];
+export const OPEN_THEMES = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot', 'truck'];
 // glass jars spill too: an open one over the rim, a lidded one pushes its lid up and spills out under it (the heart's lid can't move)
 export function jarOpen(cfg) { return ['jar', 'tall', 'round'].includes(cfg.shape) || (cfg.shape === 'heart' && cfg.lid === 'none') || OPEN_THEMES.includes(cfg.shape); }
 

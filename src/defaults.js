@@ -1,6 +1,7 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Default settings and starter rules (all editable in the dashboard).
 import { JAR_DEFAULT } from './jar.js';
+import { BOARD_DEFAULT, WIDGETS_DEFAULT, SUBS_DEFAULT } from './studio.js';
 let n = 0;
 const id = () => `r${++n}`;
 
@@ -57,6 +58,10 @@ export const DEFAULT_CONFIG = {
   },
   // 🫙 gift jar on the live screen (Link source /jar)
   jar: { ...JAR_DEFAULT },
+  board: structuredClone(BOARD_DEFAULT),     // 🎛️ soundboard + gift → song
+  widgets: structuredClone(WIDGETS_DEFAULT), // 🖼️ garden, fireworks, timer, leaderboards, goal
+  subs: { ...SUBS_DEFAULT },                 // 📝 live subtitles
+  media: [],             // [{ id, name, file, kind }] uploaded songs / clips for the soundboard
   // 📊 summary after each live
   summary: { enabled: true, saveFiles: true, folder: '' }, // saveFiles: write each finished live as a file; folder '' = Documents\\KuminBonk สรุปไลฟ์
   customSounds: [],      // [{ id, name, file }] uploaded effect sounds (played as 'u:<id>')

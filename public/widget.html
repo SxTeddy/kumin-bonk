@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="th">
+<head>
+<!-- KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE -->
+<meta charset="utf-8">
+<title>KuminBonk Widget</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; font-family: "Kanit", "Prompt", "Leelawadee UI", Tahoma, sans-serif; color: #fff; }
+  canvas { position: fixed; inset: 0; }
+  #status { position: fixed; left: 8px; bottom: 8px; font: 600 14px sans-serif; color: #fff; background: #d33a; padding: 5px 9px; border-radius: 8px; display: none; z-index: 9; }
+  .shadow { text-shadow: 0 2px 6px rgba(0,0,0,.6), 0 0 2px rgba(0,0,0,.8); }
+  /* ⏱️ timer */
+  #timer { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; }
+  #timer .title { font-weight: 800; font-size: 7vh; }
+  #timer .clock { font: 900 22vh/1 "Kanit", "Prompt", sans-serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; padding: 2vh 5vh; border-radius: 4vh; background: rgba(0,0,0,.35); }
+  #timer .clock.paused { opacity: .55; }
+  #timer .add { position: fixed; font-weight: 900; font-size: 8vh; animation: up 1.8s ease-out forwards; }
+  @keyframes up { from { transform: translateY(0) scale(.7); opacity: 0; } 15% { transform: translateY(-2vh) scale(1.05); opacity: 1; } to { transform: translateY(-16vh) scale(1); opacity: 0; } }
+  /* 🏆 leaderboards */
+  #board { position: fixed; inset: 0; display: none; gap: 3vw; padding: 3vh 3vw; box-sizing: border-box; }
+  #board .col { flex: 1; min-width: 0; background: rgba(20,16,36,.62); border-radius: 3vh; padding: 2.5vh 2.5vw; box-sizing: border-box; display: flex; flex-direction: column; gap: 1.4vh; }
+  #board h3 { margin: 0 0 .6vh; font-size: 5vh; text-align: center; }
+  #board .row { display: flex; align-items: center; gap: 2vw; padding: .9vh 1.4vw; border-radius: 2vh; background: rgba(255,255,255,.08); font-size: 4.2vh; transition: transform .4s; }
+  #board .row.n1 { background: linear-gradient(90deg, rgba(255,215,64,.45), rgba(255,215,64,.1)); }
+  #board .row.n2 { background: linear-gradient(90deg, rgba(200,210,230,.4), rgba(200,210,230,.08)); }
+  #board .row.n3 { background: linear-gradient(90deg, rgba(220,140,80,.4), rgba(220,140,80,.08)); }
+  #board .rank { width: 1.6em; text-align: center; font-weight: 900; }
+  #board .av { width: 1.6em; height: 1.6em; border-radius: 50%; object-fit: cover; background: #ffffff33; flex: none; }
+  #board .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  #board .val { font-weight: 900; font-variant-numeric: tabular-nums; }
+  #board .empty { opacity: .6; text-align: center; font-size: 3.6vh; padding: 2vh; }
+  /* 🎯 goal */
+  #goal { position: fixed; inset: 0; display: none; flex-direction: column; justify-content: center; padding: 0 4vw; gap: 2vh; }
+  #goal .top { display: flex; justify-content: space-between; align-items: baseline; gap: 3vw; font-weight: 800; font-size: 9vh; white-space: nowrap; }
+  #goal .ttl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #goal .num { font-variant-numeric: tabular-nums; }
+  #goal .bar { height: 28vh; border-radius: 14vh; background: rgba(0,0,0,.4); padding: 2vh; box-sizing: border-box; position: relative; overflow: hidden; }
+  #goal .fill { height: 100%; border-radius: 12vh; transition: width .8s cubic-bezier(.2,1.3,.4,1); position: relative; overflow: hidden; }
+  #goal .fill::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(-45deg, rgba(255,255,255,.22) 0 3vh, transparent 3vh 6vh); animation: slide 1.2s linear infinite; }
+  @keyframes slide { to { background-position: 8.5vh 0; } }
+  #goal .pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 900 15vh/1 "Kanit", sans-serif; }
+  #goal.done .bar { box-shadow: 0 0 6vh #ffd23f; }
+  /* 🎬 stage */
+  #stage { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; }
+  #stage video { max-width: 100%; max-height: 100%; }
+  /* 📝 subtitles */
+  #subs { position: fixed; left: 0; right: 0; bottom: 4vh; display: none; flex-direction: column; align-items: center; gap: 1vh; padding: 0 3vw; }
+  #subs .line { max-width: 94vw; text-align: center; padding: .3em .7em; border-radius: .4em; transition: opacity .6s; }
+  #subs .tr { font-size: .78em; opacity: .92; display: block; }
+  #subs .line.interim { opacity: .75; }
+  #subs .line.gone { opacity: 0; }
+  #gtitle { position: fixed; top: 2vh; left: 0; right: 0; text-align: center; font-weight: 800; font-size: 5vh; display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="gtitle" class="shadow"></div>
+<div id="timer"><div class="title shadow"></div><div class="clock shadow">00:00:00</div></div>
+<div id="board"></div>
+<div id="goal"><div class="top shadow"><span class="ttl"></span><span class="num"></span></div><div class="bar"><div class="fill"></div><div class="pct shadow"></div></div></div>
+<div id="stage"><video id="vid" playsinline></video></div>
+<div id="subs"></div>
+<div id="status">KuminBonk: ยังไม่ได้เปิดโปรแกรม</div>
+<script src="/sounds.js"></script>
+<script>
+// 🖼️ One page for every on-screen widget: /garden /fireworks /timer /board /goal /stage /subs
+const KIND = location.pathname.replace(/^\//, '') || 'garden';
+const PREVIEW = new URLSearchParams(location.search).has('preview');
+const $ = s => document.querySelector(s);
+const cv = $('#c'), ctx = cv.getContext('2d');
+let W = 0, H = 0;
+function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.setTransform(d, 0, 0, d, 0, 0); }
+addEventListener('resize', resize); resize();
+let S = { cfg: null, givers: [], likers: [], totals: {}, flowers: [], timer: { running: false, left: 0 } }, subsCfg = null;
+const fmt = n => Number(n || 0).toLocaleString();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// pictures
+const imgCache = new Map();
+function srcUrl(src) { src = String(src || ''); if (/^gift:g\d{3}$/.test(src)) return `/gifts/${src.slice(5)}.png`; if (/^[a-z]{2,16}$/.test(src)) return `/assets/${src}.svg`; if (/^https?:\/\//.test(src)) return src; return '/assets/heart.svg'; }
+function getImg(src) { const u = srcUrl(src); if (!imgCache.has(u)) { if (imgCache.size > 200) imgCache.delete(imgCache.keys().next().value); const im = new Image(); im.onerror = () => { im.failed = true; }; im.src = u; imgCache.set(u, im); } return imgCache.get(u); }
+const ok = im => im && im.complete && !im.failed && im.naturalWidth;
+function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+
+// ---------- 🌷 flower garden: every gift plants a flower with the gift as its bloom ----------
+const plants = [];
+function plant(f, grow) { plants.push({ ...f, img: getImg(f.p), g: grow ? 0 : 1, ph: Math.random() * 6, hue: hash(f.p + f.x) % 360 }); if (plants.length > 220) plants.shift(); }
+function drawGarden(t, dt) {
+  const c = S.cfg?.garden || {}, gy = H * 0.86;
+  plants.sort((a, b) => a.s - b.s);
+  for (const p of plants) {
+    p.g = Math.min(1, p.g + dt / 1.3);
+    const e = 1 - (1 - p.g) ** 3, hgt = H * (0.2 + 0.13 * p.s) * e, x = W * (0.04 + 0.92 * p.x), sway = Math.sin(t / 900 + p.ph) * 6 * e;
+    const tx = x + sway, ty = gy - hgt, r = Math.min(W, H) * (0.035 + 0.016 * p.s) * (0.4 + 0.6 * e);
+    ctx.strokeStyle = '#3f9a3a'; ctx.lineWidth = Math.max(3, r * 0.18); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.quadraticCurveTo(x - sway, gy - hgt * 0.5, tx, ty); ctx.stroke();
+    if (e > 0.4) for (const d of [-1, 1]) { ctx.save(); ctx.translate(x - sway * 0.5, gy - hgt * (d < 0 ? 0.35 : 0.55)); ctx.rotate(d * 0.7); ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.ellipse(d * r * 0.5, 0, r * 0.55, r * 0.2, 0, 0, 6.3); ctx.fill(); ctx.restore(); }
+    if (e > 0.6) for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283 + t / 4000; ctx.fillStyle = `hsl(${p.hue},85%,${68 + (i % 2) * 8}%)`; ctx.beginPath(); ctx.ellipse(tx + Math.cos(a) * r * 0.95, ty + Math.sin(a) * r * 0.95, r * 0.55, r * 0.32, a, 0, 6.3); ctx.fill(); }
+    if (ok(p.img)) ctx.drawImage(p.img, tx - r, ty - r, r * 2, r * 2); else { ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(tx, ty, r * 0.6, 0, 6.3); ctx.fill(); }
+  }
+  // ground with grass
+  const g = c.ground || '#7cc96b';
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(0, gy);
+  for (let x = 0; x <= W; x += 18) ctx.lineTo(x, gy - 6 - Math.sin(x * 0.7 + t / 700) * 3 - (x / 18 % 2) * 6); ctx.lineTo(W, H); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(0, gy + 6, W, H - gy);
+}
+
+// ---------- 🎆 fireworks: the gift bursts in the sky ----------
+const rockets = [], bits = [];
+function launch(p, big) {
+  const x = W * (0.15 + Math.random() * 0.7), ty = H * (0.18 + Math.random() * 0.3);
+  rockets.push({ x, y: H + 10, ty, vy: -(H * 1.4), img: getImg(p), big, hue: Math.random() * 360 });
+  if (S.cfg?.fireworks?.sound && !PREVIEW) KBSound.play('whoosh', (S.cfg.fireworks.volume ?? 0.5) * 0.6);
+}
+function burst(r) {
+  const n = r.big ? 90 : 50, sp = Math.min(W, H) * (r.big ? 0.75 : 0.5);
+  for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.4 + Math.random() * 0.6); bits.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1.4 + Math.random() * 0.6, age: 0, c: `hsl(${(r.hue + Math.random() * 60) % 360},95%,65%)` }); }
+  bits.push({ x: r.x, y: r.y, vx: 0, vy: 0, life: 1.6, age: 0, img: r.img, big: r.big });
+  if (S.cfg?.fireworks?.sound && !PREVIEW) KBSound.play(r.big ? 'fanfare' : 'pop', S.cfg.fireworks.volume ?? 0.5);
+}
+function drawFireworks(t, dt) {
+  for (let i = rockets.length - 1; i >= 0; i--) {
+    const r = rockets[i]; r.y += r.vy * dt; r.vy *= 0.985;
+    ctx.fillStyle = '#fff6c8'; ctx.beginPath(); ctx.arc(r.x, r.y, 4, 0, 6.3); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,220,150,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x, r.y + 40); ctx.stroke();
+    if (r.y <= r.ty) { rockets.splice(i, 1); burst(r); }
+  }
+  for (let i = bits.length - 1; i >= 0; i--) {
+    const b = bits[i]; b.age += dt; if (b.age > b.life) { bits.splice(i, 1); continue; }
+    const k = 1 - b.age / b.life;
+    if (b.img) { const s = Math.min(W, H) * (b.big ? 0.22 : 0.14) * Math.min(1, b.age * 5) * (0.8 + 0.2 * k); ctx.globalAlpha = Math.min(1, k * 2); if (ok(b.img)) ctx.drawImage(b.img, b.x - s / 2, b.y - s / 2, s, s); ctx.globalAlpha = 1; continue; }
+    b.vx *= 0.97; b.vy = b.vy * 0.97 + 260 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    ctx.globalAlpha = k; ctx.fillStyle = b.c; ctx.beginPath(); ctx.arc(b.x, b.y, 2 + 2.5 * k, 0, 6.3); ctx.fill(); ctx.globalAlpha = 1;
+  }
+}
+
+// ---------- ⏱️ countdown timer ----------
+let tLeft = 0, tRun = false, tAt = performance.now();
+function hms(sec) { sec = Math.max(0, Math.ceil(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
+function drawTimer() {
+  const c = S.cfg?.timer || {}, left = tRun ? tLeft - (performance.now() - tAt) / 1000 : tLeft;
+  const el = $('#timer .clock'); el.textContent = hms(left); el.classList.toggle('paused', !tRun); el.style.color = c.color || '#fff';
+  $('#timer .title').textContent = c.title || '';
+}
+function timerAdd(sec) { const d = document.createElement('div'); d.className = 'add shadow'; d.textContent = '+' + (sec >= 60 ? hms(sec).replace(/^00:/, '') : sec + 's'); d.style.color = S.cfg?.timer?.color || '#fff'; d.style.left = (40 + Math.random() * 20) + 'vw'; d.style.top = '62vh'; $('#timer').appendChild(d); setTimeout(() => d.remove(), 1900); }
+
+// ---------- 🏆 leaderboards ----------
+function renderBoard() {
+  const c = S.cfg?.board || {}, rows = c.rows || 5, cols = [];
+  const col = (title, list, val) => `<div class="col"><h3 class="shadow">${esc(title)}</h3>${list.length ? list.slice(0, rows).map((g, i) => `<div class="row n${i + 1}"><span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>${g.avatar ? `<img class="av" src="${esc(g.avatar)}" onerror="this.style.visibility='hidden'">` : '<span class="av"></span>'}<span class="nm shadow">${esc(g.name)}</span><span class="val shadow">${val(g)}</span></div>`).join('') : '<div class="empty">ยังไม่มีใครเลย มาเป็นคนแรกกัน!</div>'}</div>`;
+  if (c.show !== 'likes') cols.push(col(c.title || '🏆 คนส่งของขวัญมากที่สุด', S.givers || [], g => fmt(g.coins) + ' 🪙'));
+  if (c.show !== 'gifts') cols.push(col(c.show === 'likes' && c.title ? c.title : '❤️ กดไลค์มากที่สุด', S.likers || [], g => fmt(g.likes) + ' ❤️'));
+  $('#board').innerHTML = cols.join('');
+}
+
+// ---------- 🎯 goal ----------
+let goalWas = 0;
+const GOAL_UNIT = { coins: '🪙', gifts: '🎁', likes: '❤️', follows: '⭐', shares: '🔁' };
+function renderGoal() {
+  const c = S.cfg?.goal || {}, v = Number(S.totals?.[c.kind || 'coins']) || 0, tg = Math.max(1, c.target || 1), pc = Math.min(1, v / tg);
+  $('#goal .ttl').textContent = c.title || ''; $('#goal .num').textContent = `${fmt(v)} / ${fmt(tg)} ${GOAL_UNIT[c.kind] || ''}`;
+  const f = $('#goal .fill'); f.style.width = Math.max(4, pc * 100) + '%'; f.style.background = `linear-gradient(90deg, ${c.color || '#ff7aa8'}, #ffd23f)`;
+  $('#goal .pct').textContent = Math.floor(pc * 100) + '%';
+  $('#goal').classList.toggle('done', pc >= 1);
+  if (pc >= 1 && goalWas < 1 && !PREVIEW) KBSound.play('fanfare', 0.6);
+  goalWas = pc;
+}
+
+// ---------- 🎬 stage: video pads from the soundboard ----------
+const vid = $('#vid'); let vidEnd = 0;
+function stagePlay(m) {
+  if (m.kind !== 'video' || !m.url) return;
+  vid.src = m.url; vid.volume = Math.min(1, (m.pad.vol ?? 1) * (m.volume ?? 1)); vid.loop = !!m.pad.loop; vidEnd = m.pad.end || 0;
+  vid.currentTime = m.pad.start || 0; $('#stage').style.display = 'flex'; vid.play().catch(() => {});
+}
+vid.ontimeupdate = () => { if (vidEnd && vid.currentTime >= vidEnd) { if (vid.loop) vid.currentTime = 0; else stageStop(); } };
+vid.onended = () => stageStop();
+function stageStop() { vid.pause(); $('#stage').style.display = 'none'; }
+
+// ---------- 📝 subtitles ----------
+const subLines = new Map();
+function showSub(m) {
+  const c = subsCfg || {}, box = $('#subs');
+  let el = subLines.get(m.id);
+  if (!el) { el = document.createElement('div'); el.className = 'line shadow'; box.appendChild(el); subLines.set(m.id, el); }
+  el.classList.toggle('interim', !m.final);
+  const tr = Object.entries(m.tr || {}).filter(([, v]) => v);
+  el.innerHTML = esc(m.text) + tr.map(([l, v]) => `<span class="tr">${esc(v)}</span>`).join('');
+  el.style.fontSize = (c.size || 34) + 'px'; el.style.color = c.color || '#fff';
+  const n = parseInt((c.bg || '#000000').slice(1), 16); el.style.background = `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${c.bgAlpha ?? 0.5})`;
+  clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add('gone'); setTimeout(() => { el.remove(); subLines.delete(m.id); }, 700); }, (c.seconds || 6) * 1000);
+  const all = [...subLines.values()]; while (all.length > (c.lines || 2)) { const old = all.shift(); old.remove(); for (const [k, v] of subLines) if (v === old) subLines.delete(k); }
+}
+
+// ---------- loop + connection ----------
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (W < 20 || H < 20) return;
+  try {
+    ctx.clearRect(0, 0, W, H);
+    if (KIND === 'garden') drawGarden(now, dt); else if (KIND === 'fireworks') drawFireworks(now, dt); else if (KIND === 'timer') drawTimer();
+  } catch (e) { console.error(e); }
+}
+const show = { timer: '#timer', board: '#board', goal: '#goal', subs: '#subs' }[KIND];
+if (show) $(show).style.display = KIND === 'board' ? 'flex' : 'flex';
+if (KIND === 'garden') $('#gtitle').style.display = 'block';
+if (PREVIEW && KIND === 'subs') showSub({ id: 'demo', text: 'ตัวอย่างซับไตเติล', final: true, tr: { en: 'Subtitle preview' } });
+
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws?role=widget&k=${encodeURIComponent(KIND)}`);
+  ws.onopen = () => { $('#status').style.display = 'none'; };
+  ws.onclose = () => { if (!PREVIEW) $('#status').style.display = 'block'; setTimeout(connect, 2000); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'wState') {
+      const first = !S.cfg; S = m;
+      if (KIND === 'garden') { if (first || plants.length !== m.flowers.length) { plants.length = 0; for (const f of m.flowers) plant(f, false); } $('#gtitle').textContent = m.cfg.garden.title || ''; }
+      if (KIND === 'timer') { tLeft = m.timer.left; tRun = m.timer.running; tAt = performance.now(); }
+      if (KIND === 'board') renderBoard();
+      if (KIND === 'goal') renderGoal();
+    }
+    else if (m.t === 'wFlower' && KIND === 'garden') { for (const f of m.flowers) plant(f, true); if (S.cfg) S.flowers = [...S.flowers, ...m.flowers]; }
+    else if (m.t === 'wFirework' && KIND === 'fireworks') for (let i = 0; i < m.n; i++) setTimeout(() => launch(m.p, m.big), i * 260);
+    else if (m.t === 'wTimerAdd' && KIND === 'timer') timerAdd(m.sec);
+    else if (m.t === 'stagePlay' && KIND === 'stage') stagePlay(m);
+    else if (m.t === 'stageStop' && KIND === 'stage') stageStop();
+    else if (m.t === 'subsCfg') subsCfg = m.cfg;
+    else if (m.t === 'sub' && KIND === 'subs') showSub(m);
+  };
+}
+requestAnimationFrame(frame);
+connect();
+</script>
+</body>
+</html>

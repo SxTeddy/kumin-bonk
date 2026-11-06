@@ -519,5 +519,59 @@
     },
   };
 
+  // 🫧 lava lamp: gifts drift slowly through warm, glowing liquid with wax blobs
+  T.lava = {
+    damp: 0.92,
+    geo(g, e) {
+      g.half = Math.min(e.W * 0.32, e.HH * 0.2); g.base = g.half * 0.9; g.bottom = e.floor - g.base; g.top = Math.max(e.H * 0.03 + g.half * 0.5, g.bottom - g.half * 3.6);
+      g.hw = y => { if (y < g.top) return g.half * 0.42; if (y > g.bottom) return 0; const t = (y - g.top) / (g.bottom - g.top); return g.half * (0.42 + 0.58 * Math.sin(Math.min(1, t * 1.25) * Math.PI / 2) - (t > 0.85 ? (t - 0.85) * 1.6 : 0)); };
+      g.neck = g.half * 0.42; g.ceil = g.top; g.blobs = Array.from({ length: 7 }, (_, i) => ({ y: Math.random(), x: (Math.random() - 0.5) * 0.6, r: 0.18 + Math.random() * 0.18, s: 0.03 + Math.random() * 0.05, d: i % 2 ? 1 : -1 }));
+    },
+    back(g, t, dt) {
+      outline(0); const gr = ctx.createLinearGradient(0, g.top, 0, g.bottom); gr.addColorStop(0, rgba(glass(), 0.35)); gr.addColorStop(1, shade(accent(), 0.9)); ctx.globalAlpha = 0.55; ctx.fillStyle = gr; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.save(); outline(0); ctx.clip();
+      for (const b of g.blobs) { b.y += b.s * b.d * dt; if (b.y < 0 || b.y > 1) b.d *= -1; const y = g.top + (g.bottom - g.top) * clamp(b.y, 0, 1), x = g.cx + b.x * g.hw(y), r = g.half * b.r * (1 + 0.15 * Math.sin(t / 600 + b.r * 20));
+        ellipse(x, y, r, r * 1.25); ctx.fillStyle = shade(accent(), 1.25); ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1; }
+      ctx.restore();
+    },
+    front(g, t) {
+      outline(g.wall); strokePath(rgba(glass(), 0.9), g.wall * 1.2); glassShine(g, 0.1, 0.6);
+      const c = '#c9ced8', d = '#7d8597';
+      ctx.beginPath(); ctx.moveTo(g.cx - g.neck - g.wall, g.top); ctx.lineTo(g.cx + g.neck + g.wall, g.top); ctx.lineTo(g.cx + g.neck * 0.7, g.top - g.half * 0.45); ctx.lineTo(g.cx - g.neck * 0.7, g.top - g.half * 0.45); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); strokePath(d, 2);
+      const bw = g.hw(g.bottom - 2) + g.wall * 2;
+      ctx.beginPath(); ctx.moveTo(g.cx - bw, g.bottom); ctx.lineTo(g.cx + bw, g.bottom); ctx.lineTo(g.cx + g.half * 0.95, g.floor); ctx.lineTo(g.cx - g.half * 0.95, g.floor); ctx.closePath();
+      const gr = ctx.createLinearGradient(g.cx - g.half, 0, g.cx + g.half, 0); gr.addColorStop(0, d); gr.addColorStop(0.35, '#eef1f6'); gr.addColorStop(1, d); ctx.fillStyle = gr; ctx.fill();
+      const glow = ctx.createRadialGradient(g.cx, g.bottom, 0, g.cx, g.bottom, g.half * 1.4); glow.addColorStop(0, rgba(accent().startsWith('#') ? accent() : '#ff7aa8', 0.35)); glow.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = glow; ctx.fillRect(g.cx - g.half * 1.5, g.bottom - g.half * 1.4, g.half * 3, g.half * 1.6);
+    },
+  };
+
+  // 🚚 gift truck: the cargo bed fills up (and spills over); wheels turn as gifts land
+  T.truck = {
+    open: true,
+    geo(g, e) {
+      const L = Math.min(e.W * 0.92, e.HH * 1.0); g.L = L; g.wheel = L * 0.085; g.cx = e.W / 2 - L * 0.12;
+      g.half = L * 0.3; g.bottom = e.floor - g.wheel * 1.55; g.top = g.bottom - L * 0.32; rectHW(g, 4);
+      g.cab = { x: g.cx + g.half + g.wall * 2, w: L * 0.24, h: L * 0.3 }; g.spin = 0; g.smoke = [];
+    },
+    back(g) { outline(0); fillPath(shade(accent(), 0.5), 0.5); },
+    front(g, t, dt) {
+      const c = accent(), cab = g.cab, by = g.bottom;
+      outline(g.wall); fillPath(c, 0.32); outline(g.wall); strokePath(shade(c, 0.6), g.wall * 1.4);
+      ctx.strokeStyle = shade(c, 0.6); ctx.lineWidth = 2; for (let i = 1; i < 4; i++) { const x = g.cx - g.half + g.half * 2 * i / 4; ctx.beginPath(); ctx.moveTo(x, g.top); ctx.lineTo(x, by); ctx.stroke(); }
+      rr(g.cx - g.half - g.wall * 2, by, g.half * 2 + cab.w + g.wall * 6, g.wheel * 0.7, 6); ctx.fillStyle = '#3a3f4b'; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cab.x, by); ctx.lineTo(cab.x, by - cab.h); ctx.lineTo(cab.x + cab.w * 0.62, by - cab.h); ctx.lineTo(cab.x + cab.w, by - cab.h * 0.45); ctx.lineTo(cab.x + cab.w, by); ctx.closePath();
+      const gr = ctx.createLinearGradient(0, by - cab.h, 0, by); gr.addColorStop(0, shade(c, 1.15)); gr.addColorStop(1, shade(c, 0.8)); ctx.fillStyle = gr; ctx.fill(); strokePath(shade(c, 0.55), 3);
+      ctx.beginPath(); ctx.moveTo(cab.x + cab.w * 0.12, by - cab.h * 0.9); ctx.lineTo(cab.x + cab.w * 0.58, by - cab.h * 0.9); ctx.lineTo(cab.x + cab.w * 0.86, by - cab.h * 0.5); ctx.lineTo(cab.x + cab.w * 0.12, by - cab.h * 0.5); ctx.closePath(); ctx.fillStyle = rgba(glass(), 0.85); ctx.fill();
+      rr(cab.x + cab.w * 0.88, by - cab.h * 0.32, cab.w * 0.12, cab.h * 0.1, 3); ctx.fillStyle = '#ffd23f'; ctx.fill();
+      puffs(g.smoke, 6, () => ({ x: g.cx - g.half - g.wall * 3, y: by + g.wheel * 0.3, r: 5 }), (p, d) => { p.x -= 30 * d; p.y -= 8 * d; p.r += 8 * d; return p.age < 1.5; }, p => { circle(p.x, p.y, p.r); ctx.fillStyle = `rgba(200,200,210,${0.4 * (1 - p.age / 1.5)})`; ctx.fill(); }, dt);
+      g.spin += dt * 0.6;
+      for (const x of [g.cx - g.half * 0.6, g.cx + g.half * 0.5, cab.x + cab.w * 0.55]) {
+        circle(x, by + g.wheel * 0.75, g.wheel); ctx.fillStyle = '#22252c'; ctx.fill(); circle(x, by + g.wheel * 0.75, g.wheel * 0.5); ctx.fillStyle = '#c9ced8'; ctx.fill();
+        ctx.save(); ctx.translate(x, by + g.wheel * 0.75); ctx.rotate(g.spin); ctx.strokeStyle = '#7d8597'; ctx.lineWidth = 3; for (let i = 0; i < 3; i++) { ctx.rotate(TAU / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(g.wheel * 0.45, 0); ctx.stroke(); } ctx.restore();
+      }
+    },
+    onDrop(g) { g.spin += 0.5; },
+  };
+
   window.JAR_THEMES = T;
 })();

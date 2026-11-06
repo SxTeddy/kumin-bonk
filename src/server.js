@@ -18,12 +18,13 @@ import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects, SCENES, SCENE_NAMES, MAX_ITEMS } from './effects.js';
 import { mergeGiftLists } from './giftlist.js';
 import { GiftJar, sanitizeJar } from './jar.js';
+import { sanitizeBoard, sanitizeWidgets, sanitizeSubs, Widgets, giftSongsFor, translate } from './studio.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.0.10';
+const VERSION = '1.1.0';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -51,7 +52,7 @@ function loadConfig() {
 }
 // Settings groups (plain objects like head, throwing, combo…) are merged key by key so new options get their defaults.
 function mergeConfig(base, next) {
-  const SECTIONS = ['head', 'throwing', 'fx', 'chatTts', 'pause', 'combo', 'limit', 'chatCmd', 'thanks', 'summary', 'jar'];
+  const SECTIONS = ['head', 'throwing', 'fx', 'chatTts', 'pause', 'combo', 'limit', 'chatCmd', 'thanks', 'summary', 'jar', 'board', 'widgets', 'subs'];
   const out = { ...base, ...next };
   for (const k of SECTIONS) if (next?.[k] && typeof next[k] === 'object') out[k] = { ...base[k], ...next[k] };
   return out;
@@ -73,6 +74,9 @@ function sanitizeConfig(c) {
   c.summary = { ...DEFAULT_CONFIG.summary, ...(c.summary || {}) };
   c.summary.folder = safeFolder(c.summary.folder);
   c.jar = sanitizeJar(c.jar); // 🫙 gift jar on the live screen
+  c.board = sanitizeBoard(c.board); c.widgets = sanitizeWidgets(c.widgets); c.subs = sanitizeSubs(c.subs);
+  if (!Array.isArray(c.media)) c.media = [];
+  c.media = c.media.filter(x => x && /^[a-z0-9]{1,24}$/.test(String(x.id)) && /^[a-z0-9]{1,24}\.(mp3|wav|ogg|webm|m4a|aac|mp4|webm)$/.test(String(x.file))).map(x => ({ id: String(x.id), name: String(x.name || '').slice(0, 60), file: String(x.file), kind: x.kind === 'video' ? 'video' : 'audio' }));
   if (!Array.isArray(c.customSounds)) c.customSounds = [];
   c.customSounds = c.customSounds.filter(x => x && /^[a-z0-9]{1,20}$/.test(String(x.id)) && /^[a-z0-9]{1,20}\.(mp3|wav|ogg|webm|m4a|aac)$/.test(String(x.file)));
   if (c.lang && !['th', 'en', 'ja', 'zh', 'ko', 'vi', 'id', 'es'].includes(c.lang)) c.lang = 'th';
@@ -172,6 +176,31 @@ function jarEvent(ev) {
   else if (ev.type === 'follow') jar.follow({ name: ev.user.nickname || ev.user.username }, config.jar);
   else if (ev.type === 'chat') jar.chat(ev.text, { id: ev.user.id || ev.user.username, name: ev.user.nickname }, config.jar);
 }
+// 🖼️ on-screen widgets (/garden /fireworks /timer /board /goal /stage /subs) — what they show is kept in widgets.json
+const widgetWs = new Set();
+const sendWidgets = m => { for (const ws of widgetWs) send(ws, m); };
+let widgetSaveT = null;
+const widgets = new Widgets(readJson('widgets.json', {}), m => { sendWidgets(m); if (m.t === 'wState') toDashboards(m); },
+  () => { if (!widgetSaveT) widgetSaveT = setTimeout(() => { widgetSaveT = null; writeJson('widgets.json', widgets.state()); }, 2000); }, () => config.widgets);
+setInterval(() => widgets.flush(), 700);
+// 🎛️ soundboard: a pad plays its sound in the app window; a video pad plays on the /stage link source (or just its sound if there's no stage)
+const MEDIA_DIR = path.join(DATA, 'media');
+function playPad(pad, why = '') {
+  if (!pad) return;
+  const m = pad.src.startsWith('m:') ? (config.media || []).find(x => x.id === pad.src.slice(2)) : null;
+  if (pad.src.startsWith('m:') && !m) return;
+  const stage = m?.kind === 'video' && [...widgetWs].some(w => w.kind === 'stage');
+  const msg = { pad, url: m ? `/media/${m.id}` : '', kind: m?.kind || 'audio', volume: config.board.volume, stopOthers: config.board.stopOthers };
+  if (stage) sendWidgets({ t: 'stagePlay', ...msg }); else toDashboards({ t: 'padPlay', ...msg });
+  if (why) log('board', `🎵 ${why} → ${pad.emoji} ${pad.name}`);
+}
+function widgetEvent(ev) {
+  let pic = null;
+  if (ev.type === 'gift') { const e = gifts.find(ev.gift); pic = e ? `gift:${e.img}` : ev.gift.image; }
+  widgets.event(ev, pic);
+  for (const pad of giftSongsFor(config.board, ev)) playPad(pad, `${ev.user?.nickname || ''} · ${ev.gift.th || ev.gift.name}`);
+}
+let lastSessionId = null, subsWarned = false;
 const giftKey = s => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g), guess: gifts.guess(g.name), matched: Object.hasOwn(gifts.learned, giftKey(g.name)) ? gifts.learned[giftKey(g.name)] : '' }));
 // 🔄 TikTok's current gift list (checked when the live connects, at most every 12 hours, or with the button)
@@ -207,6 +236,7 @@ function noteGift(ev) {
 let viewers = 0;
 // 📊 live summaries, 🙏 thank-you messages, ⌨️ pause shortcut
 const sessions = new Sessions(path.join(DATA, 'sessions.json'), log);
+lastSessionId = sessions.resumable?.id || null; // app restarted during a live: keep that live's leaderboards
 findDocuments();
 // 📁 each finished live is also saved as a page in a folder, to open and read any time
 function giftPic(name) {
@@ -254,7 +284,7 @@ function status() {
   return {
     tiktok: { status: tiktok.status, detail: tiktok.statusDetail || '', username: tiktok.username },
     vts: { status: vts.status, detail: vts.statusDetail || '', model: vts.model?.modelName || '', images: vts.canCustomImages },
-    overlays: overlays.size, jars: jars.size, viewers, stats: engine.stats, version: VERSION,
+    overlays: overlays.size, jars: jars.size, widgets: [...widgetWs].map(w => w.kind), viewers, stats: engine.stats, version: VERSION,
     paused: engine.paused, queued: engine.queue.length, hotkey: { key: hotkey.key, state: hotkey.state, list: HOTKEYS }, session: !!sessions.cur,
   };
 }
@@ -274,6 +304,7 @@ tiktok.on('status', () => {
   const st = tiktok.status;
   if (st !== lastTikStatus) {
     if (st === 'live' && config.summary?.enabled !== false) sessions.start(tiktok.username);
+    if (st === 'live' && sessions.cur && sessions.cur.id !== lastSessionId) { lastSessionId = sessions.cur.id; if (config.widgets.resetOnLive) widgets.reset('all'); } // a new live: fresh leaderboards and goal
     if (st === 'offline' && sessions.cur) liveEnded(sessions.end());
     lastTikStatus = st;
   }
@@ -307,6 +338,7 @@ function onEvent(ev, simulated = false) {
     if (!simulated) noteGift(ev);
   }
   jarEvent(ev);
+  widgetEvent(ev);
   if (!simulated) sessions.add(ev);
   if (!simulated) thanks.handle(ev); // the ✨ tab has its own "listen" button for testing
   const fired = engine.handle(ev, simulated); // tests always play right away (even while paused)
@@ -391,7 +423,7 @@ async function onDashboard(ws, m) {
     case 'saveConfig': {
       const next = m.config;
       if (!next || !Array.isArray(next.rules)) return;
-      delete next.customSounds; // the server owns the uploaded-sound list (a save in flight must not undo an upload)
+      delete next.customSounds; delete next.media; // the server owns the uploaded-sound / media lists (a save in flight must not undo an upload)
       delete next.locks; delete next.modelLocks; // ...and the lock points (set by clicking the model in VTube Studio)
       if (next.head && typeof next.head === 'object') { delete next.head.modelX; delete next.head.modelY; } // ...and where the model was when the head was saved
       const hk = JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey]);
@@ -401,6 +433,7 @@ async function onDashboard(ws, m) {
       vts.setPort(Number(config.vtsPort) || 8001);
       overlay.send(overlaySettings());
       for (const j of jars) send(j, { t: 'jarCfg', cfg: config.jar });
+      sendWidgets(widgets.view()); sendWidgets({ t: 'subsCfg', cfg: config.subs });
       send(ws, { t: 'saved' });
       return;
     }
@@ -428,6 +461,36 @@ async function onDashboard(ws, m) {
       while (jar.items.length < cfg.capacity) jar.items.push({ p: `gift:${pool[Math.floor(Math.random() * pool.length)].img}` });
       for (const j of jars) send(j, jarInit());
       setTimeout(() => jar.add('gift:g000', 1, 1, cfg, { name: 'ทดสอบ' }, 'กุหลาบ'), 1500);
+      return;
+    }
+    case 'playPad': return playPad(config.board.pads.find(p => p.id === m.id));
+    case 'stopPads': toDashboards({ t: 'padStop' }); return sendWidgets({ t: 'stageStop' });
+    case 'timer': return widgets.timerCmd(String(m.cmd || ''), Number(m.sec) || 0);
+    case 'wReset': return widgets.reset(['all', 'board', 'goal', 'garden'].includes(m.what) ? m.what : 'all');
+    case 'wTest': { // try the widgets without a live
+      const pool = CATALOG.filter(g => g.img), g = pool[Math.floor(Math.random() * pool.length)], names = ['มะลิ', 'ต้นกล้า', 'ข้าวหอม', 'น้องแมว', 'พี่หมี'];
+      const user = { nickname: names[Math.floor(Math.random() * names.length)] };
+      widgets.event({ type: 'gift', user, gift: { name: g.en, th: g.th, diamonds: g.coins }, count: 1 + Math.floor(Math.random() * 3) }, `gift:${g.img}`);
+      widgets.event({ type: 'like', user, count: 30 + Math.floor(Math.random() * 120) });
+      return widgets.flush();
+    }
+    case 'delMedia': {
+      const x = (config.media || []).find(v => v.id === m.id);
+      if (x) { try { fs.rmSync(path.join(MEDIA_DIR, x.file), { force: true }); } catch {} }
+      config.media = (config.media || []).filter(v => v.id !== m.id);
+      config.board.pads = config.board.pads.filter(p => p.src !== `m:${m.id}`); config.board = sanitizeBoard(config.board);
+      saveConfig(); return toDashboards({ t: 'media', media: config.media, board: config.board });
+    }
+    case 'subLine': { // 📝 a line the app window heard: show it now, translations follow
+      const text = String(m.text || '').trim().slice(0, 400); if (!text) return;
+      const id = String(m.id || Date.now()).slice(0, 20);
+      sendWidgets({ t: 'sub', id, text, final: !!m.final, tr: {} });
+      if (m.final && config.subs.tr.length) {
+        const from = config.subs.lang.split('-')[0];
+        const tr = Object.fromEntries(await Promise.all(config.subs.tr.filter(l => l.split('-')[0] !== from).map(async l => [l, await translate(text, l, from)])));
+        sendWidgets({ t: 'sub', id, text, final: true, tr });
+        if (Object.values(tr).some(v => !v) && !subsWarned) { subsWarned = true; log('subs', 'แปลภาษาไม่สำเร็จบางบรรทัด (ต้องต่ออินเทอร์เน็ต) — ซับภาษาเดิมยังขึ้นปกติ', 'warn'); }
+      }
       return;
     }
     case 'simulate': {
@@ -634,6 +697,9 @@ const server = http.createServer((req, res) => {
   if (p === '/') p = '/dashboard.html';
   if (p === '/overlay') p = '/overlay.html';
   if (p === '/jar') p = '/jar.html';
+  if (/^\/(garden|fireworks|timer|board|goal|stage|subs)$/.test(p)) p = '/widget.html'; // 🖼️ every widget is the same page; it reads its kind from the address
+  if (p === '/api/media' && req.method === 'POST') return uploadMedia(req, res, url);
+  if (p.startsWith('/media/')) return serveMedia(req, res, p.slice(7));
   if (p === '/api/ping') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('kuminbonk'); }
   if (p.startsWith('/usound/')) { // uploaded effect sounds
     const s = (config.customSounds || []).find(x => x.id === p.slice(8));
@@ -650,11 +716,59 @@ const server = http.createServer((req, res) => {
   res.end(buf);
 });
 
+// 🎛️ songs / clips for the soundboard: uploaded as the raw file (up to 40 MB), played with seeking (Range)
+const MEDIA_EXT = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/ogg': 'ogg', 'audio/x-m4a': 'm4a', 'audio/mp4': 'm4a', 'audio/aac': 'aac', 'audio/webm': 'webm', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+const MEDIA_TYPE = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', webm: 'video/webm', mp4: 'video/mp4' };
+function uploadMedia(req, res, url) {
+  const done = (code, body) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
+  if (!originOk(req) || req.headers['x-kb'] !== '1') return done(403, { error: 'forbidden' });
+  const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase(), ext = MEDIA_EXT[type];
+  if (!ext) return done(415, { error: 'ใช้ได้เฉพาะไฟล์เสียง mp3 / wav / ogg / m4a หรือวิดีโอ mp4 / webm' });
+  if ((config.media || []).length >= 60) return done(400, { error: 'เพิ่มไฟล์ได้สูงสุด 60 ไฟล์ ลบไฟล์ที่ไม่ใช้ก่อนนะ' });
+  const max = 40 * 1024 * 1024, parts = []; let size = 0, over = false;
+  req.on('data', c => { size += c.length; if (size > max) { over = true; req.destroy(); } else parts.push(c); });
+  req.on('end', () => {
+    if (over || !size) return done(413, { error: 'ไฟล์ต้องไม่เกิน 40 MB' });
+    fs.mkdirSync(MEDIA_DIR, { recursive: true });
+    const id = Date.now().toString(36) + Math.floor(Math.random() * 36 ** 3).toString(36);
+    fs.writeFileSync(path.join(MEDIA_DIR, `${id}.${ext}`), Buffer.concat(parts));
+    const name = String(url.searchParams.get('name') || 'ไฟล์ของฉัน').replace(/\.[a-z0-9]+$/i, '').slice(0, 60);
+    const kind = type.startsWith('video/') ? 'video' : 'audio';
+    config.media = [...(config.media || []), { id, name, file: `${id}.${ext}`, kind }];
+    saveConfig(); log('board', `เพิ่มไฟล์ "${name}" แล้ว`);
+    toDashboards({ t: 'media', media: config.media });
+    done(200, { id, kind });
+  });
+  req.on('error', () => {});
+}
+function serveMedia(req, res, id) {
+  const m = (config.media || []).find(x => x.id === id);
+  let st = null; const file = m ? path.join(MEDIA_DIR, m.file) : '';
+  try { if (m) st = fs.statSync(file); } catch {}
+  if (!st) { res.writeHead(404); return res.end('not found'); }
+  const type = MEDIA_TYPE[path.extname(m.file).slice(1)] || 'application/octet-stream';
+  const r = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+  if (r && (r[1] || r[2])) {
+    let a = r[1] ? Number(r[1]) : Math.max(0, st.size - Number(r[2])), b = r[1] && r[2] ? Math.min(Number(r[2]), st.size - 1) : st.size - 1;
+    if (a > b || a >= st.size) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}` }); return res.end(); }
+    res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${a}-${b}/${st.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': b - a + 1 });
+    return fs.createReadStream(file, { start: a, end: b }).pipe(res);
+  }
+  res.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': st.size });
+  fs.createReadStream(file).pipe(res);
+}
+
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 6 * 1024 * 1024, verifyClient: ({ req }) => hostOk(req) && originOk(req) });
 wss.on('error', () => {}); // listen errors are handled on the http server
 wss.on('connection', (ws, req) => {
   const role = new URL(req.url, 'http://x').searchParams.get('role');
-  if (role === 'jar') {
+  if (role === 'widget') {
+    ws.kind = String(new URL(req.url, 'http://x').searchParams.get('k') || '').slice(0, 20);
+    widgetWs.add(ws);
+    send(ws, widgets.view()); send(ws, { t: 'subsCfg', cfg: config.subs });
+    pushStatus();
+    ws.on('close', () => { widgetWs.delete(ws); pushStatus(); });
+  } else if (role === 'jar') {
     jars.add(ws);
     send(ws, jarInit());
     pushStatus();
@@ -677,6 +791,7 @@ wss.on('connection', (ws, req) => {
     justUpdated = ''; firstRun = false;
     send(ws, { t: 'status', ...status() });
     send(ws, { t: 'update', ...updater.state });
+    send(ws, widgets.view());
     ws.on('message', raw => { let m; try { m = JSON.parse(raw); } catch { return; } onDashboard(ws, m).catch(e => log('app', e.message, 'warn')); });
     ws.on('close', () => { dashboards.delete(ws); if (adoptedWindow) setTimeout(() => { if (adoptedWindow && dashboards.size === 0 && !restarting) quit(); }, 8000); });
   }
@@ -706,7 +821,7 @@ function restartApp() {
   // Keep the app window open: it shows a "changing outfit" screen and reloads itself when the new version is up.
   toDashboards({ t: 'restarting' });
   vts.stop(); tiktok.disconnect(true).catch(() => {}); hotkey.stop(); sessions.dirty = true; sessions.flush();
-  for (const ws of [...dashboards, ...overlays, ...jars]) { try { ws.terminate(); } catch {} }
+  for (const ws of [...dashboards, ...overlays, ...jars, ...widgetWs]) { try { ws.terminate(); } catch {} }
   server.close(() => {
     spawn(process.execPath, [path.join(process.env.KB_INSTALL, 'launch.cjs')], { cwd: process.env.KB_INSTALL, detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, KB_RESTARTED: '1' } }).unref();
     setTimeout(() => process.exit(0), 300);

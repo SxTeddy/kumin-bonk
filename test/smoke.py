@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 port, work = sys.argv[1], sys.argv[2]
 URL = f'http://localhost:{port}/'
 fails = []
-TABS = ['home', 'cats', 'rules', 'test', 'aim', 'chat', 'helpers', 'jar', 'summary', 'settings', 'lang']
+TABS = ['home', 'cats', 'rules', 'test', 'aim', 'chat', 'helpers', 'jar', 'sboard', 'widgets', 'subs', 'summary', 'settings', 'lang']
 
 THAI_JS = r"""() => {
   const TH = /[฀-๿]/, out = new Set();
@@ -91,6 +91,39 @@ with sync_playwright() as p:
     if pg.locator('#catQuick button.off').count() != 1: fails.append('quick category toggle failed')
     pg.click('#catQuick button >> nth=0'); pg.wait_for_timeout(200)
     pg.click('#tabs button[data-tab=summary]'); pg.wait_for_timeout(500)
+    # 🎛️🖼️📝 soundboard, widgets, subtitles
+    wpages = {}
+    for k in ['garden', 'fireworks', 'timer', 'board', 'goal', 'stage', 'subs']:
+        wp = b.new_page(viewport={'width': 800, 'height': 500}); wp.on('pageerror', lambda e, k=k: errs.append(f'{k} page error: ' + str(e)))
+        wp.goto(URL + k); wpages[k] = wp
+    pg.click('#tabs button[data-tab=sboard]'); pg.wait_for_timeout(300)
+    pg.evaluate("(() => { window._played = []; const o = padPlay; padPlay = m => { window._played.push(m.pad.id); o(m); }; })()")
+    pads0 = pg.locator('.pad').count()
+    pg.click('.pad >> nth=0'); pg.wait_for_timeout(400)
+    if not pg.evaluate('window._played.length'): fails.append('soundboard pad did not play')
+    pg.set_input_files('#mediaFile', wav); pg.wait_for_timeout(1500)
+    if pg.locator('.pad').count() != pads0 + 1: fails.append('uploaded song did not become a pad')
+    pg.click('#btnGsAdd'); pg.wait_for_timeout(700)
+    pg.evaluate("window._played = []; send({t:'simulate', ev:{type:'gift', user:{nickname:'t'}, gift:{name:'Rose', diamonds:1}, count:1}})"); pg.wait_for_timeout(800)
+    if not pg.evaluate('window._played.length'): fails.append('gift did not play its song')
+    import urllib.request, urllib.error
+    for hdr in ({'Content-Type': 'audio/wav'}, {'Content-Type': 'audio/wav', 'X-KB': '1', 'Origin': 'http://evil.example'}):
+        try: code = urllib.request.urlopen(urllib.request.Request(URL + 'api/media?name=x', data=b'abc', headers=hdr, method='POST')).status
+        except urllib.error.HTTPError as e: code = e.code
+        if code != 403: fails.append(f'media upload accepted from outside the app ({hdr})')
+    mid = pg.evaluate('config.media[0].id')
+    if pg.evaluate(f"fetch('/media/{mid}', {{headers:{{Range:'bytes=0-9'}}}}).then(r => r.status)") != 206: fails.append('songs cannot be seeked (no Range)')
+    pg.click('#tabs button[data-tab=widgets]'); pg.wait_for_timeout(300)
+    pg.click('[data-tc=start] >> nth=0')
+    for i in range(3): pg.click('[data-wtest] >> nth=0'); pg.wait_for_timeout(400)
+    pg.wait_for_timeout(1500)
+    if wpages['board'].locator('.row').count() < 1: fails.append('leaderboard widget empty')
+    if wpages['garden'].evaluate('plants.length') < 3: fails.append('garden widget empty')
+    if '00:00:00' in wpages['timer'].inner_text('#timer'): fails.append('timer widget not counting')
+    pg.evaluate("send({t:'subLine', id:'s1', text:'ทดสอบซับ', final:false})"); pg.wait_for_timeout(800)
+    if 'ทดสอบซับ' not in wpages['subs'].inner_text('#subs'): fails.append('subtitle not shown')
+    pg.evaluate("send({t:'wReset', what:'all'})")
+    for wp in wpages.values(): wp.close()
     # every language: every tab, look for Thai left untranslated
     for lang in ['en', 'ja', 'es']:
         pg.evaluate(f"KBI18N.setLang('{lang}')"); pg.wait_for_timeout(200)

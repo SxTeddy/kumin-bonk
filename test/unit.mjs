@@ -15,6 +15,7 @@ import { newer } from '../src/updater.js';
 import { mergeGiftLists, guessStyle } from '../src/giftlist.js';
 import { CATALOG } from '../src/gifts.js';
 import { GiftJar, sanitizeJar, JAR_DEFAULT, jarOpen } from '../src/jar.js';
+import { sanitizeBoard, sanitizeWidgets, sanitizeSubs, Widgets, giftSongsFor, translate } from '../src/studio.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const results = [];
@@ -373,6 +374,30 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
   const s = sanitizeJar({ shape: 'x', glass: 'red', capacity: 1e9, label: 'y'.repeat(99), itemSize: 'big' });
   assert.equal(s.shape, 'jar'); assert.equal(sanitizeJar({ shape: 'factory' }).shape, 'factory'); assert.equal(s.glass, JAR_DEFAULT.glass); assert.equal(s.capacity, 400); assert.equal(s.label.length, 30); assert.equal(s.itemSize, 1);
   assert.deepEqual(DEFAULT_CONFIG.jar, JAR_DEFAULT, 'fresh installs get the jar settings');
+});
+await t('soundboard, gift songs, widgets (leaderboard, goal, timer, garden, fireworks) and subtitle translation', async () => {
+  const b = sanitizeBoard({ pads: [{ id: 'a', name: 'x', src: 'b:clap' }, { id: 'bad', src: 'javascript:1' }, { id: 'c', src: 'm:abc' }], giftSongs: [{ id: 'g1', gift: 'Rose', pad: 'c', min: 5 }, { id: 'g2', gift: 'x', pad: 'nope' }] });
+  assert.deepEqual(b.pads.map(p => p.id), ['a', 'c'], 'unsafe pad sources are dropped'); assert.equal(b.giftSongs.length, 1, 'song pointing at a missing pad is dropped');
+  assert.equal(giftSongsFor(b, { type: 'gift', gift: { name: 'Rose', th: 'กุหลาบ' }, count: 3 }).length, 0, 'needs 5 roses');
+  assert.equal(giftSongsFor(b, { type: 'gift', gift: { name: 'rose' }, count: 5 })[0].id, 'c');
+  assert.equal(sanitizeBoard({}).pads.length, 8, 'starter pads');
+  const cfg = sanitizeWidgets({ timer: { perCoin: 10, perFollow: 30, per100Likes: 5, maxHours: 1, startMin: 10 }, garden: { max: 10 } });
+  const sent = []; const w = new Widgets({}, m => sent.push(m), () => {}, () => cfg);
+  w.timerCmd('start'); assert.equal(Math.round(w.timer.left), 600, 'starts from startMin');
+  w.event({ type: 'gift', user: { nickname: 'มะลิ' }, gift: { diamonds: 5 }, count: 2 }, 'gift:g001');
+  assert.equal(Math.round(w.timer.left), 700, '10 coins x 10 s'); assert.equal(w.totals.coins, 10); assert.equal(w.top('gifts', 1)[0].name, 'มะลิ');
+  assert.ok(sent.some(m => m.t === 'wFlower' && m.flowers.length === 2), 'two flowers planted'); assert.ok(sent.some(m => m.t === 'wFirework' && m.n === 2));
+  w.event({ type: 'like', user: { nickname: 'a' }, count: 250 }); assert.equal(Math.round(w.timer.left), 710, '2 x 100 likes = 10 s');
+  w.event({ type: 'follow', user: { nickname: 'b' } }); assert.equal(w.totals.follows, 1);
+  w.addTime(99999); assert.equal(Math.round(w.timer.left), 3600, 'never past maxHours');
+  for (let i = 0; i < 20; i++) w.event({ type: 'gift', user: { nickname: 'c' }, gift: { diamonds: 1 }, count: 1 }, 'rose');
+  assert.equal(w.flowers.length, 10, 'garden keeps at most max flowers');
+  w.event({ type: 'gift', user: { nickname: 'x' }, gift: { diamonds: 1 }, count: 1 }, 'javascript:alert(1)'); assert.ok(!w.flowers.some(f => f.p.startsWith('javascript')));
+  w.reset('all'); assert.equal(w.totals.coins, 0); assert.equal(w.top('gifts', 5).length, 0);
+  const s = sanitizeSubs({ tr: ['en', 'ja', 'xx', 'ko', 'vi', 'es'], size: 999 }); assert.deepEqual(s.tr, ['en', 'ja', 'ko', 'vi'], 'max 4 known languages'); assert.equal(s.size, 90);
+  const fake = async url => ({ ok: true, json: async () => [[['Hello ', 'x'], ['world', 'y']]], url });
+  assert.equal(await translate('สวัสดีชาวโลก', 'en', 'th', fake), 'Hello world');
+  assert.equal(await translate('x', 'en', 'th', async () => { throw new Error('offline'); }), '', 'offline: no translation, no crash');
 });
 fs.rmSync(tmp, { recursive: true, force: true });
 let bad = 0;

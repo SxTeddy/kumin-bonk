@@ -566,3 +566,25 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .jaropts .seg button { border: var(--bw, 2px) solid var(--line); border-radius: 999px; }
 #jar input:not([type=checkbox]):not([type=range]):not([type=number]):not([type=color]) { width: 100%; box-sizing: border-box; }
 #jar .row > input { min-width: 0; }
+
+/* 🎛️ soundboard */
+.pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.pad { position: relative; border: 0; border-radius: var(--r-md, 14px); padding: 18px 8px 14px; color: #fff; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 5px 0 rgba(0,0,0,.25); transition: transform .08s; min-height: 92px; text-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.pad:active, .pad.hit { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.pad .em { font-size: 30px; line-height: 1; }
+.pad .nm { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.pad .ed { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.25); border: 0; border-radius: 8px; color: #fff; font-size: 12px; padding: 2px 6px; cursor: pointer; }
+.pad .tag { position: absolute; top: 5px; left: 7px; font-size: 11px; opacity: .85; }
+.padedit { margin-top: 14px; padding: 14px; border: var(--bw, 2px) dashed var(--line); border-radius: var(--r-md, 14px); }
+#sboard input:not([type=checkbox]):not([type=range]):not([type=color]):not([type=file]), #widgets input:not([type=checkbox]):not([type=range]):not([type=color]), #subs input:not([type=checkbox]):not([type=range]):not([type=color]) { min-width: 0; box-sizing: border-box; }
+.gsrow, .mrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.gsrow input[type=number] { width: 70px; }
+.mrow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 🖼️ widgets */
+.wgrid { gap: 18px; }
+.wprev { margin: 10px 0; height: 170px; border-radius: var(--r-md, 14px); overflow: hidden; border: var(--bw, 2px) solid var(--line); background: repeating-conic-gradient(color-mix(in srgb, var(--ink) 7%, transparent) 0 25%, transparent 0 50%) 0 0 / 22px 22px; }
+.wprev iframe { width: 100%; height: 100%; border: 0; display: block; background: transparent; color-scheme: normal; }
+.tstate { font: 800 26px/1.2 monospace; margin: 6px 0 8px; }
+.subsnow { min-height: 48px; margin: 10px 0; padding: 10px 12px; border-radius: var(--r-md, 14px); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+#sboard .row > input[type=color], #widgets .row > input[type=color], #subs .row > input[type=color] { flex: none; width: 46px; }
+#subs .row > label { white-space: nowrap; }

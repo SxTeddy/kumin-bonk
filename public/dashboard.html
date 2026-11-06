@@ -68,6 +68,9 @@
   <button data-tab="chat">💬 อ่านแชต</button>
   <button data-tab="helpers">✨ ตัวช่วยไลฟ์</button>
   <button data-tab="jar">🫙 โหลของขวัญ</button>
+  <button data-tab="sboard">🎛️ ซาวด์บอร์ด</button>
+  <button data-tab="widgets">🖼️ วิดเจ็ตบนจอ</button>
+  <button data-tab="subs">📝 ซับไตเติลสด</button>
   <button data-tab="summary">📊 สรุปไลฟ์</button>
   <button data-tab="settings">⚙️ ตั้งค่า</button>
   <button data-tab="lang">🌐 ภาษา</button>
@@ -432,6 +435,114 @@
           <div class="sliders" id="jrSliders2"></div>
           <div class="row mt8"><button class="primary" id="btnJarTest">▶ ลองหยอดของขวัญ</button><button id="btnJarShake">📳 ลองเขย่า</button><button id="btnJarParty">🎉 ลองฉลองเต็มโหล</button><button id="btnJarPour">🫗 เทโหล</button><button class="small ghost" id="btnJarReset">↺ คืนค่าหน้าตาเริ่มต้น</button></div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sboard" class="tab">
+    <div class="card" style="margin-bottom:18px">
+      <div class="fhead"><h2>🎛️ แผงปุ่มเสียง</h2></div>
+      <p class="hint">กดปุ่มแล้วเสียงหรือคลิปเล่นทันที (เสียงออกจากแอปนี้ ไลฟ์ได้ยินถ้า LIVE Studio จับเสียงคอม) · ✏️ แก้ปุ่มได้ทั้งชื่อ สี เสียง และตัดช่วงที่จะเล่น</p>
+      <div class="pads" id="pads"></div>
+      <div class="row mt8"><button class="primary" id="btnPadAdd">+ เพิ่มปุ่ม</button><button id="btnMediaUp">📁 อัปโหลดเพลง/คลิป</button><button id="btnPadStop">⏹ หยุดทั้งหมด</button><input type="file" id="mediaFile" accept="audio/*,video/mp4,video/webm" hidden></div>
+      <div class="sliders" id="padVol"></div>
+      <label class="check"><input type="checkbox" id="padStopOthers"> กดปุ่มใหม่แล้วหยุดเสียงที่เล่นอยู่ก่อน</label>
+      <div class="padedit" id="padEdit" hidden>
+        <h2>✏️ แก้ปุ่ม</h2>
+        <div class="row"><input id="peEmoji" maxlength="8" style="max-width:70px"><input id="peName" maxlength="30" placeholder="ชื่อปุ่ม" style="flex:1"><input type="color" id="peColor"></div>
+        <label>เสียง / คลิป</label>
+        <select id="peSrc"></select>
+        <div class="sliders" id="peSliders"></div>
+        <label class="check"><input type="checkbox" id="peLoop"> เล่นวนซ้ำ (กดหยุดทั้งหมดเพื่อหยุด)</label>
+        <div class="row mt8"><button class="primary" id="pePlay">▶ ลอง</button><button id="peDone">✓ เสร็จ</button><button class="small ghost" id="peDel">🗑 ลบปุ่มนี้</button></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>🎁 ของขวัญเปิดเพลง</h2>
+        <p class="hint">มีคนส่งของขวัญชิ้นนี้ แอปกดปุ่มที่เลือกให้เอง (เปิดเพลง เสียง หรือคลิป)</p>
+        <div id="giftSongs"></div>
+        <div class="row mt8"><button class="primary" id="btnGsAdd">+ เพิ่ม</button></div>
+      </div>
+      <div class="card">
+        <h2>🎬 จอคลิปวิดีโอ</h2>
+        <p class="hint">ปุ่มที่เป็นคลิปวิดีโอจะเล่นบนจอไลฟ์ผ่านลิงก์นี้ (ใส่ใน LIVE Studio เป็นแหล่งที่มาแบบลิงก์ 1920×1080) ถ้าไม่ได้ใส่ จะเล่นแค่เสียงในแอป</p>
+        <div class="row"><input readonly id="stageUrl"><button class="small" id="btnStageCopy">คัดลอก</button></div>
+        <h2 class="mt">📁 ไฟล์ของฉัน</h2>
+        <p class="hint">mp3 / wav / ogg / m4a หรือคลิป mp4 / webm ไม่เกิน 40 MB ต่อไฟล์</p>
+        <div id="mediaList"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="widgets" class="tab">
+    <div class="card" style="margin-bottom:18px">
+      <h2>🖼️ วิดเจ็ตบนจอ</h2>
+      <p class="hint">แต่ละอันเป็นลิงก์แยก ใน TikTok LIVE Studio กด <b>เพิ่มแหล่งที่มา → ลิงก์ (Link)</b> แล้ววางลิงก์ของอันที่อยากใช้ ลากไปวางตรงไหนก็ได้</p>
+      <label class="check"><input type="checkbox" id="wResetOnLive"> เริ่มไลฟ์ใหม่แล้วล้างอันดับและเป้าหมายให้เอง</label>
+    </div>
+    <div class="grid2 wgrid">
+      <div class="card wcard">
+        <div class="fhead"><h2>🌷 สวนดอกไม้</h2><label class="switch"><input type="checkbox" data-won="garden"><span></span></label></div>
+        <p class="hint">ของขวัญแต่ละชิ้นปลูกดอกไม้หนึ่งดอก รูปของขวัญคือดอก ของแพงต้นสูงกว่า (ขนาดแนะนำ 1920×500)</p>
+        <div class="row"><input readonly data-wurl="garden"><button class="small" data-wcopy="garden">คัดลอก</button></div>
+        <div class="wprev"><iframe data-wprev="garden" title="ตัวอย่าง"></iframe></div>
+        <div class="sliders" data-wsl="garden"></div><div class="row"><label style="margin:0">สีพื้นหญ้า</label><input type="color" data-wc="garden.ground"><input data-wt="garden.title" maxlength="30" placeholder="ชื่อบนสวน" style="flex:1"></div>
+        <div class="row mt8"><button class="small" data-wtest>▶ ลองส่งของขวัญ</button><button class="small ghost" data-wreset="garden">🌱 ล้างสวน</button></div>
+      </div>
+      <div class="card wcard">
+        <div class="fhead"><h2>🎆 พลุของขวัญ</h2><label class="switch"><input type="checkbox" data-won="fireworks"><span></span></label></div>
+        <p class="hint">ของขวัญยิงพลุขึ้นฟ้า แล้วระเบิดเป็นรูปของขวัญ ของแพงพลุลูกใหญ่ (ขนาดแนะนำ 1920×1080)</p>
+        <div class="row"><input readonly data-wurl="fireworks"><button class="small" data-wcopy="fireworks">คัดลอก</button></div>
+        <div class="wprev"><iframe data-wprev="fireworks" title="ตัวอย่าง"></iframe></div>
+        <div class="sliders" data-wsl="fireworks"></div><label class="check"><input type="checkbox" data-wck="fireworks.sound"> มีเสียงพลุ</label>
+        <div class="row mt8"><button class="small" data-wtest>▶ ลองส่งของขวัญ</button></div>
+      </div>
+      <div class="card wcard">
+        <div class="fhead"><h2>⏱️ นาฬิกานับถอยหลัง</h2><label class="switch"><input type="checkbox" data-won="timer"><span></span></label></div>
+        <p class="hint">นับเวลาไลฟ์ที่เหลือ ของขวัญ ฟอลโลว์ แชร์ และไลค์ช่วยเพิ่มเวลา (ขนาดแนะนำ 800×400)</p>
+        <div class="row"><input readonly data-wurl="timer"><button class="small" data-wcopy="timer">คัดลอก</button></div>
+        <div class="wprev"><iframe data-wprev="timer" title="ตัวอย่าง"></iframe></div>
+        <div class="tstate" id="tState"></div><div class="row"><button class="primary small" data-tc="start">▶ เริ่ม</button><button class="small" data-tc="pause">⏸ พัก</button><button class="small" data-tc="reset">↺ เริ่มใหม่</button><button class="small" data-tc="add" data-sec="300">+5 นาที</button><button class="small" data-tc="add" data-sec="-300">−5 นาที</button></div><div class="sliders" data-wsl="timer"></div><div class="row"><input data-wt="timer.title" maxlength="30" placeholder="ข้อความบนนาฬิกา" style="flex:1"><input type="color" data-wc="timer.color"></div>
+        <div class="row mt8"><button class="small" data-wtest>▶ ลองส่งของขวัญ</button></div>
+      </div>
+      <div class="card wcard">
+        <div class="fhead"><h2>🏆 อันดับคนส่ง / คนกดไลค์</h2><label class="switch"><input type="checkbox" data-won="board"><span></span></label></div>
+        <p class="hint">โชว์ชื่อคนที่ส่งของขวัญมากที่สุด และคนที่กดไลค์มากที่สุดในไลฟ์นี้ (ขนาดแนะนำ 800×700)</p>
+        <div class="row"><input readonly data-wurl="board"><button class="small" data-wcopy="board">คัดลอก</button></div>
+        <div class="wprev"><iframe data-wprev="board" title="ตัวอย่าง"></iframe></div>
+        <label>โชว์</label><select data-ws="board.show"><option value="gifts">คนส่งของขวัญมากที่สุด</option><option value="likes">คนกดไลค์มากที่สุด</option><option value="both">ทั้งสองอย่าง</option></select><div class="sliders" data-wsl="board"></div><input data-wt="board.title" maxlength="30" placeholder="หัวข้อ (ว่างไว้ = ตามแบบ)">
+        <div class="row mt8"><button class="small" data-wtest>▶ ลองส่งของขวัญ</button><button class="small ghost" data-wreset="board">↺ ล้างอันดับ</button></div>
+      </div>
+      <div class="card wcard">
+        <div class="fhead"><h2>🎯 แถบเป้าหมาย</h2><label class="switch"><input type="checkbox" data-won="goal"><span></span></label></div>
+        <p class="hint">ตั้งเป้าแล้วให้คนดูช่วยกันเติมจนเต็ม พอถึงเป้ามีเสียงฉลอง (ขนาดแนะนำ 1200×300)</p>
+        <div class="row"><input readonly data-wurl="goal"><button class="small" data-wcopy="goal">คัดลอก</button></div>
+        <div class="wprev"><iframe data-wprev="goal" title="ตัวอย่าง"></iframe></div>
+        <label>นับจาก</label><select data-ws="goal.kind"><option value="coins">เหรียญที่ได้</option><option value="gifts">จำนวนของขวัญ</option><option value="likes">ไลค์</option><option value="follows">คนฟอลโลว์ใหม่</option><option value="shares">การแชร์</option></select><div class="sliders" data-wsl="goal"></div><div class="row"><input data-wt="goal.title" maxlength="40" placeholder="ข้อความ เช่น เป้าหมายวันนี้" style="flex:1"><input type="color" data-wc="goal.color"></div>
+        <div class="row mt8"><button class="small" data-wtest>▶ ลองส่งของขวัญ</button><button class="small ghost" data-wreset="goal">↺ เริ่มนับใหม่</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subs" class="tab">
+    <div class="grid2">
+      <div class="card">
+        <h2>📝 ซับไตเติลสด</h2>
+        <p class="hint">แอปฟังเสียงพูดจากไมค์ แล้วขึ้นเป็นตัวหนังสือบนจอไลฟ์ แปลได้สูงสุด 4 ภาษา · ต้องต่ออินเทอร์เน็ต และเปิดแอปนี้ไว้ระหว่างไลฟ์ · ครั้งแรกให้กด "อนุญาต" ใช้ไมค์</p>
+        <div class="row"><input readonly id="subsUrl"><button class="small" id="btnSubsCopy">คัดลอก</button></div>
+        <div class="row mt8"><button class="primary" id="btnSubsOn">🎙️ เริ่มฟัง</button><span class="hint" id="subsState" style="margin:0"></span></div>
+        <div class="subsnow" id="subsNow"></div>
+        <label>ภาษาที่พูด</label>
+        <select id="subsLang"></select>
+        <label>แปลเป็น (เลือกได้สูงสุด 4)</label>
+        <div class="chips" id="subsTr"></div>
+      </div>
+      <div class="card">
+        <h2>🎨 หน้าตาซับ</h2>
+        <div class="wprev"><iframe id="subsPrev" title="ตัวอย่าง"></iframe></div>
+        <div class="sliders" id="subsSl"></div>
+        <div class="row"><label style="margin:0">สีตัวหนังสือ</label><input type="color" id="subsColor"><label style="margin:0">สีพื้น</label><input type="color" id="subsBg"></div>
       </div>
     </div>
   </section>
