@@ -68,6 +68,9 @@ with sync_playwright() as p:
     if jp.evaluate("cfg.shape") != 'heart': fails.append('gift jar did not get the new shape')
     bad = jp.evaluate("(() => { const bad = []; for (const k of ['jar','tall','round','heart', ...Object.keys(JAR_THEMES)]) { try { cfg.shape = k; J = geometry(); fillNow(Array(30).fill({ p: 'rose', g: 1 })); drop({ p: 'heart' }); for (let i = 0; i < 90; i++) step(1 / 60); tnow = 1000; fdt = 1 / 60; drawBack(); for (const it of items) drawItem(it); drawFront(); if (items.some(it => !Number.isFinite(it.x + it.y))) bad.push(k + ' NaN'); } catch (e) { bad.push(k + ': ' + e.message); } } return bad; })()")
     if bad: fails.append('gift jar shapes broken: ' + '; '.join(bad))
+    # the preview loads while its tab is closed (size 0): the drawing loop must survive that
+    z = jp.evaluate("(() => { const w = W, h = H; W = 0; H = 0; J = geometry(); try { frame(performance.now() + 16); } catch (e) { return e.message; } finally { W = w; H = h; J = geometry(); } return ''; })()")
+    if z: fails.append('gift jar breaks when hidden: ' + z)
     # flood every shape: nothing goes through glass, walls or lids, closed ones never leak, nothing flies off screen
     leak = jp.evaluate("""(() => { const bad = []; for (const [k, lid] of [['jar','metal'],['jar','none'],['round','cloth'],['heart','metal'], ...Object.keys(JAR_THEMES).map(t => [t, 'metal'])]) {
       cfg.shape = k; cfg.lid = lid; J = geometry(); items.length = 0; lidLift = 0;

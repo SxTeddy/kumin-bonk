@@ -121,6 +121,7 @@ function resize() {
   if (old && items.length) { for (const it of items) { it.r = J.r * it.k; } settle(240); }
 }
 addEventListener('resize', resize);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resize(); });
 
 // ---------- physics ----------
 const GRAV = 2200;
@@ -474,7 +475,12 @@ function drawItem(it) {
 let last = performance.now(), acc = 0;
 let tnow = 0, fdt = 0;
 function frame(now) {
+  requestAnimationFrame(frame); // keep going no matter what happens below
   const dt = Math.min(0.05, (now - last) / 1000); last = now; tnow = now; fdt = dt;
+  if (W < 60 || H < 60 || !J || !(J.half > 0)) return; // hidden or tiny (e.g. the preview while its tab is closed): nothing to draw yet
+  try { drawScene(now, dt); } catch (e) { console.error('jar', e); }
+}
+function drawScene(now, dt) {
   acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; }
   let spilled = 0;
   for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it.spill && !it.out && (now - it.spillAt > 6000 || ++spilled > 45)) { it.alpha -= dt * 0.8; if (it.alpha <= 0) { items.splice(i, 1); continue; } } if (it.out) { it.alpha -= dt * 0.8; if (it.alpha <= 0 || it.y > H + 200) items.splice(i, 1); } }
@@ -503,7 +509,6 @@ function frame(now) {
     ctx.beginPath(); const r = 2 + 4 * k; ctx.moveTo(s.x, s.y - r * 2); ctx.lineTo(s.x + r * 0.6, s.y); ctx.lineTo(s.x, s.y + r * 2); ctx.lineTo(s.x - r * 0.6, s.y); ctx.closePath(); ctx.fill();
   }
   ctx.globalAlpha = 1;
-  requestAnimationFrame(frame);
 }
 
 // ---------- connection ----------
