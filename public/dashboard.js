@@ -1530,7 +1530,7 @@ const JAR_SHAPES = [['jar', '🫙 โหลแก้ว'], ['tall', '🧪 ทร
   ['hourglass', '⏳ นาฬิกาทราย'], ['pumpkin', '🎃 ฟักทองฮาโลวีน'], ['snowglobe', '❄️ ลูกแก้วหิมะ'], ['flowerpot', '🪴 กระถางดอกไม้'], ['moneybag', '💰 ถุงเงิน'], ['lava', '🫧 โคมลาวา'], ['truck', '🚚 รถขนของขวัญ']];
 const JAR_GLASS = ['jar', 'tall', 'round', 'heart'];
 const JAR_OPEN = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot', 'truck'];
-const JAR_LOOK = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true };
+const JAR_LOOK = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, labelSize: 1, labelPos: 50, labelStyle: 'sticker', countMode: 'gifts', countIcon: '🎁', itemSize: 1, sparkle: true };
 function renderJar() {
   const j = sec('jar');
   $('#jarUrl').value = `${location.origin}/jar`;
@@ -1546,7 +1546,12 @@ function renderJar() {
   const lid = $('#jrLid'); lid.value = j.lid || 'metal'; lid.onchange = () => { setSec('jar', 'lid', lid.value); renderJar(); $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork'; };
   $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork';
   bindCheck('#jrBow', 'jar', 'bow'); bindText('#jrLabel', 'jar', 'label');
-  bindCheck('#jrCount', 'jar', 'showCount'); bindCheck('#jrSparkle', 'jar', 'sparkle'); bindCheck('#jrSound', 'jar', 'sound');
+  bindCheck('#jrCount', 'jar', 'showCount');
+  const cm = $('#jrCountMode'); cm.value = j.countMode || 'gifts'; cm.onchange = () => setSec('jar', 'countMode', cm.value);
+  const ci = $('#jrCountIcon'); ci.value = j.countIcon ?? '🎁'; ci.oninput = () => setSec('jar', 'countIcon', ci.value);
+  const ls = $('#jrLabelStyle'); ls.value = j.labelStyle || 'sticker'; ls.onchange = () => setSec('jar', 'labelStyle', ls.value);
+  if (j.labelSize == null) j.labelSize = 1; if (j.labelPos == null) j.labelPos = 50;
+  sliderBox($('#jrLabelSl'), 'jar', [['labelSize', 'ขนาดป้าย', 0.5, 2, 0.05, v => '×' + v], ['labelPos', 'ตำแหน่งป้าย (บน → ล่าง)', 0, 100, 1, v => v + '%']]); bindCheck('#jrSparkle', 'jar', 'sparkle'); bindCheck('#jrSound', 'jar', 'sound');
   for (const [id, key] of [['#jrBig', 'bigSize'], ['#jrNames', 'names'], ['#jrLikes', 'likes'], ['#jrFollows', 'follows'], ['#jrWobble', 'wobble'], ['#jrTop', 'topGiver']]) bindCheck(id, 'jar', key);
   bindCheck('#jrGoal', 'jar', 'goal', () => { $('#jrGoalText').hidden = !j.goal; }); $('#jrGoalText').hidden = !j.goal; bindText('#jrGoalText', 'jar', 'goalText');
   bindCheck('#jrShakeCmd', 'jar', 'shakeCmd', () => { $('#jrShakeWord').hidden = !j.shakeCmd; }); $('#jrShakeWord').hidden = !j.shakeCmd; bindText('#jrShakeWord', 'jar', 'shakeWord');

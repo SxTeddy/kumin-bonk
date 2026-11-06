@@ -416,6 +416,10 @@
           <label>ป้ายบนโหล (ว่างไว้ = ไม่มีป้าย)</label>
           <div class="row"><input id="jrLabel" maxlength="30" placeholder="เช่น โหลของขวัญ" style="flex:1"><input type="color" id="jrLabelBg" title="สีป้าย"><input type="color" id="jrLabelColor" title="สีตัวหนังสือ"></div>
           <label class="check"><input type="checkbox" id="jrCount"> โชว์จำนวนของขวัญที่ได้บนป้าย</label>
+          <div class="row"><select id="jrCountMode"><option value="gifts">นับจำนวนของขวัญที่ได้</option><option value="coins">นับเหรียญที่ได้</option><option value="items">นับของที่อยู่ในโหลตอนนี้</option></select><input id="jrCountIcon" maxlength="4" style="max-width:70px" title="ไอคอนหน้าตัวเลข"></div>
+          <label>แบบป้าย</label>
+          <select id="jrLabelStyle"><option value="sticker">สติกเกอร์ขอบประ</option><option value="pill">ป้ายมนกลม</option><option value="tag">ป้ายห้อยเชือก</option><option value="plain">ตัวหนังสืออย่างเดียว</option></select>
+          <div class="sliders" id="jrLabelSl"></div>
           <div class="sliders" id="jrSliders"></div>
           <label id="jrFullLbl">พอโหลเต็ม</label>
           <select id="jrFull"><option value="empty">เทออกแล้วเริ่มเติมใหม่</option><option value="stop">เต็มไว้อย่างนั้น ไม่รับเพิ่ม</option></select>

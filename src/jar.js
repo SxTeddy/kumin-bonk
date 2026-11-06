@@ -11,6 +11,11 @@ export const JAR_DEFAULT = {
   lidColor: '#ff7aa8',
   bow: true, bowColor: '#ff4f8b',
   label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true,
+  labelSize: 1,          // 0.5 .. 2
+  labelPos: 50,          // where the label sits, % from the top of the jar to the bottom
+  labelStyle: 'sticker', // sticker | pill | tag | plain
+  countMode: 'gifts',    // gifts | coins | items (what the number on the label counts)
+  countIcon: '🎁',
   itemSize: 1,           // 0.6 .. 1.6
   capacity: 120,         // pictures the jar holds before it's full
   perGift: 10,           // most pictures one send adds (a ×99 send doesn't flood the jar)
@@ -54,6 +59,9 @@ export function sanitizeJar(j) {
     label: String(s.label ?? D.label).slice(0, 30),
     labelColor: hex(s.labelColor, D.labelColor), labelBg: hex(s.labelBg, D.labelBg),
     showCount: s.showCount !== false,
+    labelSize: num(s.labelSize, 0.5, 2, 1), labelPos: int(s.labelPos, 0, 100, 50),
+    labelStyle: ['sticker', 'pill', 'tag', 'plain'].includes(s.labelStyle) ? s.labelStyle : 'sticker',
+    countMode: ['gifts', 'coins', 'items'].includes(s.countMode) ? s.countMode : 'gifts', countIcon: String(s.countIcon ?? '🎁').slice(0, 4),
     itemSize: num(s.itemSize, 0.6, 1.6, D.itemSize),
     capacity: int(s.capacity, 20, 400, D.capacity),
     perGift: int(s.perGift, 1, 50, D.perGift),
@@ -91,13 +99,14 @@ export class GiftJar {
   constructor(state, send, save) {
     this.items = (Array.isArray(state?.items) ? state.items : []).map(cleanItem).filter(Boolean).slice(-400);
     this.total = Math.max(0, Math.floor(Number(state?.total)) || 0);
+    this.coins = Math.max(0, Math.floor(Number(state?.coins)) || 0);
     this.givers = new Map((Array.isArray(state?.givers) ? state.givers : []).filter(g => g && g.name).slice(0, 50)
       .map(g => [String(g.name).slice(0, 60), { name: String(g.name).slice(0, 60), coins: Number(g.coins) || 0, avatar: PIC.test(String(g.avatar || '')) ? String(g.avatar) : '' }]));
     this.likeAcc = 0; this.combos = new Map();
     this.shakeAt = 0; this.shakeBy = new Map();
     this.send = send; this.save = save;
   }
-  state() { return { items: this.items, total: this.total, givers: [...this.givers.values()].sort((a, b) => b.coins - a.coins).slice(0, 50) }; }
+  state() { return { items: this.items, total: this.total, coins: this.coins, givers: [...this.givers.values()].sort((a, b) => b.coins - a.coins).slice(0, 50) }; }
   top() { let t = null; for (const g of this.givers.values()) if (!t || g.coins > t.coins) t = g; return t; }
 
   // put pictures in; returns how many went in
@@ -106,7 +115,7 @@ export class GiftJar {
     if (jarOpen(cfg) && this.items.length + n > cfg.capacity) { // no lid: gifts pile up and spill over the rim (no pouring out)
       if (this.items.length < cfg.capacity) this.send({ t: 'jarGoal' }); // just got full: party, but keep everything in
       this.items.push(...list); this.items = this.items.slice(-cfg.capacity);
-      this.send({ t: 'jarAdd', items: list, total: this.total, ...extra }); this.save();
+      this.send({ t: 'jarAdd', items: list, total: this.total, coins: this.coins, ...extra }); this.save();
       return n;
     }
     if (this.items.length + n > cfg.capacity) {
@@ -115,7 +124,7 @@ export class GiftJar {
     }
     const add = list.slice(0, n);
     this.items.push(...add);
-    this.send({ t: 'jarAdd', items: add, total: this.total, ...extra });
+    this.send({ t: 'jarAdd', items: add, total: this.total, coins: this.coins, ...extra });
     this.save();
     return n;
   }
@@ -128,7 +137,7 @@ export class GiftJar {
     coins = Number(coins) || 0;
     if (coins < cfg.minCoins) return 0;
     count = Math.max(1, Math.floor(Number(count)) || 1);
-    this.total += count;
+    this.total += count; this.coins += coins * count;
     const it = { p: String(pic) };
     if (cfg.bigSize && bigScale(coins) !== 1) it.s = bigScale(coins);
     if (cfg.glowMin > 0 && coins >= cfg.glowMin) it.g = 1;
@@ -148,7 +157,7 @@ export class GiftJar {
     const n = Math.max(0, Math.min(count, cfg.perGift - st.n)); st.n += n;
     if (cfg.names && name && n > 0) extra.tag = { name, gift: String(giftName || '').slice(0, 40), count: st.count };
     if (cfg.shakeMin > 0 && !st.shook && st.coins >= cfg.shakeMin) { st.shook = true; extra.shake = Math.min(3, 1 + Math.log10(st.coins / cfg.shakeMin + 1) * 2); }
-    if (!n) { this.send({ t: 'jarAdd', items: [], total: this.total, ...extra }); this.save(); return 0; }
+    if (!n) { this.send({ t: 'jarAdd', items: [], total: this.total, coins: this.coins, ...extra }); this.save(); return 0; }
     return this._put(Array.from({ length: n }, () => ({ ...it })), cfg, extra);
   }
   // ❤️ likes: every likesPer likes drop one small heart
@@ -178,5 +187,5 @@ export class GiftJar {
     return true;
   }
   shake(power = 1.5) { this.send({ t: 'jarShake', power }); }
-  clear() { this.items = []; this.total = 0; this.givers.clear(); this.likeAcc = 0; this.send({ t: 'jarPour', total: 0, top: null }); this.save(); }
+  clear() { this.items = []; this.total = 0; this.coins = 0; this.givers.clear(); this.likeAcc = 0; this.send({ t: 'jarPour', total: 0, coins: 0, top: null }); this.save(); }
 }

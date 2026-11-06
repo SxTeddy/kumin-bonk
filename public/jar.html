@@ -22,7 +22,7 @@ const PREVIEW = new URLSearchParams(location.search).has('preview');
 let W = 0, H = 0, DPR = 1;
 let cfg = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true, sound: true, volume: 0.4 };
 let lidLift = 0, lidTilt = 0, lidPush = 0, lidSide = 0; // how far the gifts have pushed the lid up
-let total = 0, best = null; // best: 👑 top giver
+let total = 0, coinsTotal = 0, best = null; // best: 👑 top giver
 let ang = 0, angV = 0, shakeT = 0, shakePow = 0; // jar rocking / shaking
 const tags = [], tagQ = [], confetti = [];
 let party = null; // 🎉 jar-full show: { t, lid: { dy, vy, rot } }
@@ -375,21 +375,32 @@ function drawBow() {
   ctx.fillStyle = c; ctx.beginPath(); ctx.arc(bx, y, s * 0.32, 0, 6.28); ctx.fill();
 }
 function drawLabel() {
-  const text = cfg.label || '', cnt = cfg.showCount ? '🎁 ' + total.toLocaleString() : '';
+  const n = cfg.countMode === 'coins' ? coinsTotal : cfg.countMode === 'items' ? items.filter(i => !i.out && !i.spill).length : total;
+  const text = cfg.label || '', cnt = cfg.showCount ? `${cfg.countIcon ?? '🎁'} ${n.toLocaleString()}`.trim() : '';
   if (!text && !cnt) return;
-  const midY = J.labelY ?? (J.top + (J.bottom - J.top) * (cfg.shape === 'heart' ? 0.38 : 0.5));
-  const fs = Math.max(12, J.half * 0.17), lines = [text, cnt].filter(Boolean);
-  ctx.font = `800 ${fs}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`;
-  const tw = Math.min(J.labelW ?? J.hw(midY) * 1.7, Math.max(...lines.map(l => ctx.measureText(l).width)) + fs * 1.4);
+  const pos = (cfg.labelPos ?? 50) / 100, auto = J.labelY ?? (J.top + (J.bottom - J.top) * (cfg.shape === 'heart' ? 0.38 : 0.5));
+  const midY = cfg.labelPos == null || cfg.labelPos === 50 ? auto : J.top + (J.bottom - J.top) * Math.min(0.92, Math.max(0.08, pos));
+  const fs = Math.max(10, J.half * 0.17 * (cfg.labelSize || 1)), lines = [text, cnt].filter(Boolean), st = cfg.labelStyle || 'sticker';
+  const F = (w, z) => `${w} ${z}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`;
+  ctx.font = F(800, fs);
+  const maxW = Math.max(fs * 3, (J.labelW ?? Math.max(J.hw(midY), J.half * 0.6) * 1.7) * Math.max(1, cfg.labelSize || 1));
+  const tw = Math.min(maxW, Math.max(...lines.map(l => ctx.measureText(l).width)) + fs * 1.4);
   const th = lines.length * fs * 1.25 + fs * 0.6, x = J.cx - tw / 2, y = midY - th / 2;
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
-  rr(x, y + fs * 0.16, tw, th, fs * 0.5); ctx.fillStyle = shade(cfg.labelBg, 0.68); ctx.fill(); ctx.restore();
-  const lg = ctx.createLinearGradient(0, y, 0, y + th); lg.addColorStop(0, shade(cfg.labelBg, 1.18)); lg.addColorStop(0.55, cfg.labelBg); lg.addColorStop(1, shade(cfg.labelBg, 0.88));
-  rr(x, y, tw, th, fs * 0.5); ctx.fillStyle = lg; ctx.fill();
-  ctx.save(); ctx.globalAlpha = 0.35; rr(x + fs * 0.3, y + 3, tw - fs * 0.6, th * 0.32, fs * 0.3); ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
-  rr(x + 4, y + 4, tw - 8, th - 8, fs * 0.4); ctx.setLineDash([5, 4]); ctx.strokeStyle = rgba(cfg.labelColor, 0.7); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+  const r = st === 'pill' ? th / 2 : st === 'tag' ? fs * 0.25 : fs * 0.5;
+  if (st !== 'plain') {
+    if (st === 'tag') { ctx.strokeStyle = 'rgba(120,90,60,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + fs * 0.5, y + th * 0.3); ctx.lineTo(J.cx - J.hw(J.top + 4) * 0.6, J.top + 4); ctx.stroke(); }
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+    rr(x, y + fs * 0.16, tw, th, r); ctx.fillStyle = shade(cfg.labelBg, 0.68); ctx.fill(); ctx.restore();
+    const lg = ctx.createLinearGradient(0, y, 0, y + th); lg.addColorStop(0, shade(cfg.labelBg, 1.18)); lg.addColorStop(0.55, cfg.labelBg); lg.addColorStop(1, shade(cfg.labelBg, 0.88));
+    rr(x, y, tw, th, r); ctx.fillStyle = lg; ctx.fill();
+    ctx.save(); ctx.globalAlpha = 0.35; rr(x + fs * 0.3, y + 3, tw - fs * 0.6, th * 0.32, Math.min(r, fs * 0.3)); ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
+    if (st === 'sticker') { rr(x + 4, y + 4, tw - 8, th - 8, fs * 0.4); ctx.setLineDash([5, 4]); ctx.strokeStyle = rgba(cfg.labelColor, 0.7); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); }
+    if (st === 'tag') { ctx.beginPath(); ctx.arc(x + fs * 0.5, y + th * 0.3, fs * 0.14, 0, 6.2832); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill(); }
+  }
+  ctx.save(); if (st === 'plain') { ctx.shadowColor = 'rgba(0,0,0,.75)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
   ctx.fillStyle = cfg.labelColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  lines.forEach((l, i) => { ctx.font = `${i === 0 && text ? 800 : 700} ${i === 0 && text ? fs : fs * 0.9}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`; ctx.fillText(l, J.cx, y + fs * 0.3 + fs * 1.25 * (i + 0.5), tw - fs * 0.6); });
+  lines.forEach((l, i) => { const big = i === 0 && text; ctx.font = F(big ? 800 : 700, big ? fs : fs * 0.9); ctx.fillText(l, J.cx, y + fs * 0.3 + fs * 1.25 * (i + 0.5), tw - fs * 0.6); });
+  ctx.restore();
 }
 function drawGlow(it, now) {
   const r = it.r * (1.35 + 0.18 * Math.sin(now / 260 + it.ph));
@@ -520,10 +531,10 @@ function connect() {
   ws.onclose = () => { if (!PREVIEW) document.getElementById('status').style.display = 'block'; setTimeout(connect, 2000); };
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
-    if (m.t === 'jarInit') { Object.assign(cfg, m.cfg || {}); total = m.total || 0; best = m.top || null; J = geometry(); dropQ.length = 0; fillNow((m.items || []).slice(-400)); }
+    if (m.t === 'jarInit') { Object.assign(cfg, m.cfg || {}); total = m.total || 0; coinsTotal = m.coins || 0; best = m.top || null; J = geometry(); dropQ.length = 0; fillNow((m.items || []).slice(-400)); }
     else if (m.t === 'jarCfg') { const before = cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver; Object.assign(cfg, m.cfg || {}); if (before !== cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver) { J = geometry(); for (const it of items) it.r = J.r * it.k; settle(240); } }
     else if (m.t === 'jarAdd') {
-      total = m.total ?? total; if (m.top !== undefined) best = m.top;
+      total = m.total ?? total; coinsTotal = m.coins ?? coinsTotal; if (m.top !== undefined) best = m.top;
       if (m.tag && cfg.names) addTag(`+${m.tag.gift}${m.tag.count > 1 ? ' ×' + m.tag.count : ''} · ${m.tag.name}`);
       if (m.shake) shake(m.shake);
       queueDrops(m.items || []);
@@ -531,7 +542,7 @@ function connect() {
     else if (m.t === 'jarFull') { dropQ.length = 0; celebrate(); }
     else if (m.t === 'jarGoal') celebrate(false); // open container just got full: party, gifts keep spilling over
     else if (m.t === 'jarShake') { shake(m.power || 1); if (m.by && cfg.names) addTag(`📳 ${m.by} เขย่าโหล!`, '#7c5cff'); }
-    else if (m.t === 'jarPour') { if (m.total != null) total = m.total; if ('top' in m) best = m.top; dropQ.length = 0; pour(); }
+    else if (m.t === 'jarPour') { if (m.total != null) total = m.total; if (m.coins != null) coinsTotal = m.coins; if ('top' in m) best = m.top; dropQ.length = 0; pour(); }
   };
 }
 resize(); J = geometry();

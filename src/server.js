@@ -165,7 +165,7 @@ const jars = new Set();
 let jarSaveT = null;
 const jar = new GiftJar(readJson('jar.json', {}), m => { for (const ws of jars) send(ws, m); },
   () => { if (!jarSaveT) jarSaveT = setTimeout(() => { jarSaveT = null; writeJson('jar.json', jar.state()); }, 2000); });
-const jarInit = () => ({ t: 'jarInit', cfg: config.jar, items: jar.items, total: jar.total, top: jar.top() });
+const jarInit = () => ({ t: 'jarInit', cfg: config.jar, items: jar.items, total: jar.total, coins: jar.coins, top: jar.top() });
 function jarGift(ev) {
   const e = gifts.find(ev.gift);
   jar.add(e ? `gift:${e.img}` : ev.gift.image, ev.count, ev.gift.diamonds, config.jar, { name: ev.user.nickname || ev.user.username, avatar: ev.user.avatar }, ev.gift.th || e?.th || ev.gift.name);
