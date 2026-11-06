@@ -21,6 +21,7 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const PREVIEW = new URLSearchParams(location.search).has('preview');
 let W = 0, H = 0, DPR = 1;
 let cfg = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true, sound: true, volume: 0.4 };
+let lidLift = 0, lidTilt = 0, lidPush = 0, lidSide = 0; // how far the gifts have pushed the lid up
 let total = 0, best = null; // best: 👑 top giver
 let ang = 0, angV = 0, shakeT = 0, shakePow = 0; // jar rocking / shaking
 const tags = [], tagQ = [], confetti = [];
@@ -69,7 +70,7 @@ function geometry() {
   const cx = W / 2;
   const half = maxW / 2;
   const lidH = cfg.lid === 'none' ? 0 : Math.max(18, half * 0.2);
-  const top = H * 0.05 + lidH + half * 0.08;           // inside top (mouth)
+  const top = H * 0.05 + lidH * (cfg.lid === 'none' ? 1 : 1.9) + half * 0.08; // room above for the lid to be pushed up           // inside top (mouth)
   const bottom = HH - Math.max(14, H * 0.035);         // inside bottom
   const g = { cx, half, top, bottom, lidH, foot, neck: half * 0.78, wall: Math.max(4, half * 0.035) };
   const hgt = bottom - top;
@@ -107,6 +108,7 @@ function geometry() {
   }
   if (g.ceil == null) g.ceil = g.top; // pictures never rise above this (the lid)
   g.floor = g.bottom; g.open = cfg.lid === 'none'; if (g.open) g.ceil = -1e9;
+  g.liftable = !g.open && !g.poly; g.maxLift = Math.max(0, Math.min(g.lidH * 1.1 + g.half * 0.08, g.top - g.lidH * 1.6 - 4)); // 🫙 a stuffed jar pushes its lid up (it never goes through)
   g.spawn = s === 'heart' ? g.dipY + (g.bottom - g.dipY) * 0.08 : g.top + (g.bottom - g.top) * 0.06;
   g.r = Math.max(8, g.half * 0.15 * (cfg.itemSize || 1)); // picture radius
   return g;
@@ -161,7 +163,13 @@ function step(dt) {
     it.x += vx; it.y += vy + GRAV * dt * dt * (it.out ? 1 : 1);
     it.rot += it.out ? it.vr * dt : vx / it.r;
   }
+  lidPush = 0; lidSide = 0;
   for (let k = 0; k < 3; k++) { collide(); for (const it of items) if (!it.out && !it.carry) walls(it); }
+  if (J.liftable) { // the lid rides on the pile: pushed up while gifts press on it, settles back down when they don't
+    if (lidPush >= 3) lidLift = Math.min(J.maxLift, lidLift + J.r * 0.006 * Math.min(3, lidPush / 3)); else lidLift = Math.max(0, lidLift - J.r * 0.012);
+    const want = lidPush ? Math.max(-0.22, Math.min(0.22, lidSide / (J.half * Math.max(3, lidPush)) * 0.5)) : 0;
+    lidTilt += (want * Math.min(1, lidLift / (J.lidH + 1)) - lidTilt) * 0.04;
+  }
 }
 // 🌊 no lid: gifts that roll over the rim fall down outside and land on the floor beside it
 function spillWalls(it) {
@@ -174,7 +182,8 @@ function walls(it) {
   if (it.spill) return spillWalls(it);
   const r = it.r, cx = J.cx;
   if (J.open && it.y < J.top && (Math.abs(it.x - cx) > J.hw(J.top) + J.wall || it.y < J.top - J.half * 0.5)) { it.spill = true; it.spillAt = performance.now(); it.landed = false; return spillWalls(it); }
-  if (it.y < J.ceil + r * 0.8) it.y = J.ceil + r * 0.8; // the lid
+  const ceil = J.ceil - (J.liftable ? lidLift : 0);
+  if (it.y < ceil + r * 0.8) { it.y = ceil + r * 0.8; if (J.liftable) { lidPush++; lidSide += it.x - J.cx; } } // the lid
   // test points around the picture's edge against the glass
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
@@ -190,6 +199,7 @@ function walls(it) {
     }
     if (dx || dy) { it.x += dx; it.y += dy; if (!it.landed && dy < 0) land(it); }
   }
+  if (it.y < ceil + r * 0.8) it.y = ceil + r * 0.8; // squeezed against the glass: still never past the lid
 }
 function collide() {
   const cell = J.r * 2.4, grid = new Map();
@@ -321,7 +331,7 @@ function drawFront() {
   const rimY = J.top - J.wall * 0.3;
   ctx.beginPath(); ctx.ellipse(J.cx, rimY, J.neck + J.wall * 1.6, Math.max(5, J.neck * 0.12), 0, 0, Math.PI * 2);
   ctx.lineWidth = J.wall; ctx.strokeStyle = rgba(cfg.glass, 0.95); ctx.stroke();
-  if (party) { const l = party.lid, lc = rimY - J.lidH / 2; ctx.save(); ctx.translate(J.cx, lc + l.dy); ctx.rotate(l.rot); ctx.translate(-J.cx, -lc); drawLid(rimY); ctx.restore(); } else drawLid(rimY);
+  { const l = party ? party.lid : { dy: 0, rot: 0 }, lc = rimY - J.lidH / 2; ctx.save(); ctx.translate(J.cx, lc + l.dy - lidLift); ctx.rotate(l.rot + lidTilt); ctx.translate(-J.cx, -lc); drawLid(rimY); ctx.restore(); }
   depth3d(); if (cfg.bow) drawBow(); drawLabel();
 }
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
