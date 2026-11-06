@@ -68,6 +68,15 @@ with sync_playwright() as p:
     if jp.evaluate("cfg.shape") != 'heart': fails.append('gift jar did not get the new shape')
     bad = jp.evaluate("(() => { const bad = []; for (const k of ['jar','tall','round','heart', ...Object.keys(JAR_THEMES)]) { try { cfg.shape = k; J = geometry(); fillNow(Array(30).fill({ p: 'rose', g: 1 })); drop({ p: 'heart' }); for (let i = 0; i < 90; i++) step(1 / 60); tnow = 1000; fdt = 1 / 60; drawBack(); for (const it of items) drawItem(it); drawFront(); if (items.some(it => !Number.isFinite(it.x + it.y))) bad.push(k + ' NaN'); } catch (e) { bad.push(k + ': ' + e.message); } } return bad; })()")
     if bad: fails.append('gift jar shapes broken: ' + '; '.join(bad))
+    # flood every shape: nothing goes through glass, walls or lids, closed ones never leak, nothing flies off screen
+    leak = jp.evaluate("""(() => { const bad = []; for (const [k, lid] of [['jar','metal'],['jar','none'],['round','cloth'],['heart','metal'], ...Object.keys(JAR_THEMES).map(t => [t, 'metal'])]) {
+      cfg.shape = k; cfg.lid = lid; J = geometry(); items.length = 0; lidLift = 0;
+      for (let i = 0; i < 120; i++) { drop({ p: 'rose' }); for (let s = 0; s < 14; s++) step(1 / 120); } for (let s = 0; s < 360; s++) step(1 / 120);
+      const inside = items.filter(o => !o.spill && !o.carry && !o.out);
+      const esc = inside.filter(o => o.y > J.floor + 2 || Math.abs(o.x - J.cx) > Math.max(J.hw(Math.min(Math.max(o.y, J.top), J.bottom)), J.neck) + o.r * 1.1 || o.y < J.ceil - (J.liftable ? lidLift : 0) - 2).length;
+      const off = items.filter(o => o.y < -o.r || o.x < -o.r || o.x > W + o.r).length, leaked = !J.open && !J.liftable && items.some(o => o.spill);
+      if (esc || off || leaked) bad.push(`${k}/${lid}: through ${esc}, off screen ${off}${leaked ? ', leaked' : ''}`); } return bad; })()""")
+    if leak: fails.append('gift jar flood: ' + '; '.join(leak))
     if jp.evaluate('Object.keys(JAR_THEMES).length') < 20: fails.append('gift jar themes missing')
     jp.close()
     pg.click('#tabs button[data-tab=cats]'); pg.wait_for_timeout(300)
