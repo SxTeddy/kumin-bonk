@@ -17,12 +17,13 @@ import { Images } from './images.js';
 import { CATALOG, GiftMatcher, STYLES, ANCHOR } from './gifts.js';
 import { Effects, SCENES, SCENE_NAMES, MAX_ITEMS } from './effects.js';
 import { mergeGiftLists } from './giftlist.js';
+import { GiftJar, sanitizeJar } from './jar.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.0.5';
+const VERSION = '1.0.6';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -50,7 +51,7 @@ function loadConfig() {
 }
 // Settings groups (plain objects like head, throwing, combo…) are merged key by key so new options get their defaults.
 function mergeConfig(base, next) {
-  const SECTIONS = ['head', 'throwing', 'fx', 'chatTts', 'pause', 'combo', 'limit', 'chatCmd', 'thanks', 'summary'];
+  const SECTIONS = ['head', 'throwing', 'fx', 'chatTts', 'pause', 'combo', 'limit', 'chatCmd', 'thanks', 'summary', 'jar'];
   const out = { ...base, ...next };
   for (const k of SECTIONS) if (next?.[k] && typeof next[k] === 'object') out[k] = { ...base[k], ...next[k] };
   return out;
@@ -71,6 +72,7 @@ function sanitizeConfig(c) {
   if (!Array.isArray(c.rules)) c.rules = structuredClone(DEFAULT_CONFIG.rules);
   c.summary = { ...DEFAULT_CONFIG.summary, ...(c.summary || {}) };
   c.summary.folder = safeFolder(c.summary.folder);
+  c.jar = sanitizeJar(c.jar); // 🫙 gift jar on the live screen
   if (!Array.isArray(c.customSounds)) c.customSounds = [];
   c.customSounds = c.customSounds.filter(x => x && /^[a-z0-9]{1,20}$/.test(String(x.id)) && /^[a-z0-9]{1,20}\.(mp3|wav|ogg|webm|m4a|aac)$/.test(String(x.file)));
   if (c.lang && !['th', 'en', 'ja', 'zh', 'ko', 'vi', 'id', 'es'].includes(c.lang)) c.lang = 'th';
@@ -154,6 +156,16 @@ const giftsSeen = new Map(readJson('gifts-seen.json', []).map(g => [g.name, g]))
 let seenDirty = false;
 setInterval(() => { if (seenDirty) { seenDirty = false; writeJson('gifts-seen.json', [...giftsSeen.values()]); writeJson('gift-aliases.json', gifts.learned); } }, 5000);
 // 🆕 gifts the app does not know yet (new on TikTok): listed in the 🎭 tab to give them a move or match them to a known gift
+// 🫙 gift jar (Link source /jar): what's inside is kept in jar.json
+const jars = new Set();
+let jarSaveT = null;
+const jar = new GiftJar(readJson('jar.json', {}), m => { for (const ws of jars) send(ws, m); },
+  () => { if (!jarSaveT) jarSaveT = setTimeout(() => { jarSaveT = null; writeJson('jar.json', jar.state()); }, 2000); });
+const jarInit = () => ({ t: 'jarInit', cfg: config.jar, items: jar.items, total: jar.total });
+function jarGift(ev) {
+  const e = gifts.find(ev.gift);
+  jar.add(e ? `gift:${e.img}` : ev.gift.image, ev.count, ev.gift.diamonds, config.jar);
+}
 const giftKey = s => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g), guess: gifts.guess(g.name), matched: Object.hasOwn(gifts.learned, giftKey(g.name)) ? gifts.learned[giftKey(g.name)] : '' }));
 // 🔄 TikTok's current gift list (checked when the live connects, at most every 12 hours, or with the button)
@@ -236,7 +248,7 @@ function status() {
   return {
     tiktok: { status: tiktok.status, detail: tiktok.statusDetail || '', username: tiktok.username },
     vts: { status: vts.status, detail: vts.statusDetail || '', model: vts.model?.modelName || '', images: vts.canCustomImages },
-    overlays: overlays.size, viewers, stats: engine.stats, version: VERSION,
+    overlays: overlays.size, jars: jars.size, viewers, stats: engine.stats, version: VERSION,
     paused: engine.paused, queued: engine.queue.length, hotkey: { key: hotkey.key, state: hotkey.state, list: HOTKEYS }, session: !!sessions.cur,
   };
 }
@@ -288,6 +300,7 @@ function onEvent(ev, simulated = false) {
     ev.gift.th = gifts.thaiName(ev.gift.name) || (CATALOG.some(g => g.th === ev.gift.name) ? ev.gift.name : '');
     if (!simulated) noteGift(ev);
   }
+  if (ev.type === 'gift') jarGift(ev);
   if (!simulated) sessions.add(ev);
   if (!simulated) thanks.handle(ev); // the ✨ tab has its own "listen" button for testing
   const fired = engine.handle(ev, simulated); // tests always play right away (even while paused)
@@ -381,6 +394,7 @@ async function onDashboard(ws, m) {
       if (hk !== JSON.stringify([config.pause?.hotkeyOn, config.pause?.hotkey])) setupHotkey();
       vts.setPort(Number(config.vtsPort) || 8001);
       overlay.send(overlaySettings());
+      for (const j of jars) send(j, { t: 'jarCfg', cfg: config.jar });
       send(ws, { t: 'saved' });
       return;
     }
@@ -391,6 +405,13 @@ async function onDashboard(ws, m) {
       tiktok.connect(config.tiktokUsername, config.eulerApiKey);
       return;
     case 'disconnectTikTok': return tiktok.disconnect();
+    case 'jarPour': jar.clear(); log('jar', '🫙 เทโหลของขวัญแล้ว'); return;
+    case 'jarTest': { // drop a few random gifts into the jar (works even when the jar is switched off: it's a test)
+      const pool = CATALOG.filter(g => g.img);
+      const pics = Array.from({ length: Math.min(10, Math.max(1, Number(m.n) || 5)) }, () => pool[Math.floor(Math.random() * pool.length)]);
+      for (const g of pics) jar.add(`gift:${g.img}`, 1, g.coins, { ...config.jar, enabled: true, minCoins: 0 });
+      return;
+    }
     case 'simulate': {
       const ev = m.ev && typeof m.ev === 'object' ? m.ev : null;
       if (!ev) return;
@@ -594,6 +615,7 @@ const server = http.createServer((req, res) => {
   let p = url.pathname;
   if (p === '/') p = '/dashboard.html';
   if (p === '/overlay') p = '/overlay.html';
+  if (p === '/jar') p = '/jar.html';
   if (p === '/api/ping') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('kuminbonk'); }
   if (p.startsWith('/usound/')) { // uploaded effect sounds
     const s = (config.customSounds || []).find(x => x.id === p.slice(8));
@@ -614,7 +636,12 @@ const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 6 * 1024 * 10
 wss.on('error', () => {}); // listen errors are handled on the http server
 wss.on('connection', (ws, req) => {
   const role = new URL(req.url, 'http://x').searchParams.get('role');
-  if (role === 'overlay') {
+  if (role === 'jar') {
+    jars.add(ws);
+    send(ws, jarInit());
+    pushStatus();
+    ws.on('close', () => { jars.delete(ws); pushStatus(); });
+  } else if (role === 'overlay') {
     overlays.add(ws);
     send(ws, overlaySettings());
     pushStatus();
@@ -661,7 +688,7 @@ function restartApp() {
   // Keep the app window open: it shows a "changing outfit" screen and reloads itself when the new version is up.
   toDashboards({ t: 'restarting' });
   vts.stop(); tiktok.disconnect(true).catch(() => {}); hotkey.stop(); sessions.dirty = true; sessions.flush();
-  for (const ws of [...dashboards, ...overlays]) { try { ws.terminate(); } catch {} }
+  for (const ws of [...dashboards, ...overlays, ...jars]) { try { ws.terminate(); } catch {} }
   server.close(() => {
     spawn(process.execPath, [path.join(process.env.KB_INSTALL, 'launch.cjs')], { cwd: process.env.KB_INSTALL, detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, KB_RESTARTED: '1' } }).unref();
     setTimeout(() => process.exit(0), 300);

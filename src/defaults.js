@@ -1,5 +1,6 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // Default settings and starter rules (all editable in the dashboard).
+import { JAR_DEFAULT } from './jar.js';
 let n = 0;
 const id = () => `r${++n}`;
 
@@ -54,6 +55,8 @@ export const DEFAULT_CONFIG = {
     follow: false, followText: 'ขอบคุณ {name} ที่ฟอลโลว์นะ',
     share: false, shareText: 'ขอบคุณ {name} ที่แชร์ไลฟ์นะ',
   },
+  // 🫙 gift jar on the live screen (Link source /jar)
+  jar: { ...JAR_DEFAULT },
   // 📊 summary after each live
   summary: { enabled: true, saveFiles: true, folder: '' }, // saveFiles: write each finished live as a file; folder '' = Documents\\KuminBonk สรุปไลฟ์
   customSounds: [],      // [{ id, name, file }] uploaded effect sounds (played as 'u:<id>')

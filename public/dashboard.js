@@ -1517,7 +1517,39 @@ $('#pfSave').onclick = () => {
   $('#pfName').value = ''; saveProfile(n);
 };
 
+
+// ---------- 🫙 gift jar ----------
+const JAR_SHAPES = [['jar', '🫙 โหลแก้ว'], ['tall', '🧪 ทรงสูง'], ['round', '🔮 โหลกลม'], ['heart', '💗 รูปหัวใจ']];
+const JAR_LOOK = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true };
+function renderJar() {
+  const j = sec('jar');
+  $('#jarUrl').value = `${location.origin}/jar`;
+  const pv = $('#jarPrev'); if (!pv.src) pv.src = '/jar?preview=1';
+  bindCheck('#jrOn', 'jar', 'enabled');
+  $('#jrShape').innerHTML = JAR_SHAPES.map(([k, n]) => `<button type="button" class="small${j.shape === k ? ' on' : ''}" data-shape="${k}">${n}</button>`).join('');
+  $('#jrShape').querySelectorAll('button').forEach(b => b.onclick = () => { setSec('jar', 'shape', b.dataset.shape); renderJar(); });
+  for (const [id, key] of [['#jrGlass', 'glass'], ['#jrLidColor', 'lidColor'], ['#jrBowColor', 'bowColor'], ['#jrLabelBg', 'labelBg'], ['#jrLabelColor', 'labelColor']]) {
+    const el = $(id); el.value = j[key] || '#ffffff'; el.oninput = () => setSec('jar', key, el.value);
+  }
+  const lid = $('#jrLid'); lid.value = j.lid || 'metal'; lid.onchange = () => { setSec('jar', 'lid', lid.value); $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork'; };
+  $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork';
+  bindCheck('#jrBow', 'jar', 'bow'); bindText('#jrLabel', 'jar', 'label');
+  bindCheck('#jrCount', 'jar', 'showCount'); bindCheck('#jrSparkle', 'jar', 'sparkle'); bindCheck('#jrSound', 'jar', 'sound');
+  const full = $('#jrFull'); full.value = j.whenFull || 'empty'; full.onchange = () => setSec('jar', 'whenFull', full.value);
+  sliderBox($('#jrSliders'), 'jar', [
+    ['itemSize', 'ขนาดของขวัญในโหล', 0.6, 1.6, 0.1, v => '×' + v],
+    ['capacity', 'โหลจุได้ (ชิ้น)', 20, 400, 10],
+    ['perGift', 'ส่งทีเดียวหลายอัน ใส่โหลได้มากสุด (ชิ้น)', 1, 50, 1],
+    ['minCoins', 'ใส่โหลเฉพาะของขวัญราคาตั้งแต่ (เหรียญ)', 0, 1000, 1],
+    ['volume', 'ความดังเสียง', 0, 1, 0.05, v => Math.round(v * 100) + '%'],
+  ]);
+}
+$('#btnJarCopy').onclick = () => { navigator.clipboard.writeText($('#jarUrl').value).then(() => toast('คัดลอกลิงก์แล้ว')); };
+$('#btnJarTest').onclick = () => send({ t: 'jarTest', n: 5 });
+$('#btnJarPour').onclick = () => { send({ t: 'jarPour' }); toast('เทโหลแล้ว เริ่มนับใหม่'); };
+$('#btnJarReset').onclick = () => { Object.assign(sec('jar'), JAR_LOOK); save(); renderJar(); toast('คืนค่าหน้าตาโหลแล้ว'); };
 function renderHelpers() {
+  renderJar();
   if (!config) return;
   bindCheck('#pzHotkeyOn', 'pause', 'hotkeyOn', () => renderPause(lastStatus || {}));
   bindCheck('#pzKeep', 'pause', 'keepQueue');

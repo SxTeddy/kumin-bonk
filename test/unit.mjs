@@ -14,6 +14,7 @@ import { Effects } from '../src/effects.js';
 import { newer } from '../src/updater.js';
 import { mergeGiftLists, guessStyle } from '../src/giftlist.js';
 import { CATALOG } from '../src/gifts.js';
+import { GiftJar, sanitizeJar, JAR_DEFAULT } from '../src/jar.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const results = [];
@@ -329,6 +330,26 @@ await t('version numbers compare correctly (updates only go forward)', async () 
   assert.ok(!newer('1.0.0', '1.0.0')); assert.ok(!newer('1.0.0', '1.9.3'), 'a fresh v1.0.0 over an old test version is not an "update"');
 });
 
+await t('gift jar fills, caps a big send, pours out when full, and ignores bad settings', async () => {
+  const sent = []; let saves = 0;
+  const jar = new GiftJar({ items: ['gift:g001', 'bad<script>', 'https://x.example/a.png'], total: 3 }, m => sent.push(m), () => saves++);
+  assert.equal(jar.items.length, 2, 'unsafe picture names are dropped');
+  const cfg = sanitizeJar({ capacity: 25, perGift: 10, minCoins: 5 });
+  assert.equal(jar.add('gift:g010', 99, 1, cfg), 0, 'gifts under the minimum stay out');
+  assert.equal(jar.add('gift:g010', 99, 10, cfg), 10, 'one big send adds at most perGift');
+  assert.equal(jar.total, 102, 'the counter still counts every gift');
+  jar.add('gift:g010', 10, 10, cfg); assert.equal(jar.items.length, 22);
+  jar.add('gift:g011', 5, 10, cfg); assert.equal(jar.items.length, 5, 'full jar pours out and starts again');
+  assert.ok(sent.some(m => m.t === 'jarPour'));
+  const stop = sanitizeJar({ capacity: 20, whenFull: 'stop' }); jar.items = Array(18).fill('rose');
+  assert.equal(jar.add('rose', 9, 1, stop), 2, 'stop: only fills to the brim');
+  assert.equal(jar.add('javascript:alert(1)', 1, 1, cfg), 0, 'bad picture refused');
+  assert.equal(jar.add('rose', 1, 1, { ...cfg, enabled: false }), 0, 'switched off');
+  jar.clear(); assert.equal(jar.items.length, 0); assert.equal(jar.total, 0); assert.ok(saves > 0);
+  const s = sanitizeJar({ shape: 'x', glass: 'red', capacity: 1e9, label: 'y'.repeat(99), itemSize: 'big' });
+  assert.equal(s.shape, 'jar'); assert.equal(s.glass, JAR_DEFAULT.glass); assert.equal(s.capacity, 400); assert.equal(s.label.length, 30); assert.equal(s.itemSize, 1);
+  assert.deepEqual(DEFAULT_CONFIG.jar, JAR_DEFAULT, 'fresh installs get the jar settings');
+});
 fs.rmSync(tmp, { recursive: true, force: true });
 let bad = 0;
 for (const [ok, name, err] of results) { console.log(`${ok ? '✓' : '✗'} ${name}${ok ? '' : ' — ' + err}`); if (!ok) bad++; }

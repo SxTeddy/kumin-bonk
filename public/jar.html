@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="th">
+<head>
+<!-- KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE -->
+<meta charset="utf-8">
+<title>KuminBonk โหลของขวัญ</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  canvas { position: fixed; inset: 0; }
+  #status { position: fixed; left: 8px; bottom: 8px; font: 600 14px sans-serif; color: #fff; background: #d33a; padding: 5px 9px; border-radius: 8px; display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="status">KuminBonk: ยังไม่ได้เปิดโปรแกรม</div>
+<script src="/sounds.js"></script>
+<script>
+// 🫙 Gift jar — gifts viewers send drop into a glass jar and pile up. Add as a Link source (portrait, e.g. 600×800).
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const PREVIEW = new URLSearchParams(location.search).has('preview');
+let W = 0, H = 0, DPR = 1;
+let cfg = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true, sound: true, volume: 0.4 };
+let total = 0;
+const items = [], sparks = [];
+let J = null; // jar geometry for the current size and shape
+
+// ---------- pictures ----------
+const imgCache = new Map();
+function srcUrl(src) {
+  src = String(src || '');
+  if (/^gift:g\d{3}$/.test(src)) return `/gifts/${src.slice(5)}.png`;
+  if (/^[a-z]{2,16}$/.test(src)) return `/assets/${src}.svg`;
+  if (/^https?:\/\//.test(src)) return src;
+  return '/assets/heart.svg';
+}
+function getImg(src) {
+  const url = srcUrl(src);
+  if (!imgCache.has(url)) {
+    if (imgCache.size > 300) imgCache.delete(imgCache.keys().next().value);
+    const im = new Image(); im.onerror = () => { im.failed = true; }; im.src = url; imgCache.set(url, im);
+  }
+  return imgCache.get(url);
+}
+
+// ---------- jar shape ----------
+// Every shape is a left-right symmetric outline: half-width of the inside at height y (0 outside the jar).
+function geometry() {
+  const s = cfg.shape;
+  const maxW = Math.min(W * 0.86, H * (s === 'tall' ? 0.5 : s === 'round' ? 0.78 : 0.66));
+  const cx = W / 2;
+  const half = maxW / 2;
+  const lidH = cfg.lid === 'none' ? 0 : Math.max(18, half * 0.2);
+  const top = H * 0.05 + lidH + half * 0.08;           // inside top (mouth)
+  const bottom = H - Math.max(14, H * 0.035);          // inside bottom
+  const g = { cx, half, top, bottom, lidH, neck: half * 0.78, wall: Math.max(4, half * 0.035) };
+  const hgt = bottom - top;
+  if (s === 'round') {
+    const R = Math.min(half, hgt / 1.8);
+    g.half = R; g.cy = bottom - R; g.top = Math.max(top, g.cy - R * 0.93); g.neck = Math.sqrt(R * R - (g.top - g.cy) ** 2);
+    g.hw = y => y < g.top ? g.neck : y > bottom ? 0 : Math.sqrt(Math.max(0, R * R - (y - g.cy) ** 2));
+  } else if (s === 'heart') {
+    // a real heart: two round lobes and a point; the mouth is a short glass neck in the dip between the lobes
+    const raw = []; for (let i = 0; i <= 200; i++) { const t = (i / 200) * Math.PI * 2; raw.push([16 * Math.sin(t) ** 3, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))]); }
+    const yMin = Math.min(...raw.map(p => p[1])), yMax = Math.max(...raw.map(p => p[1]));
+    const H0 = Math.min(hgt * 0.9, half * 2 * (yMax - yMin) / 32), sc = H0 / (yMax - yMin), hx = Math.min(half, 16 * sc);
+    const lobeTop = bottom - H0;
+    g.poly = raw.map(([x, y]) => [cx + x * hx / 16, lobeTop + (y - yMin) * sc]);
+    g.half = hx; g.ceil = lobeTop; g.neck = hx * 0.24;
+    g.dipY = lobeTop + (-5 - yMin) * sc; g.top = lobeTop - hx * 0.16;
+    g.neckBottom = Math.min(...g.poly.filter(([x, y]) => Math.abs(x - cx) <= g.neck && y < lobeTop + (g.dipY - lobeTop) * 1.5).map(p => p[1]), g.dipY);
+    const rows = new Map(); // half-width of the heart at each pixel row
+    g.hw = y => {
+      if (y < lobeTop) return y >= g.top ? g.neck : 0;
+      const k = Math.round(y); if (rows.has(k)) return rows.get(k);
+      let w = 0; for (let i = 0; i < g.poly.length - 1; i++) { const [x1, y1] = g.poly[i], [x2, y2] = g.poly[i + 1]; if ((y1 - k) * (y2 - k) <= 0 && y1 !== y2) w = Math.max(w, Math.abs(x1 + (x2 - x1) * (k - y1) / (y2 - y1) - cx)); }
+      rows.set(k, w); return w;
+    };
+  } else { // jar / tall: neck, shoulder, straight body, rounded bottom corners
+    const R = half * 0.28, sh = hgt * 0.1;
+    g.hw = y => {
+      if (y < top) return g.neck;
+      if (y > bottom) return 0;
+      if (y < top + sh * 0.4) return g.neck;
+      if (y < top + sh) { const u = (y - top - sh * 0.4) / (sh * 0.6); return g.neck + (half - g.neck) * (1 - (1 - u) ** 2); }
+      if (y > bottom - R) return half - R + Math.sqrt(Math.max(0, R * R - (y - bottom + R) ** 2));
+      return half;
+    };
+  }
+  if (g.ceil == null) g.ceil = g.top; // pictures never rise above this (the lid)
+  g.spawn = s === 'heart' ? g.dipY + (g.bottom - g.dipY) * 0.08 : g.top + (g.bottom - g.top) * 0.06;
+  g.r = Math.max(8, g.half * 0.15 * (cfg.itemSize || 1)); // picture radius
+  return g;
+}
+function resize() {
+  DPR = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const old = J; J = geometry();
+  if (old && items.length) { for (const it of items) { it.r = J.r * it.k; } settle(240); }
+}
+addEventListener('resize', resize);
+
+// ---------- physics ----------
+const GRAV = 2200;
+function newItem(src, x, y) {
+  const k = 0.88 + Math.random() * 0.24;
+  return { img: getImg(src), x, y, px: x, py: y, r: J.r * k, k, rot: Math.random() * 6.28, vr: 0, out: false, alpha: 1, landed: false };
+}
+function drop(src) {
+  const y = J.spawn + J.r, w = Math.max(0, J.hw(y) - J.r * 1.2);
+  const it = newItem(src, J.cx + (Math.random() - 0.5) * w * 1.6, y);
+  it.py = it.y - 3; it.grow = 0; items.push(it);
+  if (cfg.sparkle) for (let i = 0; i < 6; i++) { const a = Math.random() * 6.28, sp = 80 + Math.random() * 120; sparks.push({ x: it.x, y: it.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, age: 0, life: 0.5 }); }
+}
+// Verlet steps: gravity, keep each picture inside the glass, push overlapping pictures apart
+function step(dt) {
+  for (const it of items) {
+    const vx = (it.x - it.px) * 0.99, vy = (it.y - it.py) * 0.99;
+    it.px = it.x; it.py = it.y;
+    it.x += vx; it.y += vy + GRAV * dt * dt * (it.out ? 1 : 1);
+    it.rot += it.out ? it.vr * dt : vx / it.r;
+  }
+  for (let k = 0; k < 3; k++) { collide(); for (const it of items) if (!it.out) walls(it); }
+}
+function walls(it) {
+  const r = it.r, cx = J.cx;
+  if (it.y < J.ceil + r * 0.8) it.y = J.ceil + r * 0.8; // the lid
+  // test points around the picture's edge against the glass
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+    if (sa < -0.5) continue; // upper edge never touches glass
+    const px = it.x + ca * r, py = it.y + sa * r;
+    const hw = J.hw(py);
+    let dx = 0, dy = 0;
+    if (py > J.bottom) dy = J.bottom - py;
+    else if (Math.abs(px - cx) > hw) {
+      const over = Math.abs(px - cx) - hw;
+      if (hw <= 0.5) dy = -over; else { dx = -Math.sign(px - cx) * over * Math.abs(ca); dy = -over * Math.max(0, sa); }
+    }
+    if (dx || dy) { it.x += dx; it.y += dy; if (!it.landed && dy < 0) land(it); }
+  }
+}
+function collide() {
+  const cell = J.r * 2.4, grid = new Map();
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]; if (it.out) continue;
+    const key = Math.floor(it.x / cell) + ',' + Math.floor(it.y / cell);
+    (grid.get(key) || grid.set(key, []).get(key)).push(i);
+  }
+  for (let i = 0; i < items.length; i++) {
+    const a = items[i]; if (a.out) continue;
+    const gx = Math.floor(a.x / cell), gy = Math.floor(a.y / cell);
+    for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+      const list = grid.get((gx + ox) + ',' + (gy + oy)); if (!list) continue;
+      for (const j of list) {
+        if (j <= i) continue;
+        const b = items[j], dx = b.x - a.x, dy = b.y - a.y, min = (a.r + b.r) * 0.9, d2 = dx * dx + dy * dy;
+        if (d2 >= min * min || d2 === 0) continue;
+        const d = Math.sqrt(d2), push = (min - d) / 2, nx = dx / d, ny = dy / d;
+        a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
+        if (!b.landed && a.landed && ny > 0.3) land(b); if (!a.landed && b.landed && ny < -0.3) land(a);
+      }
+    }
+  }
+}
+let lastClink = 0;
+function land(it) {
+  it.landed = true;
+  if (!PREVIEW && cfg.sound && performance.now() - lastClink > 90) { lastClink = performance.now(); KBSound.play('bubble', (cfg.volume ?? 0.4) * 0.6); }
+  if (cfg.sparkle && Math.random() < 0.5) for (let i = 0; i < 3; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 90; sparks.push({ x: it.x, y: it.y - it.r * 0.5, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, age: 0, life: 0.6 }); }
+}
+// put saved pictures straight into the jar (page opened or reloaded)
+function settle(n) { for (let i = 0; i < n; i++) step(1 / 60); for (const it of items) { it.px = it.x; it.py = it.y; it.landed = true; } }
+function fillNow(list) {
+  items.length = 0;
+  let row = 0, col = 0;
+  for (const src of list) {
+    const y = J.bottom - J.r - row * J.r * 1.7, hw = Math.max(J.r, J.hw(y) - J.r), per = Math.max(1, Math.floor(hw * 2 / (J.r * 1.8)));
+    const x = J.cx - hw + (col + 0.5) * (hw * 2 / per);
+    const it = newItem(src, x + (Math.random() - 0.5) * 2, y); it.landed = true; items.push(it);
+    if (++col >= per) { col = 0; row++; }
+  }
+  settle(180);
+}
+// pour everything out (jar was full, or "🫗 เทโหล" was pressed)
+function pour() {
+  for (const it of items) { if (it.out) continue; it.out = true; it.vr = (Math.random() - 0.5) * 14; it.px = it.x - (Math.random() - 0.5) * 18; it.py = it.y + 14 + Math.random() * 14; }
+  if (!PREVIEW && cfg.sound) KBSound.play('whoosh', cfg.volume ?? 0.4);
+}
+
+// ---------- drawing ----------
+function rgba(h, a) { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
+function shade(h, f) { const n = parseInt(h.slice(1), 16); const c = v => Math.max(0, Math.min(255, Math.round(v * f))); return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`; }
+function outline(pad) { // the glass outline as a path (pad: grow outward)
+  if (J.poly) {
+    ctx.beginPath(); const c = J.poly, cy = (J.ceil + J.bottom) / 2;
+    c.forEach(([x, y], i) => { const dx = x - J.cx, dy = y - cy, d = Math.hypot(dx, dy) || 1, X = x + dx / d * pad, Y = y + dy / d * pad; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+    ctx.closePath();
+    const nb = J.neckBottom + pad; ctx.moveTo(J.cx - J.neck - pad, nb); ctx.lineTo(J.cx - J.neck - pad, J.top - pad * 0.3); ctx.lineTo(J.cx + J.neck + pad, J.top - pad * 0.3); ctx.lineTo(J.cx + J.neck + pad, nb); // the neck
+    return;
+  }
+  const n = 60, pts = [];
+  for (let i = 0; i <= n; i++) { const y = J.top + (J.bottom - J.top) * (i / n); pts.push([J.hw(y) + pad, y]); }
+  ctx.beginPath(); ctx.moveTo(J.cx - J.neck - pad, J.top - pad * 0.3);
+  for (const [w, y] of pts) ctx.lineTo(J.cx - w, y);
+  ctx.lineTo(J.cx + pts[n][0], pts[n][1]);
+  for (let i = n; i >= 0; i--) ctx.lineTo(J.cx + pts[i][0], pts[i][1]);
+  ctx.lineTo(J.cx + J.neck + pad, J.top - pad * 0.3);
+}
+function drawBack() {
+  outline(J.wall); const g = ctx.createLinearGradient(J.cx - J.half, 0, J.cx + J.half, 0);
+  g.addColorStop(0, rgba(cfg.glass, 0.22)); g.addColorStop(0.5, rgba(cfg.glass, 0.08)); g.addColorStop(1, rgba(cfg.glass, 0.26));
+  ctx.fillStyle = g; ctx.fill();
+}
+function drawFront() {
+  outline(J.wall); ctx.lineWidth = J.wall * 1.4; ctx.strokeStyle = rgba(cfg.glass, 0.85); ctx.lineJoin = 'round'; ctx.stroke();
+  outline(J.wall * 0.2); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.stroke();
+  // shine
+  ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#fff'; ctx.lineCap = 'round';
+  const y0 = J.top + (J.bottom - J.top) * 0.18, y1 = J.top + (J.bottom - J.top) * 0.62;
+  ctx.lineWidth = Math.max(4, J.half * 0.07); ctx.beginPath();
+  for (let y = y0; y <= y1; y += 4) { const x = J.cx - J.hw(y) * 0.78; y === y0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke();
+  ctx.lineWidth = Math.max(2, J.half * 0.025); ctx.beginPath(); ctx.moveTo(J.cx - J.hw(y1) * 0.78 + 2, y1 + J.half * 0.12); ctx.lineTo(J.cx - J.hw(y1) * 0.78 + 2, y1 + J.half * 0.2); ctx.stroke();
+  ctx.restore();
+  // rim
+  const rimY = J.top - J.wall * 0.3;
+  ctx.beginPath(); ctx.ellipse(J.cx, rimY, J.neck + J.wall * 1.6, Math.max(5, J.neck * 0.12), 0, 0, Math.PI * 2);
+  ctx.lineWidth = J.wall; ctx.strokeStyle = rgba(cfg.glass, 0.95); ctx.stroke();
+  drawLid(rimY); if (cfg.bow) drawBow(); drawLabel();
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawLid(rimY) {
+  if (cfg.lid === 'none') return;
+  const w = (J.neck + J.wall * 2.4) * 2, h = J.lidH, x = J.cx - w / 2, y = rimY - h * 0.92, c = cfg.lidColor;
+  if (cfg.lid === 'metal') {
+    const g = ctx.createLinearGradient(x, 0, x + w, 0);
+    g.addColorStop(0, shade(c, 0.7)); g.addColorStop(0.3, shade(c, 1.25)); g.addColorStop(0.6, c); g.addColorStop(1, shade(c, 0.65));
+    rr(x, y, w, h, h * 0.3); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = shade(c, 0.55); ctx.lineWidth = 2; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x + 4, y + h * i / 4); ctx.lineTo(x + w - 4, y + h * i / 4); ctx.stroke(); }
+    rr(x - 3, y - h * 0.28, w + 6, h * 0.36, h * 0.18); ctx.fillStyle = shade(c, 1.1); ctx.fill();
+  } else if (cfg.lid === 'cork') {
+    const cw = J.neck * 1.7, g = ctx.createLinearGradient(0, y - h * 0.4, 0, y + h);
+    g.addColorStop(0, '#d9a86c'); g.addColorStop(1, '#a8743f');
+    ctx.beginPath(); ctx.moveTo(J.cx - cw / 2, y - h * 0.5); ctx.lineTo(J.cx + cw / 2, y - h * 0.5); ctx.lineTo(J.cx + cw * 0.46, y + h); ctx.lineTo(J.cx - cw * 0.46, y + h); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+    ctx.fillStyle = 'rgba(90,50,20,.35)'; for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.arc(J.cx + (Math.sin(i * 7.1) * cw * 0.4), y - h * 0.3 + ((i * 37) % 100) / 100 * h * 1.1, 1.8, 0, 6.28); ctx.fill(); }
+  } else { // cloth: fabric over the mouth, tied with string
+    const fw = w * 1.08, fy = y - h * 0.2;
+    ctx.beginPath(); ctx.moveTo(J.cx - fw / 2, rimY + h * 0.55);
+    ctx.quadraticCurveTo(J.cx - fw / 2 - 4, fy, J.cx, fy - h * 0.35); ctx.quadraticCurveTo(J.cx + fw / 2 + 4, fy, J.cx + fw / 2, rimY + h * 0.55);
+    for (let i = 0; i <= 8; i++) { const xx = J.cx + fw / 2 - fw * i / 8; ctx.lineTo(xx, rimY + h * (i % 2 ? 0.95 : 0.55)); }
+    ctx.closePath(); ctx.fillStyle = c; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.arc(J.cx - fw * 0.38 + (i % 5) * fw * 0.19, fy + h * (0.15 + Math.floor(i / 5) * 0.4), Math.max(2, h * 0.09), 0, 6.28); ctx.fill(); }
+    ctx.strokeStyle = shade(c, 0.6); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(J.cx - fw * 0.47, rimY + h * 0.2); ctx.lineTo(J.cx + fw * 0.47, rimY + h * 0.2); ctx.stroke();
+  }
+}
+function drawBow() {
+  const y = J.poly ? J.top + (J.neckBottom - J.top) * 0.55 : J.top + (J.bottom - J.top) * 0.045 + J.wall, w = (J.poly ? J.neck : J.hw(y)) + J.wall, c = cfg.bowColor, s = Math.max(10, J.half * 0.14);
+  ctx.fillStyle = c; rr(J.cx - w, y - s * 0.28, w * 2, s * 0.56, s * 0.2); ctx.fill();
+  const bx = J.cx + w * 0.45;
+  ctx.fillStyle = shade(c, 0.85);
+  for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(bx, y); ctx.bezierCurveTo(bx + d * s * 1.3, y - s * 1.1, bx + d * s * 1.5, y + s * 0.6, bx, y); ctx.fill(); }
+  ctx.fillStyle = shade(c, 0.75); for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(bx, y); ctx.lineTo(bx + d * s * 0.7, y + s * 1.5); ctx.lineTo(bx + d * s * 0.35, y + s * 1.25); ctx.lineTo(bx + d * s * 0.15, y + s * 1.6); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = c; ctx.beginPath(); ctx.arc(bx, y, s * 0.32, 0, 6.28); ctx.fill();
+}
+function drawLabel() {
+  const text = cfg.label || '', cnt = cfg.showCount ? '🎁 ' + total.toLocaleString() : '';
+  if (!text && !cnt) return;
+  const midY = J.shapeLabelY ?? (J.top + (J.bottom - J.top) * (cfg.shape === 'heart' ? 0.38 : 0.5));
+  const fs = Math.max(12, J.half * 0.17), lines = [text, cnt].filter(Boolean);
+  ctx.font = `800 ${fs}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`;
+  const tw = Math.min(J.hw(midY) * 1.7, Math.max(...lines.map(l => ctx.measureText(l).width)) + fs * 1.4);
+  const th = lines.length * fs * 1.25 + fs * 0.6, x = J.cx - tw / 2, y = midY - th / 2;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+  rr(x, y, tw, th, fs * 0.5); ctx.fillStyle = cfg.labelBg; ctx.fill(); ctx.restore();
+  rr(x + 4, y + 4, tw - 8, th - 8, fs * 0.4); ctx.setLineDash([5, 4]); ctx.strokeStyle = rgba(cfg.labelColor, 0.7); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = cfg.labelColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach((l, i) => { ctx.font = `${i === 0 && text ? 800 : 700} ${i === 0 && text ? fs : fs * 0.9}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`; ctx.fillText(l, J.cx, y + fs * 0.3 + fs * 1.25 * (i + 0.5), tw - fs * 0.6); });
+}
+function drawItem(it) {
+  if (it.grow != null && it.grow < 1) it.grow = Math.min(1, it.grow + 0.08);
+  const im = it.img, s = it.r * 2.1 * (it.grow == null ? 1 : 0.3 + 0.7 * it.grow);
+  ctx.save(); ctx.globalAlpha = it.alpha; ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+  if (im.complete && !im.failed && im.naturalWidth) {
+    const q = im.naturalWidth / im.naturalHeight || 1, w = q >= 1 ? s : s * q, h = q >= 1 ? s / q : s;
+    ctx.drawImage(im, -w / 2, -h / 2, w, h);
+  } else { ctx.fillStyle = '#ff7aa8'; ctx.beginPath(); ctx.arc(0, 0, it.r * 0.7, 0, 6.28); ctx.fill(); }
+  ctx.restore();
+}
+
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; }
+  for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it.out) { it.alpha -= dt * 0.8; if (it.alpha <= 0 || it.y > H + 200) items.splice(i, 1); } }
+  ctx.clearRect(0, 0, W, H);
+  drawBack();
+  for (const it of items) if (!it.out) drawItem(it);
+  drawFront();
+  for (const it of items) if (it.out) drawItem(it);
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const s = sparks[i]; s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 200 * dt;
+    if (s.age > s.life) { sparks.splice(i, 1); continue; }
+    const k = 1 - s.age / s.life; ctx.globalAlpha = k; ctx.fillStyle = '#fff6a8';
+    ctx.beginPath(); const r = 2 + 4 * k; ctx.moveTo(s.x, s.y - r * 2); ctx.lineTo(s.x + r * 0.6, s.y); ctx.lineTo(s.x, s.y + r * 2); ctx.lineTo(s.x - r * 0.6, s.y); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(frame);
+}
+
+// ---------- connection ----------
+const dropQ = []; let dropT = null;
+function queueDrops(list) { dropQ.push(...list); if (dropQ.length > 400) dropQ.splice(0, dropQ.length - 400); if (!dropT) dropT = setInterval(() => { const s = dropQ.shift(); if (s) drop(s); else { clearInterval(dropT); dropT = null; } }, 110); }
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws?role=jar`);
+  ws.onopen = () => { document.getElementById('status').style.display = 'none'; };
+  ws.onclose = () => { if (!PREVIEW) document.getElementById('status').style.display = 'block'; setTimeout(connect, 2000); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'jarInit') { Object.assign(cfg, m.cfg || {}); total = m.total || 0; J = geometry(); dropQ.length = 0; fillNow((m.items || []).slice(-400)); }
+    else if (m.t === 'jarCfg') { const before = cfg.shape + cfg.itemSize + cfg.lid; Object.assign(cfg, m.cfg || {}); if (before !== cfg.shape + cfg.itemSize + cfg.lid) { J = geometry(); for (const it of items) it.r = J.r * it.k; settle(240); } }
+    else if (m.t === 'jarAdd') { total = m.total ?? total; queueDrops(m.items || []); }
+    else if (m.t === 'jarPour') { if (m.total != null) total = m.total; dropQ.length = 0; pour(); }
+  };
+}
+resize(); J = geometry();
+requestAnimationFrame(frame);
+connect();
+</script>
+</body>
+</html>
