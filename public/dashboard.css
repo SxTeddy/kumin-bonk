@@ -554,9 +554,9 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .jaropts .seg button.on { background: var(--pink); color: #fff; border-color: var(--pink); }
 .jarrow { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .jarrow label { margin: 0; }
-#helpers .jaropts label.check input[type=color] { width: 36px; height: 28px; margin-left: 6px; }
+#jar .jaropts label.check input[type=color] { width: 36px; height: 28px; margin-left: 6px; }
 @media (max-width: 760px) { .jarwrap { grid-template-columns: 1fr; } .jarprev { position: static; max-width: 300px; } }
-#helpers .jaropts input[type=color] { width: 46px; height: 36px; flex: none; }
+#jar .jaropts input[type=color] { width: 46px; height: 36px; flex: none; }
 .jaropts .row select, .jaropts .row input:not([type=color]) { flex: 1; }
 .jarrow label { white-space: nowrap; }
 .jaropts label.check { display: flex; align-items: center; gap: 6px; }
@@ -564,3 +564,5 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .jaropts { min-width: 0; }
 .jaropts .seg { width: auto; border: 0; gap: 6px; overflow: visible; border-radius: 0; }
 .jaropts .seg button { border: var(--bw, 2px) solid var(--line); border-radius: 999px; }
+#jar input:not([type=checkbox]):not([type=range]):not([type=number]):not([type=color]) { width: 100%; box-sizing: border-box; }
+#jar .row > input { min-width: 0; }

@@ -371,7 +371,7 @@ function renderAll() {
   $('#optEyes').checked = config.throwing.eyesClose;
   $('#followModel').checked = config.head.followModel;
   renderSliders(); renderRules(); fillGiftList(); renderAimFor(); renderGallery(); renderCats();
-  renderHelpers(); renderMixer();
+  renderHelpers(); renderJar(); renderMixer();
 }
 
 function fillGiftList() {
@@ -1568,7 +1568,6 @@ $('#btnJarParty').onclick = () => send({ t: 'jarParty' });
 $('#btnJarPour').onclick = () => { send({ t: 'jarPour' }); toast('เทโหลแล้ว เริ่มนับใหม่'); };
 $('#btnJarReset').onclick = () => { Object.assign(sec('jar'), JAR_LOOK); save(); renderJar(); toast('คืนค่าหน้าตาโหลแล้ว'); };
 function renderHelpers() {
-  renderJar();
   if (!config) return;
   bindCheck('#pzHotkeyOn', 'pause', 'hotkeyOn', () => renderPause(lastStatus || {}));
   bindCheck('#pzKeep', 'pause', 'keepQueue');
@@ -1648,6 +1647,7 @@ $('#tabs button[data-tab=summary]').addEventListener('click', () => {
   $('#smFiles').checked = config?.summary?.saveFiles !== false; $('#smDir').value = config?.summary?.folder || '';
 });
 $('#tabs button[data-tab=helpers]').addEventListener('click', () => renderHelpers());
+$('#tabs button[data-tab=jar]').addEventListener('click', () => renderJar());
 setInterval(() => { if ($('#summary').classList.contains('on') && lastStatus?.session) send({ t: 'sessions' }); }, 10000);
 
 

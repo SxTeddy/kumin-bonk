@@ -409,6 +409,7 @@ EXTRA = [
 ("❄️ ลูกแก้วหิมะ", "❄️ Snow globe", "❄️ スノードーム", "❄️ 雪花球", "❄️ 스노우볼", "❄️ Quả cầu tuyết", "❄️ Bola salju", "❄️ Bola de nieve"),
 ("🪴 กระถางดอกไม้", "🪴 Flower pot", "🪴 植木鉢", "🪴 花盆", "🪴 화분", "🪴 Chậu hoa", "🪴 Pot bunga", "🪴 Maceta"),
 ("💰 ถุงเงิน", "💰 Money bag", "💰 お金の袋", "💰 钱袋", "💰 돈주머니", "💰 Túi tiền", "💰 Kantong uang", "💰 Saco de dinero"),
+("🫙 โหลของขวัญ", "🫙 Gift jar", "🫙 ギフト瓶", "🫙 礼物罐", "🫙 선물 병", "🫙 Hũ quà", "🫙 Toples hadiah", "🫙 Tarro de regalos"),
 ("เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ", "Can't check — connect to your live first", "チェックできません — 先にライブに接続してね", "无法检查 — 请先连接直播", "확인할 수 없어요 — 먼저 라이브에 연결하세요", "Không kiểm tra được — hãy kết nối live trước", "Tidak bisa dicek — hubungkan live dulu", "No se puede revisar — conecta el directo primero"),
 ("หมวด", "Category", "カテゴリー", "分类", "카테고리", "Nhóm", "Kategori", "Categoría"),
 ]

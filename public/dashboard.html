@@ -67,6 +67,7 @@
   <button data-tab="aim">🎯 เล็งหัว</button>
   <button data-tab="chat">💬 อ่านแชต</button>
   <button data-tab="helpers">✨ ตัวช่วยไลฟ์</button>
+  <button data-tab="jar">🫙 โหลของขวัญ</button>
   <button data-tab="summary">📊 สรุปไลฟ์</button>
   <button data-tab="settings">⚙️ ตั้งค่า</button>
   <button data-tab="lang">🌐 ภาษา</button>
@@ -337,43 +338,6 @@
 
   <!-- LIVE HELPERS -->
   <section id="helpers" class="tab">
-    <div class="card jarcard" style="margin-bottom:18px">
-      <div class="fhead"><h2>🫙 โหลของขวัญบนจอ</h2><label class="switch"><input type="checkbox" id="jrOn"><span></span></label></div>
-      <p class="hint">ของขวัญที่คนส่งมาจะตกลงไปกองในโหลบนจอไลฟ์ ยิ่งได้เยอะยิ่งเต็ม · ใน TikTok LIVE Studio กด <b>เพิ่มแหล่งที่มา → ลิงก์ (Link)</b> แล้ววางลิงก์นี้ ตั้งขนาด 600×800 แล้วลากไปวางมุมจอ</p>
-      <div class="row"><input id="jarUrl" readonly><button id="btnJarCopy">คัดลอก</button></div>
-      <div class="jarwrap">
-        <div class="jarprev"><iframe id="jarPrev" title="ตัวอย่างโหลของขวัญ" loading="lazy"></iframe></div>
-        <div class="jaropts">
-          <label>ทรงโหล / แบบที่ใส่ของ</label>
-          <div class="seg" id="jrShape"></div>
-          <div class="jarrow"><label>สีแก้ว</label><input type="color" id="jrGlass"></div>
-          <label id="jrLidLbl">ฝาโหล</label>
-          <div class="row"><select id="jrLid"><option value="metal">ฝาเกลียว</option><option value="cork">จุกไม้ก๊อก</option><option value="cloth">ผ้าคลุมลายจุด</option><option value="none">ไม่มีฝา</option></select><input type="color" id="jrLidColor" title="สีฝา"></div>
-          <label class="check"><input type="checkbox" id="jrBow"> ผูกโบว์ <input type="color" id="jrBowColor" title="สีโบว์"></label>
-          <label>ป้ายบนโหล (ว่างไว้ = ไม่มีป้าย)</label>
-          <div class="row"><input id="jrLabel" maxlength="30" placeholder="เช่น โหลของขวัญ" style="flex:1"><input type="color" id="jrLabelBg" title="สีป้าย"><input type="color" id="jrLabelColor" title="สีตัวหนังสือ"></div>
-          <label class="check"><input type="checkbox" id="jrCount"> โชว์จำนวนของขวัญที่ได้บนป้าย</label>
-          <div class="sliders" id="jrSliders"></div>
-          <label>พอโหลเต็ม</label>
-          <select id="jrFull"><option value="empty">เทออกแล้วเริ่มเติมใหม่</option><option value="stop">เต็มไว้อย่างนั้น ไม่รับเพิ่ม</option></select>
-          <label class="check"><input type="checkbox" id="jrSparkle"> มีประกายวิบวับตอนของตกลงไป</label>
-          <label class="check"><input type="checkbox" id="jrSound"> มีเสียงตอนของตกลงไป</label>
-          <h2 class="mt">🎪 ลูกเล่น</h2>
-          <label class="check"><input type="checkbox" id="jrBig"> ของแพงตัวใหญ่ในโหล</label>
-          <label class="check"><input type="checkbox" id="jrNames"> ชื่อคนส่งลอยขึ้นจากโหล</label>
-          <label class="check"><input type="checkbox" id="jrLikes"> กดไลค์แล้วได้หัวใจลงโหล</label>
-          <label class="check"><input type="checkbox" id="jrFollows"> ฟอลโลว์แล้วได้ดาวลงโหล</label>
-          <label class="check"><input type="checkbox" id="jrWobble"> โหลโยกตอนของตกลงไป</label>
-          <label class="check"><input type="checkbox" id="jrTop"> ป้าย 👑 คนส่งมากสุดใต้โหล</label>
-          <label class="check"><input type="checkbox" id="jrGoal"> แถบเป้าหมายใต้โหล</label>
-          <input id="jrGoalText" maxlength="40" placeholder="เช่น เต็มโหล = ร้องเพลง 1 เพลง">
-          <label class="check"><input type="checkbox" id="jrShakeCmd"> คนดูพิมพ์คำนี้ในแชทแล้วโหลสั่น (ฟรี)</label>
-          <input id="jrShakeWord" maxlength="20" placeholder="!เขย่า">
-          <div class="sliders" id="jrSliders2"></div>
-          <div class="row mt8"><button class="primary" id="btnJarTest">▶ ลองหยอดของขวัญ</button><button id="btnJarShake">📳 ลองเขย่า</button><button id="btnJarParty">🎉 ลองฉลองเต็มโหล</button><button id="btnJarPour">🫗 เทโหล</button><button class="small ghost" id="btnJarReset">↺ คืนค่าหน้าตาเริ่มต้น</button></div>
-        </div>
-      </div>
-    </div>
     <div class="grid2">
       <div class="card">
         <div class="fhead"><h2>⏸ พักเอฟเฟกต์</h2></div>
@@ -432,6 +396,46 @@
   </section>
 
   <!-- LIVE SUMMARY -->
+  <section id="jar" class="tab">
+    <div class="card jarcard">
+      <div class="fhead"><h2>🫙 โหลของขวัญบนจอ</h2><label class="switch"><input type="checkbox" id="jrOn"><span></span></label></div>
+      <p class="hint">ของขวัญที่คนส่งมาจะตกลงไปกองในโหลบนจอไลฟ์ ยิ่งได้เยอะยิ่งเต็ม · ใน TikTok LIVE Studio กด <b>เพิ่มแหล่งที่มา → ลิงก์ (Link)</b> แล้ววางลิงก์นี้ ตั้งขนาด 600×800 แล้วลากไปวางมุมจอ</p>
+      <div class="row"><input id="jarUrl" readonly><button id="btnJarCopy">คัดลอก</button></div>
+      <div class="jarwrap">
+        <div class="jarprev"><iframe id="jarPrev" title="ตัวอย่างโหลของขวัญ" loading="lazy"></iframe></div>
+        <div class="jaropts">
+          <label>ทรงโหล / แบบที่ใส่ของ</label>
+          <div class="seg" id="jrShape"></div>
+          <div class="jarrow"><label>สีแก้ว</label><input type="color" id="jrGlass"></div>
+          <label id="jrLidLbl">ฝาโหล</label>
+          <div class="row"><select id="jrLid"><option value="metal">ฝาเกลียว</option><option value="cork">จุกไม้ก๊อก</option><option value="cloth">ผ้าคลุมลายจุด</option><option value="none">ไม่มีฝา</option></select><input type="color" id="jrLidColor" title="สีฝา"></div>
+          <label class="check"><input type="checkbox" id="jrBow"> ผูกโบว์ <input type="color" id="jrBowColor" title="สีโบว์"></label>
+          <label>ป้ายบนโหล (ว่างไว้ = ไม่มีป้าย)</label>
+          <div class="row"><input id="jrLabel" maxlength="30" placeholder="เช่น โหลของขวัญ" style="flex:1"><input type="color" id="jrLabelBg" title="สีป้าย"><input type="color" id="jrLabelColor" title="สีตัวหนังสือ"></div>
+          <label class="check"><input type="checkbox" id="jrCount"> โชว์จำนวนของขวัญที่ได้บนป้าย</label>
+          <div class="sliders" id="jrSliders"></div>
+          <label>พอโหลเต็ม</label>
+          <select id="jrFull"><option value="empty">เทออกแล้วเริ่มเติมใหม่</option><option value="stop">เต็มไว้อย่างนั้น ไม่รับเพิ่ม</option></select>
+          <label class="check"><input type="checkbox" id="jrSparkle"> มีประกายวิบวับตอนของตกลงไป</label>
+          <label class="check"><input type="checkbox" id="jrSound"> มีเสียงตอนของตกลงไป</label>
+          <h2 class="mt">🎪 ลูกเล่น</h2>
+          <label class="check"><input type="checkbox" id="jrBig"> ของแพงตัวใหญ่ในโหล</label>
+          <label class="check"><input type="checkbox" id="jrNames"> ชื่อคนส่งลอยขึ้นจากโหล</label>
+          <label class="check"><input type="checkbox" id="jrLikes"> กดไลค์แล้วได้หัวใจลงโหล</label>
+          <label class="check"><input type="checkbox" id="jrFollows"> ฟอลโลว์แล้วได้ดาวลงโหล</label>
+          <label class="check"><input type="checkbox" id="jrWobble"> โหลโยกตอนของตกลงไป</label>
+          <label class="check"><input type="checkbox" id="jrTop"> ป้าย 👑 คนส่งมากสุดใต้โหล</label>
+          <label class="check"><input type="checkbox" id="jrGoal"> แถบเป้าหมายใต้โหล</label>
+          <input id="jrGoalText" maxlength="40" placeholder="เช่น เต็มโหล = ร้องเพลง 1 เพลง">
+          <label class="check"><input type="checkbox" id="jrShakeCmd"> คนดูพิมพ์คำนี้ในแชทแล้วโหลสั่น (ฟรี)</label>
+          <input id="jrShakeWord" maxlength="20" placeholder="!เขย่า">
+          <div class="sliders" id="jrSliders2"></div>
+          <div class="row mt8"><button class="primary" id="btnJarTest">▶ ลองหยอดของขวัญ</button><button id="btnJarShake">📳 ลองเขย่า</button><button id="btnJarParty">🎉 ลองฉลองเต็มโหล</button><button id="btnJarPour">🫗 เทโหล</button><button class="small ghost" id="btnJarReset">↺ คืนค่าหน้าตาเริ่มต้น</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="summary" class="tab">
     <div class="card">
       <div class="fhead"><h2>📊 สรุปไลฟ์</h2><label class="check" style="margin:0"><input type="checkbox" id="smOn"> เก็บสรุปทุกไลฟ์</label></div>

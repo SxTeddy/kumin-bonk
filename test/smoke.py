@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 port, work = sys.argv[1], sys.argv[2]
 URL = f'http://localhost:{port}/'
 fails = []
-TABS = ['home', 'cats', 'rules', 'test', 'aim', 'chat', 'helpers', 'summary', 'settings', 'lang']
+TABS = ['home', 'cats', 'rules', 'test', 'aim', 'chat', 'helpers', 'jar', 'summary', 'settings', 'lang']
 
 THAI_JS = r"""() => {
   const TH = /[฀-๿]/, out = new Set();
@@ -62,7 +62,7 @@ with sync_playwright() as p:
     jp.on('pageerror', lambda e: errs.append('jar page error: ' + str(e)))
     jp.goto(URL + 'jar'); jp.wait_for_timeout(800)
     before = jp.evaluate('items.length')
-    pg.click('#tabs button[data-tab=helpers]'); pg.wait_for_timeout(300)
+    pg.click('#tabs button[data-tab=jar]'); pg.wait_for_timeout(300)
     pg.click('#jrShape button[data-shape=heart]'); pg.click('#btnJarTest'); pg.wait_for_timeout(1800)
     if jp.evaluate('items.length') <= before: fails.append('gift jar did not fill')
     if jp.evaluate("cfg.shape") != 'heart': fails.append('gift jar did not get the new shape')
