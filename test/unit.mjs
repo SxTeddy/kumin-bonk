@@ -338,7 +338,7 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
   assert.equal(jar.add('gift:g010', 99, 1, cfg), 0, 'gifts under the minimum stay out');
   assert.equal(jar.add('gift:g010', 99, 10, cfg), 10, 'one big send adds at most perGift');
   assert.equal(jar.total, 102, 'the counter still counts every gift');
-  jar.add('gift:g010', 10, 10, cfg); assert.equal(jar.items.length, 22);
+  jar.add('gift:g010', 10, 10, cfg, { name: 'คนที่สอง' }); assert.equal(jar.items.length, 22);
   jar.add('gift:g011', 5, 10, cfg); assert.equal(jar.items.length, 5, 'full jar pours out and starts again');
   assert.ok(sent.some(m => m.t === 'jarFull'), 'full jar throws a party');
   const all = sanitizeJar({}); jar.clear(); sent.length = 0;
@@ -346,6 +346,13 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
   const big = sent.at(-1); assert.equal(big.items[0].s, 2, 'pricey gift is bigger'); assert.equal(big.items[0].g, 1, 'and glows');
   assert.ok(big.shake > 1, 'and shakes the jar'); assert.equal(big.tag.name, 'คุณรวย'); assert.equal(big.top.name, 'คุณรวย');
   jar.add('gift:g000', 5, 1, all, { name: 'มะลิ' }, 'กุหลาบ'); assert.ok(!sent.at(-1).shake, 'cheap gifts do not shake'); assert.equal(jar.top().name, 'คุณรวย');
+  { // a 300-rose combo arrives as 300 small sends: still at most perGift pictures, and it shakes once
+    const j2 = new GiftJar({}, () => {}, () => {}), c2 = sanitizeJar({ perGift: 10, shakeMin: 100 }); let put = 0, shakes = 0;
+    j2.send = m => { if (m.shake) shakes++; };
+    for (let i = 0; i < 300; i++) put += j2.add('gift:g000', 1, 1, c2, { name: 'แฟนคลับ' }, 'กุหลาบ', 1e6 + i * 100);
+    assert.equal(put, 10, 'combo capped'); assert.equal(j2.total, 300, 'all 300 counted'); assert.equal(shakes, 1, 'shakes once at 100 coins');
+    assert.equal(j2.add('gift:g000', 1, 1, c2, { name: 'แฟนคลับ' }, 'กุหลาบ', 1e6 + 300 * 100 + 5000), 1, 'a new combo later starts again');
+  }
   assert.equal(jar.like(all.likesPer * 2 + 1, all), 2, 'likes drop hearts'); assert.equal(jar.like(all.likesPer - 1, all), 1, 'leftover likes carry over');
   assert.equal(jar.follow({ name: 'แฟน' }, all), 1);
   assert.ok(jar.chat('!เขย่า', { id: 'a' }, all, 1e6)); assert.ok(!jar.chat('!เขย่า', { id: 'b' }, all, 1e6 + 1000), 'jar shakes at most every few seconds');

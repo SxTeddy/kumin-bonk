@@ -89,7 +89,7 @@ export class GiftJar {
     this.total = Math.max(0, Math.floor(Number(state?.total)) || 0);
     this.givers = new Map((Array.isArray(state?.givers) ? state.givers : []).filter(g => g && g.name).slice(0, 50)
       .map(g => [String(g.name).slice(0, 60), { name: String(g.name).slice(0, 60), coins: Number(g.coins) || 0, avatar: PIC.test(String(g.avatar || '')) ? String(g.avatar) : '' }]));
-    this.likeAcc = 0;
+    this.likeAcc = 0; this.combos = new Map();
     this.shakeAt = 0; this.shakeBy = new Map();
     this.send = send; this.save = save;
   }
@@ -111,7 +111,9 @@ export class GiftJar {
   }
 
   // a gift. pic: 'gift:g012' or a web address; coins: price of one; who: { name, avatar }; giftName: shown in the floating tag
-  add(pic, count, coins, cfg, who = null, giftName = '') {
+  // A combo (e.g. 300 roses sent by holding the button) reaches the app as many small sends, so "most pictures
+  // per send" counts the whole combo: same viewer + same gift with less than 4 seconds between sends.
+  add(pic, count, coins, cfg, who = null, giftName = '', now = Date.now()) {
     if (!cfg.enabled || !PIC.test(String(pic || ''))) return 0;
     coins = Number(coins) || 0;
     if (coins < cfg.minCoins) return 0;
@@ -129,9 +131,15 @@ export class GiftJar {
       if (this.givers.size > 500) { const keep = [...this.givers.values()].sort((a, b) => b.coins - a.coins).slice(0, 200); this.givers = new Map(keep.map(x => [x.name, x])); }
       if (cfg.topGiver) extra.top = this.top();
     }
-    if (cfg.names && name) extra.tag = { name, gift: String(giftName || '').slice(0, 40), count };
-    if (cfg.shakeMin > 0 && coins * count >= cfg.shakeMin) extra.shake = Math.min(3, 1 + Math.log10((coins * count) / cfg.shakeMin + 1) * 2);
-    return this._put(Array.from({ length: Math.min(count, cfg.perGift) }, () => ({ ...it })), cfg, extra);
+    const key = (name || '?') + '|' + pic;
+    let st = this.combos.get(key);
+    if (!st || now - st.at > 4000) { st = { n: 0, count: 0, coins: 0, shook: false }; this.combos.set(key, st); if (this.combos.size > 300) for (const [k, v] of this.combos) if (now - v.at > 4000) this.combos.delete(k); }
+    st.at = now; st.count += count; st.coins += coins * count;
+    const n = Math.max(0, Math.min(count, cfg.perGift - st.n)); st.n += n;
+    if (cfg.names && name && n > 0) extra.tag = { name, gift: String(giftName || '').slice(0, 40), count: st.count };
+    if (cfg.shakeMin > 0 && !st.shook && st.coins >= cfg.shakeMin) { st.shook = true; extra.shake = Math.min(3, 1 + Math.log10(st.coins / cfg.shakeMin + 1) * 2); }
+    if (!n) { this.send({ t: 'jarAdd', items: [], total: this.total, ...extra }); this.save(); return 0; }
+    return this._put(Array.from({ length: n }, () => ({ ...it })), cfg, extra);
   }
   // ❤️ likes: every likesPer likes drop one small heart
   like(n, cfg) {
