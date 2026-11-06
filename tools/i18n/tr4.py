@@ -410,6 +410,8 @@ EXTRA = [
 ("🪴 กระถางดอกไม้", "🪴 Flower pot", "🪴 植木鉢", "🪴 花盆", "🪴 화분", "🪴 Chậu hoa", "🪴 Pot bunga", "🪴 Maceta"),
 ("💰 ถุงเงิน", "💰 Money bag", "💰 お金の袋", "💰 钱袋", "💰 돈주머니", "💰 Túi tiền", "💰 Kantong uang", "💰 Saco de dinero"),
 ("🫙 โหลของขวัญ", "🫙 Gift jar", "🫙 ギフト瓶", "🫙 礼物罐", "🫙 선물 병", "🫙 Hũ quà", "🫙 Toples hadiah", "🫙 Tarro de regalos"),
+("พอเต็ม: แบบนี้ไม่มีฝา ของจะล้นออกมากองข้าง ๆ (มีฉลองตอนเต็มครั้งแรก)", "When full: no lid, so gifts spill out and pile up beside it (with a party the first time it fills)", "満タン時：ふたがないのでギフトがあふれて横に積もります（最初に満タンになった時にお祝い）", "装满时：没有盖子，礼物会溢出堆在旁边（第一次装满时有庆祝）", "가득 차면: 뚜껑이 없어서 선물이 넘쳐 옆에 쌓여요 (처음 가득 찰 때 축하)", "Khi đầy: không có nắp nên quà tràn ra chất bên cạnh (ăn mừng lần đầu đầy)", "Saat penuh: tanpa tutup, hadiah tumpah dan menumpuk di samping (pesta saat pertama penuh)", "Al llenarse: sin tapa, los regalos se desbordan y se amontonan al lado (fiesta la primera vez)"),
+("พอโหลเต็ม (แบบมีฝา ของไม่ล้น)", "When the jar is full (has a lid, nothing spills)", "瓶が満タンになったら（ふた付き、あふれません）", "罐子满了以后（有盖子，不会溢出）", "병이 가득 차면 (뚜껑이 있어 넘치지 않아요)", "Khi hũ đầy (có nắp, không tràn)", "Saat toples penuh (bertutup, tidak tumpah)", "Cuando el tarro se llene (con tapa, no se desborda)"),
 ("เช็คไม่ได้ ต้องเชื่อมต่อไลฟ์ก่อนนะ", "Can't check — connect to your live first", "チェックできません — 先にライブに接続してね", "无法检查 — 请先连接直播", "확인할 수 없어요 — 먼저 라이브에 연결하세요", "Không kiểm tra được — hãy kết nối live trước", "Tidak bisa dicek — hubungkan live dulu", "No se puede revisar — conecta el directo primero"),
 ("หมวด", "Category", "カテゴリー", "分类", "카테고리", "Nhóm", "Kategori", "Categoría"),
 ]

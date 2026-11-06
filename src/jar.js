@@ -33,6 +33,9 @@ export const JAR_SHAPES = ['jar', 'tall', 'round', 'heart', // glass jars
   'factory', 'gacha', 'chest', 'piggy', 'aquarium', 'cauldron', 'giftbox', 'basket', 'boba', 'bag', // themed containers (public/jar-themes.js)
   'bucket', 'claw', 'trophy', 'mailbox', 'vending', 'hourglass', 'pumpkin', 'snowglobe', 'flowerpot', 'moneybag'];
 export const JAR_LIDS = ['metal', 'cork', 'cloth', 'none'];
+// containers without a lid: when they're full, gifts spill out over the rim instead of being poured out
+export const OPEN_THEMES = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot'];
+export function jarOpen(cfg) { return ['jar', 'tall', 'round', 'heart'].includes(cfg.shape) ? cfg.lid === 'none' : OPEN_THEMES.includes(cfg.shape); }
 
 const hex = (v, d) => /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : d;
 const num = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
@@ -99,6 +102,12 @@ export class GiftJar {
   // put pictures in; returns how many went in
   _put(list, cfg, extra = {}) {
     let n = list.length;
+    if (jarOpen(cfg) && this.items.length + n > cfg.capacity) { // no lid: gifts pile up and spill over the rim (no pouring out)
+      if (this.items.length < cfg.capacity) this.send({ t: 'jarGoal' }); // just got full: party, but keep everything in
+      this.items.push(...list); this.items = this.items.slice(-cfg.capacity);
+      this.send({ t: 'jarAdd', items: list, total: this.total, ...extra }); this.save();
+      return n;
+    }
     if (this.items.length + n > cfg.capacity) {
       if (cfg.whenFull === 'stop') n = Math.max(0, cfg.capacity - this.items.length);
       else { this.items = []; this.send({ t: 'jarFull' }); n = Math.min(n, cfg.capacity); }

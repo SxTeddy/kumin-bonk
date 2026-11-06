@@ -1525,6 +1525,7 @@ const JAR_SHAPES = [['jar', '🫙 โหลแก้ว'], ['tall', '🧪 ทร
   ['bucket', '🪣 ถังทราย'], ['claw', '🕹️ ตู้คีบตุ๊กตา'], ['trophy', '🏆 ถ้วยรางวัล'], ['mailbox', '📮 ตู้ไปรษณีย์'], ['vending', '🥤 ตู้กดน้ำ'],
   ['hourglass', '⏳ นาฬิกาทราย'], ['pumpkin', '🎃 ฟักทองฮาโลวีน'], ['snowglobe', '❄️ ลูกแก้วหิมะ'], ['flowerpot', '🪴 กระถางดอกไม้'], ['moneybag', '💰 ถุงเงิน']];
 const JAR_GLASS = ['jar', 'tall', 'round', 'heart'];
+const JAR_OPEN = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot'];
 const JAR_LOOK = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true };
 function renderJar() {
   const j = sec('jar');
@@ -1538,7 +1539,7 @@ function renderJar() {
   }
   const glassy = JAR_GLASS.includes(j.shape || 'jar');
   $('#jrLidLbl').textContent = glassy ? 'ฝาโหล' : 'สีตกแต่ง'; $('#jrLid').hidden = !glassy;
-  const lid = $('#jrLid'); lid.value = j.lid || 'metal'; lid.onchange = () => { setSec('jar', 'lid', lid.value); $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork'; };
+  const lid = $('#jrLid'); lid.value = j.lid || 'metal'; lid.onchange = () => { setSec('jar', 'lid', lid.value); renderJar(); $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork'; };
   $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork';
   bindCheck('#jrBow', 'jar', 'bow'); bindText('#jrLabel', 'jar', 'label');
   bindCheck('#jrCount', 'jar', 'showCount'); bindCheck('#jrSparkle', 'jar', 'sparkle'); bindCheck('#jrSound', 'jar', 'sound');
@@ -1553,6 +1554,8 @@ function renderJar() {
     ['shakeWait', 'คนดูแต่ละคนต้องรอก่อนเขย่าอีกครั้ง (วินาที)', 0, 300, 5],
   ]);
   const full = $('#jrFull'); full.value = j.whenFull || 'empty'; full.onchange = () => setSec('jar', 'whenFull', full.value);
+  const open = glassy ? j.lid === 'none' : JAR_OPEN.includes(j.shape);
+  full.hidden = open; $('#jrFullLbl').textContent = open ? 'พอเต็ม: แบบนี้ไม่มีฝา ของจะล้นออกมากองข้าง ๆ (มีฉลองตอนเต็มครั้งแรก)' : 'พอโหลเต็ม (แบบมีฝา ของไม่ล้น)';
   sliderBox($('#jrSliders'), 'jar', [
     ['itemSize', 'ขนาดของขวัญในโหล', 0.6, 1.6, 0.1, v => '×' + v],
     ['capacity', 'โหลจุได้ (ชิ้น)', 20, 400, 10],

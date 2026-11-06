@@ -14,7 +14,7 @@ import { Effects } from '../src/effects.js';
 import { newer } from '../src/updater.js';
 import { mergeGiftLists, guessStyle } from '../src/giftlist.js';
 import { CATALOG } from '../src/gifts.js';
-import { GiftJar, sanitizeJar, JAR_DEFAULT } from '../src/jar.js';
+import { GiftJar, sanitizeJar, JAR_DEFAULT, jarOpen } from '../src/jar.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const results = [];
@@ -346,6 +346,13 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
   const big = sent.at(-1); assert.equal(big.items[0].s, 2, 'pricey gift is bigger'); assert.equal(big.items[0].g, 1, 'and glows');
   assert.ok(big.shake > 1, 'and shakes the jar'); assert.equal(big.tag.name, 'คุณรวย'); assert.equal(big.top.name, 'คุณรวย');
   jar.add('gift:g000', 5, 1, all, { name: 'มะลิ' }, 'กุหลาบ'); assert.ok(!sent.at(-1).shake, 'cheap gifts do not shake'); assert.equal(jar.top().name, 'คุณรวย');
+  { // no lid: a full jar keeps everything and lets gifts spill over (party once), a lid keeps the old behaviour
+    const sent3 = [], j3 = new GiftJar({}, m => sent3.push(m), () => {}), open = sanitizeJar({ shape: 'bucket', capacity: 20, perGift: 50 });
+    j3.add('rose', 25, 1, open, { name: 'a' }); j3.add('rose', 5, 1, open, { name: 'b' });
+    assert.equal(sent3.filter(m => m.t === 'jarGoal').length, 1); assert.ok(!sent3.some(m => m.t === 'jarFull'), 'open jar never pours out');
+    assert.equal(j3.items.length, 20, 'saved list stays at capacity');
+    assert.ok(!jarOpen(sanitizeJar({ shape: 'jar', lid: 'metal' }))); assert.ok(jarOpen(sanitizeJar({ shape: 'jar', lid: 'none' }))); assert.ok(!jarOpen(sanitizeJar({ shape: 'piggy' })));
+  }
   { // a 300-rose combo arrives as 300 small sends: still at most perGift pictures, and it shakes once
     const j2 = new GiftJar({}, () => {}, () => {}), c2 = sanitizeJar({ perGift: 10, shakeMin: 100 }); let put = 0, shakes = 0;
     j2.send = m => { if (m.shake) shakes++; };

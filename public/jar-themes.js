@@ -64,6 +64,7 @@
 
   // 🏭 gift factory: gifts ride a conveyor out of a machine and drop into a crate
   T.factory = {
+    open: true,
     entry: 'belt', interval: 260,
     geo(g, e) {
       g.half = Math.min(e.W * 0.27, e.HH * 0.26); g.cx = e.W * 0.64; g.bottom = e.floor; g.top = g.bottom - g.half * 1.45;
@@ -145,6 +146,7 @@
 
   // 💰 treasure chest
   T.chest = {
+    open: true,
     geo(g, e) {
       g.half = Math.min(e.W * 0.42, e.HH * 0.34); g.bottom = e.floor; g.top = g.bottom - g.half * 1.05;
       rectHW(g, g.half * 0.05); g.labelY = g.top + (g.bottom - g.top) * 0.6;
@@ -202,6 +204,7 @@
 
   // 🐠 aquarium: gifts sink slowly through the water
   T.aquarium = {
+    open: true,
     damp: 0.94,
     geo(g, e) {
       g.half = Math.min(e.W * 0.45, e.HH * 0.42); g.bottom = e.floor - g.half * 0.12; g.top = g.bottom - g.half * 1.2;
@@ -232,6 +235,7 @@
 
   // 🧪 witch's cauldron
   T.cauldron = {
+    open: true,
     geo(g, e) {
       g.half = Math.min(e.W * 0.42, e.HH * 0.34); g.bottom = e.floor - g.half * 0.16; g.top = g.bottom - g.half * 1.45; g.neck = g.half * 0.8;
       g.hw = y => {
@@ -259,6 +263,7 @@
 
   // 🎁 gift box (open, lid leaning on the side)
   T.giftbox = {
+    open: true,
     geo(g, e) { g.half = Math.min(e.W * 0.38, e.HH * 0.34); g.bottom = e.floor; g.top = g.bottom - g.half * 1.35; rectHW(g); },
     back(g) {
       const c = accent(); ctx.save(); ctx.translate(g.cx + g.half * 1.02, g.bottom); ctx.rotate(0.32);
@@ -278,6 +283,7 @@
 
   // 🧺 picnic basket
   T.basket = {
+    open: true,
     geo(g, e) { g.half = Math.min(e.W * 0.44, e.HH * 0.38); g.bottom = e.floor; g.top = g.bottom - g.half * 1.0; taperHW(g, g.half, g.half * 0.78, g.half * 0.1); g.ceil = g.top - g.half * 0.5; },
     back(g) { outline(0); fillPath('#6e4a26', 0.45); },
     front(g) {
@@ -307,6 +313,7 @@
 
   // 🛍️ shopping bag
   T.bag = {
+    open: true,
     geo(g, e) { g.half = Math.min(e.W * 0.38, e.HH * 0.32); g.bottom = e.floor; g.top = g.bottom - g.half * 1.6; taperHW(g, g.half * 0.92, g.half); g.ceil = g.top - g.half * 0.4; },
     back(g) {
       for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(g.cx + d * g.half * 0.55, g.top); ctx.bezierCurveTo(g.cx + d * g.half * 0.55, g.top - g.half * 0.75, g.cx + d * g.half * 0.1, g.top - g.half * 0.75, g.cx + d * g.half * 0.1, g.top); strokePath(shade(accent(), 0.6), Math.max(4, g.half * 0.05)); }
@@ -321,6 +328,7 @@
 
   // 🪣 beach bucket
   T.bucket = {
+    open: true,
     geo(g, e) { g.half = Math.min(e.W * 0.4, e.HH * 0.34); g.bottom = e.floor; g.top = g.bottom - g.half * 1.3; taperHW(g, g.half, g.half * 0.78); g.ceil = g.top - g.half * 0.3; },
     back(g) { outline(0); fillPath(shade(accent(), 0.5), 0.45); },
     front(g) {
@@ -368,6 +376,7 @@
 
   // 🏆 trophy cup
   T.trophy = {
+    open: true,
     geo(g, e) {
       g.half = Math.min(e.W * 0.34, e.HH * 0.3); g.stand = g.half * 0.95; g.bottom = e.floor - g.stand; g.top = g.bottom - g.half * 1.25;
       g.hw = y => { if (y < g.top) return g.half; if (y > g.bottom) return 0; const t = (y - g.top) / (g.bottom - g.top); return g.half * Math.sqrt(Math.max(0.02, 1 - Math.pow(t, 2.2) * 0.9)); };
@@ -444,6 +453,7 @@
 
   // 🎃 jack-o'-lantern pumpkin
   T.pumpkin = {
+    open: true,
     geo(g, e) { const a = Math.min(e.W * 0.44, e.HH * 0.4), b = a * 0.8; g.half = a; g.a = a; g.b = b; g.cy = e.floor - b; g.top = g.cy - b * 0.78; g.bottom = g.cy + b; ellipseHW(g, g.cy, a, b); g.ceil = g.top; g.labelY = g.cy + b * 0.42; },
     back(g) { ellipse(g.cx, g.cy, g.a, g.b); fillPath('#5a2600', 0.55); },
     front(g, t) {
@@ -473,6 +483,7 @@
 
   // 🪴 flower pot
   T.flowerpot = {
+    open: true,
     geo(g, e) { g.half = Math.min(e.W * 0.4, e.HH * 0.32); g.bottom = e.floor; g.top = g.bottom - g.half * 1.3; taperHW(g, g.half, g.half * 0.72, g.half * 0.05); g.ceil = g.top - g.half * 0.2; },
     back(g, t) {
       for (const [f, h, c] of [[-0.45, 1.1, '#ff7aa8'], [0.05, 1.45, '#ffd23f'], [0.5, 1.05, '#b28dff']]) {
