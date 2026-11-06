@@ -263,14 +263,36 @@ function outline(pad) { // the glass outline as a path (pad: grow outward)
   for (let i = n; i >= 0; i--) ctx.lineTo(J.cx + pts[i][0], pts[i][1]);
   ctx.lineTo(J.cx + J.neck + pad, J.top - pad * 0.3);
 }
+// 🧊 depth: a soft shadow on the floor, round shading over the container, shadows under the gifts
+function floorShadow() {
+  const rx = J.half * 1.15, ry = Math.max(6, J.half * 0.13), y = J.floor + ry * 0.35;
+  const g = ctx.createRadialGradient(J.cx, y, 0, J.cx, y, rx); g.addColorStop(0, 'rgba(0,0,0,.38)'); g.addColorStop(0.6, 'rgba(0,0,0,.16)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save(); ctx.translate(J.cx, y); ctx.scale(1, ry / rx); ctx.translate(-J.cx, -y); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(J.cx, y, rx, 0, 6.2832); ctx.fill(); ctx.restore();
+}
+function depth3d() {
+  ctx.save(); outline(J.wall); ctx.clip();
+  const x0 = J.cx - J.half - J.wall * 2, x1 = J.cx + J.half + J.wall * 2, y0 = J.top - J.half * 0.3, y1 = J.bottom + J.wall * 2;
+  const h = ctx.createLinearGradient(x0, 0, x1, 0);
+  h.addColorStop(0, 'rgba(0,0,0,.30)'); h.addColorStop(0.1, 'rgba(255,255,255,.06)'); h.addColorStop(0.24, 'rgba(255,255,255,.24)'); h.addColorStop(0.36, 'rgba(255,255,255,.04)');
+  h.addColorStop(0.62, 'rgba(0,0,0,0)'); h.addColorStop(0.84, 'rgba(0,0,0,.10)'); h.addColorStop(0.93, 'rgba(255,255,255,.10)'); h.addColorStop(1, 'rgba(0,0,0,.34)');
+  ctx.fillStyle = h; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  const v = ctx.createLinearGradient(0, J.top, 0, y1); v.addColorStop(0, 'rgba(255,255,255,.10)'); v.addColorStop(0.65, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.24)');
+  ctx.fillStyle = v; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  ctx.restore();
+}
 function drawBack() {
   if (J.T) return J.T.back(J, tnow, fdt);
   outline(J.wall); const g = ctx.createLinearGradient(J.cx - J.half, 0, J.cx + J.half, 0);
   g.addColorStop(0, rgba(cfg.glass, 0.22)); g.addColorStop(0.5, rgba(cfg.glass, 0.08)); g.addColorStop(1, rgba(cfg.glass, 0.26));
   ctx.fillStyle = g; ctx.fill();
+  if (!J.poly) { // the glass bottom seen through the jar, and the far side of the rim
+    const by = J.bottom - J.wall * 0.5, rx = Math.max(4, J.hw(J.bottom - J.half * 0.25) * 0.92), ry = Math.max(4, rx * 0.16);
+    ctx.beginPath(); ctx.ellipse(J.cx, by, rx, ry, 0, 0, 6.2832); ctx.fillStyle = rgba(cfg.glass, 0.35); ctx.fill(); ctx.strokeStyle = rgba(cfg.glass, 0.7); ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(J.cx, J.top - J.wall * 0.3, J.neck + J.wall * 1.6, Math.max(5, J.neck * 0.12), 0, Math.PI, 6.2832); ctx.strokeStyle = rgba(cfg.glass, 0.6); ctx.lineWidth = J.wall * 0.8; ctx.stroke();
+  }
 }
 function drawFront() {
-  if (J.T) { J.T.front(J, tnow, fdt); drawLabel(); return; }
+  if (J.T) { J.T.front(J, tnow, fdt); depth3d(); drawLabel(); return; }
   outline(J.wall); ctx.lineWidth = J.wall * 1.4; ctx.strokeStyle = rgba(cfg.glass, 0.85); ctx.lineJoin = 'round'; ctx.stroke();
   outline(J.wall * 0.2); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.stroke();
   // shine
@@ -285,7 +307,7 @@ function drawFront() {
   ctx.beginPath(); ctx.ellipse(J.cx, rimY, J.neck + J.wall * 1.6, Math.max(5, J.neck * 0.12), 0, 0, Math.PI * 2);
   ctx.lineWidth = J.wall; ctx.strokeStyle = rgba(cfg.glass, 0.95); ctx.stroke();
   if (party) { const l = party.lid, lc = rimY - J.lidH / 2; ctx.save(); ctx.translate(J.cx, lc + l.dy); ctx.rotate(l.rot); ctx.translate(-J.cx, -lc); drawLid(rimY); ctx.restore(); } else drawLid(rimY);
-  if (cfg.bow) drawBow(); drawLabel();
+  depth3d(); if (cfg.bow) drawBow(); drawLabel();
 }
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
 function drawLid(rimY) {
@@ -329,8 +351,11 @@ function drawLabel() {
   ctx.font = `800 ${fs}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`;
   const tw = Math.min(J.labelW ?? J.hw(midY) * 1.7, Math.max(...lines.map(l => ctx.measureText(l).width)) + fs * 1.4);
   const th = lines.length * fs * 1.25 + fs * 0.6, x = J.cx - tw / 2, y = midY - th / 2;
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
-  rr(x, y, tw, th, fs * 0.5); ctx.fillStyle = cfg.labelBg; ctx.fill(); ctx.restore();
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+  rr(x, y + fs * 0.16, tw, th, fs * 0.5); ctx.fillStyle = shade(cfg.labelBg, 0.68); ctx.fill(); ctx.restore();
+  const lg = ctx.createLinearGradient(0, y, 0, y + th); lg.addColorStop(0, shade(cfg.labelBg, 1.18)); lg.addColorStop(0.55, cfg.labelBg); lg.addColorStop(1, shade(cfg.labelBg, 0.88));
+  rr(x, y, tw, th, fs * 0.5); ctx.fillStyle = lg; ctx.fill();
+  ctx.save(); ctx.globalAlpha = 0.35; rr(x + fs * 0.3, y + 3, tw - fs * 0.6, th * 0.32, fs * 0.3); ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
   rr(x + 4, y + 4, tw - 8, th - 8, fs * 0.4); ctx.setLineDash([5, 4]); ctx.strokeStyle = rgba(cfg.labelColor, 0.7); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
   ctx.fillStyle = cfg.labelColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   lines.forEach((l, i) => { ctx.font = `${i === 0 && text ? 800 : 700} ${i === 0 && text ? fs : fs * 0.9}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`; ctx.fillText(l, J.cx, y + fs * 0.3 + fs * 1.25 * (i + 0.5), tw - fs * 0.6); });
@@ -403,6 +428,7 @@ function drawItem(it) {
   let s = it.r * 2.1 * (it.grow == null ? 1 : 0.3 + 0.7 * it.grow);
   const im = it.img;
   ctx.save(); ctx.globalAlpha = it.alpha; ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+  if (!it.out) { ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.min(10, it.r * 0.3); ctx.shadowOffsetX = Math.sin(it.rot) * it.r * 0.12; ctx.shadowOffsetY = Math.cos(it.rot) * it.r * 0.12; }
   if (J.T?.capsule) { // 🍬 gacha capsule around the gift
     const r = s * 0.5; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
     ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 6.2832); ctx.closePath(); ctx.fillStyle = `hsla(${(it.ph * 57) % 360},85%,65%,.8)`; ctx.fill();
@@ -425,6 +451,7 @@ function frame(now) {
   angV += (-ang * 70 - angV * 6) * dt; ang += angV * dt; ang = Math.max(-0.25, Math.min(0.25, ang));
   let sx = 0; if (shakeT > 0) { shakeT -= dt; sx = Math.sin(now / 22) * 9 * shakePow * Math.max(0, shakeT); ang += Math.sin(now / 37) * 0.012 * shakePow * Math.max(0, shakeT); }
   ctx.clearRect(0, 0, W, H);
+  floorShadow();
   ctx.save(); ctx.translate(J.cx + sx, J.floor); ctx.rotate(ang); ctx.translate(-J.cx, -J.floor);
   drawBack();
   for (const it of items) if (!it.out && !it.carry && it.glow) drawGlow(it, now);
