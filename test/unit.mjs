@@ -334,7 +334,7 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
   const sent = []; let saves = 0;
   const jar = new GiftJar({ items: ['gift:g001', 'bad<script>', 'https://x.example/a.png'], total: 3 }, m => sent.push(m), () => saves++);
   assert.equal(jar.items.length, 2, 'unsafe picture names are dropped');
-  const cfg = sanitizeJar({ capacity: 25, perGift: 10, minCoins: 5 });
+  const cfg = sanitizeJar({ shape: 'piggy', capacity: 25, perGift: 10, minCoins: 5 }); // closed container: pours out when full
   assert.equal(jar.add('gift:g010', 99, 1, cfg), 0, 'gifts under the minimum stay out');
   assert.equal(jar.add('gift:g010', 99, 10, cfg), 10, 'one big send adds at most perGift');
   assert.equal(jar.total, 102, 'the counter still counts every gift');
@@ -365,7 +365,7 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
   assert.ok(jar.chat('!เขย่า', { id: 'a' }, all, 1e6)); assert.ok(!jar.chat('!เขย่า', { id: 'b' }, all, 1e6 + 1000), 'jar shakes at most every few seconds');
   assert.ok(!jar.chat('!เขย่า', { id: 'a' }, all, 1e6 + 10000), 'each viewer waits'); assert.ok(jar.chat('!เขย่า แรงๆ', { id: 'b' }, all, 1e6 + 10000));
   assert.ok(!jar.chat('hello', { id: 'c' }, all, 1e7));
-  const stop = sanitizeJar({ capacity: 20, whenFull: 'stop' }); jar.items = Array(18).fill({ p: 'rose' });
+  const stop = sanitizeJar({ shape: 'piggy', capacity: 20, whenFull: 'stop' }); jar.items = Array(18).fill({ p: 'rose' });
   assert.equal(jar.add('rose', 9, 1, stop), 2, 'stop: only fills to the brim');
   assert.equal(jar.add('javascript:alert(1)', 1, 1, cfg), 0, 'bad picture refused');
   assert.equal(jar.add('rose', 1, 1, { ...cfg, enabled: false }), 0, 'switched off');
