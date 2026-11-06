@@ -5,7 +5,7 @@
 
 export const JAR_DEFAULT = {
   enabled: true,
-  shape: 'jar',          // jar | tall | round | heart
+  shape: 'jar',          // see JAR_SHAPES
   glass: '#bfe6ff',      // glass tint
   lid: 'metal',          // metal | cork | cloth | none
   lidColor: '#ff7aa8',
@@ -29,7 +29,9 @@ export const JAR_DEFAULT = {
   topGiver: true,        // 👑 who has given the most since the jar was last emptied
   wobble: true,          // the jar rocks a little when things land in it
 };
-export const JAR_SHAPES = ['jar', 'tall', 'round', 'heart'];
+export const JAR_SHAPES = ['jar', 'tall', 'round', 'heart', // glass jars
+  'factory', 'gacha', 'chest', 'piggy', 'aquarium', 'cauldron', 'giftbox', 'basket', 'boba', 'bag', // themed containers (public/jar-themes.js)
+  'bucket', 'claw', 'trophy', 'mailbox', 'vending', 'hourglass', 'pumpkin', 'snowglobe', 'flowerpot', 'moneybag'];
 export const JAR_LIDS = ['metal', 'cork', 'cloth', 'none'];
 
 const hex = (v, d) => /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : d;

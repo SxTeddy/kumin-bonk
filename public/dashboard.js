@@ -1519,7 +1519,12 @@ $('#pfSave').onclick = () => {
 
 
 // ---------- 🫙 gift jar ----------
-const JAR_SHAPES = [['jar', '🫙 โหลแก้ว'], ['tall', '🧪 ทรงสูง'], ['round', '🔮 โหลกลม'], ['heart', '💗 รูปหัวใจ']];
+const JAR_SHAPES = [['jar', '🫙 โหลแก้ว'], ['tall', '🧪 ทรงสูง'], ['round', '🔮 โหลกลม'], ['heart', '💗 รูปหัวใจ'],
+  ['factory', '🏭 โรงงานของขวัญ'], ['gacha', '🍬 ตู้กาชาปอง'], ['chest', '💰 หีบสมบัติ'], ['piggy', '🐷 กระปุกหมู'], ['aquarium', '🐠 ตู้ปลา'],
+  ['cauldron', '🧪 หม้อแม่มด'], ['giftbox', '🎁 กล่องของขวัญ'], ['basket', '🧺 ตะกร้าปิกนิก'], ['boba', '🧋 แก้วชานม'], ['bag', '🛍️ ถุงช้อปปิ้ง'],
+  ['bucket', '🪣 ถังทราย'], ['claw', '🕹️ ตู้คีบตุ๊กตา'], ['trophy', '🏆 ถ้วยรางวัล'], ['mailbox', '📮 ตู้ไปรษณีย์'], ['vending', '🥤 ตู้กดน้ำ'],
+  ['hourglass', '⏳ นาฬิกาทราย'], ['pumpkin', '🎃 ฟักทองฮาโลวีน'], ['snowglobe', '❄️ ลูกแก้วหิมะ'], ['flowerpot', '🪴 กระถางดอกไม้'], ['moneybag', '💰 ถุงเงิน']];
+const JAR_GLASS = ['jar', 'tall', 'round', 'heart'];
 const JAR_LOOK = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true };
 function renderJar() {
   const j = sec('jar');
@@ -1531,6 +1536,8 @@ function renderJar() {
   for (const [id, key] of [['#jrGlass', 'glass'], ['#jrLidColor', 'lidColor'], ['#jrBowColor', 'bowColor'], ['#jrLabelBg', 'labelBg'], ['#jrLabelColor', 'labelColor']]) {
     const el = $(id); el.value = j[key] || '#ffffff'; el.oninput = () => setSec('jar', key, el.value);
   }
+  const glassy = JAR_GLASS.includes(j.shape || 'jar');
+  $('#jrLidLbl').textContent = glassy ? 'ฝาโหล' : 'สีตกแต่ง'; $('#jrLid').hidden = !glassy;
   const lid = $('#jrLid'); lid.value = j.lid || 'metal'; lid.onchange = () => { setSec('jar', 'lid', lid.value); $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork'; };
   $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork';
   bindCheck('#jrBow', 'jar', 'bow'); bindText('#jrLabel', 'jar', 'label');

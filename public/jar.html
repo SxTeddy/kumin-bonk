@@ -14,6 +14,7 @@
 <canvas id="c"></canvas>
 <div id="status">KuminBonk: ยังไม่ได้เปิดโปรแกรม</div>
 <script src="/sounds.js"></script>
+<script src="/jar-themes.js"></script>
 <script>
 // 🫙 Gift jar — gifts viewers send drop into a glass jar and pile up. Add as a Link source (portrait, e.g. 600×800).
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -51,6 +52,18 @@ function geometry() {
   const s = cfg.shape;
   const foot = cfg.goal || cfg.topGiver ? Math.max(44, H * ((cfg.goal ? 0.08 : 0) + (cfg.topGiver ? 0.07 : 0))) : 0; // goal bar + top giver under the jar
   const HH = H - foot;
+  const TH = window.JAR_THEMES && Object.hasOwn(window.JAR_THEMES, s) ? window.JAR_THEMES[s] : null;
+  if (TH) { // 🏭 a themed container (jar-themes.js)
+    const g = { T: TH, cx: W / 2, foot, floor: HH - Math.max(14, H * 0.035), lidH: 0, wall: 4 };
+    TH.geo(g, { W, H, HH, floor: g.floor });
+    g.wall = Math.max(4, g.half * 0.035);
+    if (g.ceil == null) g.ceil = g.top;
+    if (g.spawn == null) g.spawn = g.top + (g.bottom - g.top) * 0.06;
+    if (g.neck == null) g.neck = g.hw(g.top - 1);
+    g.entry = TH.entry || 'drop'; g.damp = TH.damp; g.interval = TH.interval;
+    g.r = Math.max(8, g.half * 0.15 * (cfg.itemSize || 1));
+    return g;
+  }
   const maxW = Math.min(W * 0.86, HH * (s === 'tall' ? 0.5 : s === 'round' ? 0.78 : 0.66));
   const cx = W / 2;
   const half = maxW / 2;
@@ -92,6 +105,7 @@ function geometry() {
     };
   }
   if (g.ceil == null) g.ceil = g.top; // pictures never rise above this (the lid)
+  g.floor = g.bottom;
   g.spawn = s === 'heart' ? g.dipY + (g.bottom - g.dipY) * 0.08 : g.top + (g.bottom - g.top) * 0.06;
   g.r = Math.max(8, g.half * 0.15 * (cfg.itemSize || 1)); // picture radius
   return g;
@@ -113,20 +127,37 @@ function newItem(o, x, y) {
   return { img: getImg(o.p), x, y, px: x, py: y, r: J.r * k, k, glow: !!o.g, ph: Math.random() * 6.28, rot: Math.random() * 6.28, vr: 0, out: false, alpha: 1, landed: false };
 }
 function drop(src) {
-  const y = J.spawn + J.r, w = Math.max(0, J.hw(y) - J.r * 1.2);
+  J.T?.onDrop?.(J);
+  if (J.entry === 'belt') { // 🏭 rides the conveyor, then falls into the crate
+    const it = newItem(src, J.belt.x0, J.belt.y), y = J.belt.y - it.r; it.y = it.py = y;
+    it.carry = { x0: J.belt.x0, y0: y, x1: J.belt.x1, y1: y, t: 0, dur: (J.belt.x1 - J.belt.x0) / Math.max(120, W * 0.45) }; items.push(it); return;
+  }
+  if (J.entry === 'claw') { // 🕹️ the claw brings it in and lets go
+    const it = newItem(src, J.home, J.top + 30), y = J.top + 30 + it.r * 0.6, tx = J.cx + (Math.random() - 0.5) * Math.max(0, J.half - it.r) * 1.7;
+    it.y = it.py = y; it.carry = { x0: J.home, y0: y, x1: tx, y1: y, t: 0, dur: 0.6, claw: true }; items.push(it); return;
+  }
+  const y = J.spawn + J.r, w = J.entry === 'slot' ? Math.min(J.slotW || J.r * 2, Math.max(0, J.hw(y) - J.r * 1.2) * 2) * 0.5 : Math.max(0, J.hw(y) - J.r * 1.2);
   const it = newItem(src, J.cx + (Math.random() - 0.5) * w * 1.6, y);
   it.py = it.y - 3; it.grow = 0; items.push(it);
   if (cfg.sparkle) for (let i = 0; i < 6; i++) { const a = Math.random() * 6.28, sp = 80 + Math.random() * 120; sparks.push({ x: it.x, y: it.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, age: 0, life: 0.5 }); }
 }
 // Verlet steps: gravity, keep each picture inside the glass, push overlapping pictures apart
 function step(dt) {
+  const dm = J.damp || 0.99;
   for (const it of items) {
-    const vx = (it.x - it.px) * 0.99, vy = (it.y - it.py) * 0.99;
+    if (it.carry) { // carried by the belt or the claw: follows its path, no physics yet
+      const c = it.carry; c.t += dt; const k = Math.min(1, c.t / c.dur);
+      it.x = c.x0 + (c.x1 - c.x0) * k; it.y = c.y0 + (c.y1 - c.y0) * k; it.px = it.x; it.py = it.y;
+      if (!c.claw) it.rot += dt * (J.belt ? (J.belt.x1 - J.belt.x0) / c.dur / it.r : 0);
+      if (k >= 1) { delete it.carry; if (!c.claw) it.px = it.x - 2.5; }
+      continue;
+    }
+    const vx = (it.x - it.px) * dm, vy = (it.y - it.py) * dm;
     it.px = it.x; it.py = it.y;
     it.x += vx; it.y += vy + GRAV * dt * dt * (it.out ? 1 : 1);
     it.rot += it.out ? it.vr * dt : vx / it.r;
   }
-  for (let k = 0; k < 3; k++) { collide(); for (const it of items) if (!it.out) walls(it); }
+  for (let k = 0; k < 3; k++) { collide(); for (const it of items) if (!it.out && !it.carry) walls(it); }
 }
 function walls(it) {
   const r = it.r, cx = J.cx;
@@ -149,18 +180,18 @@ function walls(it) {
 function collide() {
   const cell = J.r * 2.4, grid = new Map();
   for (let i = 0; i < items.length; i++) {
-    const it = items[i]; if (it.out) continue;
+    const it = items[i]; if (it.out || it.carry) continue;
     const key = Math.floor(it.x / cell) + ',' + Math.floor(it.y / cell);
     (grid.get(key) || grid.set(key, []).get(key)).push(i);
   }
   for (let i = 0; i < items.length; i++) {
-    const a = items[i]; if (a.out) continue;
+    const a = items[i]; if (a.out || a.carry) continue;
     const gx = Math.floor(a.x / cell), gy = Math.floor(a.y / cell);
     for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
       const list = grid.get((gx + ox) + ',' + (gy + oy)); if (!list) continue;
       for (const j of list) {
         if (j <= i) continue;
-        const b = items[j], dx = b.x - a.x, dy = b.y - a.y, min = (a.r + b.r) * 0.9, d2 = dx * dx + dy * dy;
+        const b = items[j]; if (b.carry) continue; const dx = b.x - a.x, dy = b.y - a.y, min = (a.r + b.r) * 0.9, d2 = dx * dx + dy * dy;
         if (d2 >= min * min || d2 === 0) continue;
         const d = Math.sqrt(d2), push = (min - d) / 2, nx = dx / d, ny = dy / d;
         a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
@@ -233,11 +264,13 @@ function outline(pad) { // the glass outline as a path (pad: grow outward)
   ctx.lineTo(J.cx + J.neck + pad, J.top - pad * 0.3);
 }
 function drawBack() {
+  if (J.T) return J.T.back(J, tnow, fdt);
   outline(J.wall); const g = ctx.createLinearGradient(J.cx - J.half, 0, J.cx + J.half, 0);
   g.addColorStop(0, rgba(cfg.glass, 0.22)); g.addColorStop(0.5, rgba(cfg.glass, 0.08)); g.addColorStop(1, rgba(cfg.glass, 0.26));
   ctx.fillStyle = g; ctx.fill();
 }
 function drawFront() {
+  if (J.T) { J.T.front(J, tnow, fdt); drawLabel(); return; }
   outline(J.wall); ctx.lineWidth = J.wall * 1.4; ctx.strokeStyle = rgba(cfg.glass, 0.85); ctx.lineJoin = 'round'; ctx.stroke();
   outline(J.wall * 0.2); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.stroke();
   // shine
@@ -291,10 +324,10 @@ function drawBow() {
 function drawLabel() {
   const text = cfg.label || '', cnt = cfg.showCount ? '🎁 ' + total.toLocaleString() : '';
   if (!text && !cnt) return;
-  const midY = J.shapeLabelY ?? (J.top + (J.bottom - J.top) * (cfg.shape === 'heart' ? 0.38 : 0.5));
+  const midY = J.labelY ?? (J.top + (J.bottom - J.top) * (cfg.shape === 'heart' ? 0.38 : 0.5));
   const fs = Math.max(12, J.half * 0.17), lines = [text, cnt].filter(Boolean);
   ctx.font = `800 ${fs}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`;
-  const tw = Math.min(J.hw(midY) * 1.7, Math.max(...lines.map(l => ctx.measureText(l).width)) + fs * 1.4);
+  const tw = Math.min(J.labelW ?? J.hw(midY) * 1.7, Math.max(...lines.map(l => ctx.measureText(l).width)) + fs * 1.4);
   const th = lines.length * fs * 1.25 + fs * 0.6, x = J.cx - tw / 2, y = midY - th / 2;
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
   rr(x, y, tw, th, fs * 0.5); ctx.fillStyle = cfg.labelBg; ctx.fill(); ctx.restore();
@@ -328,7 +361,7 @@ function drawTags(dt) {
 }
 function drawFoot() {
   if (!J.foot) return;
-  let y = J.bottom + Math.max(14, H * 0.035) + 6; const w = Math.min(W - 24, J.half * 2.1), x = J.cx - w / 2;
+  let y = H - J.foot + 6; const w = Math.min(W - 24, J.half * 2.1), x = J.cx - w / 2;
   const fs = Math.max(11, Math.min(20, W * 0.03));
   if (cfg.goal) {
     const n = items.filter(i => !i.out).length, cap = Math.max(1, cfg.capacity || 120), pc = Math.min(1, n / cap), bh = Math.max(14, fs * 1.25);
@@ -367,8 +400,14 @@ function drawParty(dt) {
 }
 function drawItem(it) {
   if (it.grow != null && it.grow < 1) it.grow = Math.min(1, it.grow + 0.08);
-  const im = it.img, s = it.r * 2.1 * (it.grow == null ? 1 : 0.3 + 0.7 * it.grow);
+  let s = it.r * 2.1 * (it.grow == null ? 1 : 0.3 + 0.7 * it.grow);
+  const im = it.img;
   ctx.save(); ctx.globalAlpha = it.alpha; ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+  if (J.T?.capsule) { // 🍬 gacha capsule around the gift
+    const r = s * 0.5; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 6.2832); ctx.closePath(); ctx.fillStyle = `hsla(${(it.ph * 57) % 360},85%,65%,.8)`; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.stroke(); s *= 0.72;
+  }
   if (im.complete && !im.failed && im.naturalWidth) {
     const q = im.naturalWidth / im.naturalHeight || 1, w = q >= 1 ? s : s * q, h = q >= 1 ? s / q : s;
     ctx.drawImage(im, -w / 2, -h / 2, w, h);
@@ -377,19 +416,22 @@ function drawItem(it) {
 }
 
 let last = performance.now(), acc = 0;
+let tnow = 0, fdt = 0;
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; tnow = now; fdt = dt;
   acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; }
   for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it.out) { it.alpha -= dt * 0.8; if (it.alpha <= 0 || it.y > H + 200) items.splice(i, 1); } }
   // rocking jar (spring) + shaking
   angV += (-ang * 70 - angV * 6) * dt; ang += angV * dt; ang = Math.max(-0.25, Math.min(0.25, ang));
   let sx = 0; if (shakeT > 0) { shakeT -= dt; sx = Math.sin(now / 22) * 9 * shakePow * Math.max(0, shakeT); ang += Math.sin(now / 37) * 0.012 * shakePow * Math.max(0, shakeT); }
   ctx.clearRect(0, 0, W, H);
-  ctx.save(); ctx.translate(J.cx + sx, J.bottom); ctx.rotate(ang); ctx.translate(-J.cx, -J.bottom);
+  ctx.save(); ctx.translate(J.cx + sx, J.floor); ctx.rotate(ang); ctx.translate(-J.cx, -J.floor);
   drawBack();
-  for (const it of items) if (!it.out && it.glow) drawGlow(it, now);
-  for (const it of items) if (!it.out) drawItem(it);
+  for (const it of items) if (!it.out && !it.carry && it.glow) drawGlow(it, now);
+  for (const it of items) if (!it.out && !it.carry) drawItem(it);
   drawFront();
+  J.busy = false;
+  for (const it of items) if (it.carry) { drawItem(it); if (it.carry.claw) { J.busy = true; J.T.drawClaw(J, it.x, it.y - it.r * 0.6, false); } }
   ctx.restore();
   for (const it of items) if (it.out) drawItem(it);
   drawFoot();
@@ -407,7 +449,7 @@ function frame(now) {
 
 // ---------- connection ----------
 const dropQ = []; let dropT = null, dropHold = 0;
-function queueDrops(list) { dropQ.push(...list); if (dropQ.length > 400) dropQ.splice(0, dropQ.length - 400); if (!dropT) dropT = setInterval(() => { if (performance.now() < dropHold) return; const s = dropQ.shift(); if (s) drop(s); else { clearInterval(dropT); dropT = null; } }, 110); }
+function queueDrops(list) { dropQ.push(...list); if (dropQ.length > 400) dropQ.splice(0, dropQ.length - 400); if (!dropT) dropT = setInterval(() => { if (performance.now() < dropHold) return; const s = dropQ.shift(); if (s) drop(s); else { clearInterval(dropT); dropT = null; } }, (J && J.interval) || 110); }
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws?role=jar`);
   ws.onopen = () => { document.getElementById('status').style.display = 'none'; };

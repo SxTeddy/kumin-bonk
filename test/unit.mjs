@@ -357,7 +357,7 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
   assert.equal(jar.add('rose', 1, 1, { ...cfg, enabled: false }), 0, 'switched off');
   jar.clear(); assert.equal(jar.items.length, 0); assert.equal(jar.total, 0); assert.ok(saves > 0);
   const s = sanitizeJar({ shape: 'x', glass: 'red', capacity: 1e9, label: 'y'.repeat(99), itemSize: 'big' });
-  assert.equal(s.shape, 'jar'); assert.equal(s.glass, JAR_DEFAULT.glass); assert.equal(s.capacity, 400); assert.equal(s.label.length, 30); assert.equal(s.itemSize, 1);
+  assert.equal(s.shape, 'jar'); assert.equal(sanitizeJar({ shape: 'factory' }).shape, 'factory'); assert.equal(s.glass, JAR_DEFAULT.glass); assert.equal(s.capacity, 400); assert.equal(s.label.length, 30); assert.equal(s.itemSize, 1);
   assert.deepEqual(DEFAULT_CONFIG.jar, JAR_DEFAULT, 'fresh installs get the jar settings');
 });
 fs.rmSync(tmp, { recursive: true, force: true });
