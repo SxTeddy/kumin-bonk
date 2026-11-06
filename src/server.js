@@ -161,10 +161,16 @@ const jars = new Set();
 let jarSaveT = null;
 const jar = new GiftJar(readJson('jar.json', {}), m => { for (const ws of jars) send(ws, m); },
   () => { if (!jarSaveT) jarSaveT = setTimeout(() => { jarSaveT = null; writeJson('jar.json', jar.state()); }, 2000); });
-const jarInit = () => ({ t: 'jarInit', cfg: config.jar, items: jar.items, total: jar.total });
+const jarInit = () => ({ t: 'jarInit', cfg: config.jar, items: jar.items, total: jar.total, top: jar.top() });
 function jarGift(ev) {
   const e = gifts.find(ev.gift);
-  jar.add(e ? `gift:${e.img}` : ev.gift.image, ev.count, ev.gift.diamonds, config.jar);
+  jar.add(e ? `gift:${e.img}` : ev.gift.image, ev.count, ev.gift.diamonds, config.jar, { name: ev.user.nickname || ev.user.username, avatar: ev.user.avatar }, ev.gift.th || e?.th || ev.gift.name);
+}
+function jarEvent(ev) {
+  if (ev.type === 'gift') jarGift(ev);
+  else if (ev.type === 'like') jar.like(ev.count, config.jar);
+  else if (ev.type === 'follow') jar.follow({ name: ev.user.nickname || ev.user.username }, config.jar);
+  else if (ev.type === 'chat') jar.chat(ev.text, { id: ev.user.id || ev.user.username, name: ev.user.nickname }, config.jar);
 }
 const giftKey = s => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 const seenList = () => [...giftsSeen.values()].map(g => ({ ...g, known: !!gifts.find(g), guess: gifts.guess(g.name), matched: Object.hasOwn(gifts.learned, giftKey(g.name)) ? gifts.learned[giftKey(g.name)] : '' }));
@@ -300,7 +306,7 @@ function onEvent(ev, simulated = false) {
     ev.gift.th = gifts.thaiName(ev.gift.name) || (CATALOG.some(g => g.th === ev.gift.name) ? ev.gift.name : '');
     if (!simulated) noteGift(ev);
   }
-  if (ev.type === 'gift') jarGift(ev);
+  jarEvent(ev);
   if (!simulated) sessions.add(ev);
   if (!simulated) thanks.handle(ev); // the ✨ tab has its own "listen" button for testing
   const fired = engine.handle(ev, simulated); // tests always play right away (even while paused)
@@ -407,9 +413,21 @@ async function onDashboard(ws, m) {
     case 'disconnectTikTok': return tiktok.disconnect();
     case 'jarPour': jar.clear(); log('jar', '🫙 เทโหลของขวัญแล้ว'); return;
     case 'jarTest': { // drop a few random gifts into the jar (works even when the jar is switched off: it's a test)
-      const pool = CATALOG.filter(g => g.img);
-      const pics = Array.from({ length: Math.min(10, Math.max(1, Number(m.n) || 5)) }, () => pool[Math.floor(Math.random() * pool.length)]);
-      for (const g of pics) jar.add(`gift:${g.img}`, 1, g.coins, { ...config.jar, enabled: true, minCoins: 0 });
+      const pool = CATALOG.filter(g => g.img), cheap = pool.filter(g => g.coins < 100), names = ['มะลิ', 'ต้นกล้า', 'ข้าวหอม', 'น้องแมว', 'พี่หมี'];
+      const cfg = { ...config.jar, enabled: true, minCoins: 0 }, n = Math.min(10, Math.max(1, Number(m.n) || 5));
+      for (let i = 0; i < n; i++) { // mostly cheap gifts, now and then a pricey one
+        const g = Math.random() < 0.15 ? pool[Math.floor(Math.random() * pool.length)] : cheap[Math.floor(Math.random() * cheap.length)];
+        jar.add(`gift:${g.img}`, 1 + Math.floor(Math.random() * 3), g.coins, cfg, { name: names[Math.floor(Math.random() * names.length)] }, g.th);
+      }
+      jar.like(cfg.likesPer * 2, cfg);
+      return;
+    }
+    case 'jarShake': jar.shake(1.5); return;
+    case 'jarParty': { // try the "jar is full" party: fill it to the brim, then one more
+      const cfg = { ...config.jar, enabled: true, minCoins: 0, whenFull: 'empty' }, pool = CATALOG.filter(g => g.img && g.coins < 100);
+      while (jar.items.length < cfg.capacity) jar.items.push({ p: `gift:${pool[Math.floor(Math.random() * pool.length)].img}` });
+      for (const j of jars) send(j, jarInit());
+      setTimeout(() => jar.add('gift:g000', 1, 1, cfg, { name: 'ทดสอบ' }, 'กุหลาบ'), 1500);
       return;
     }
     case 'simulate': {

@@ -20,7 +20,10 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const PREVIEW = new URLSearchParams(location.search).has('preview');
 let W = 0, H = 0, DPR = 1;
 let cfg = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, itemSize: 1, sparkle: true, sound: true, volume: 0.4 };
-let total = 0;
+let total = 0, best = null; // best: 👑 top giver
+let ang = 0, angV = 0, shakeT = 0, shakePow = 0; // jar rocking / shaking
+const tags = [], tagQ = [], confetti = [];
+let party = null; // 🎉 jar-full show: { t, lid: { dy, vy, rot } }
 const items = [], sparks = [];
 let J = null; // jar geometry for the current size and shape
 
@@ -46,13 +49,15 @@ function getImg(src) {
 // Every shape is a left-right symmetric outline: half-width of the inside at height y (0 outside the jar).
 function geometry() {
   const s = cfg.shape;
-  const maxW = Math.min(W * 0.86, H * (s === 'tall' ? 0.5 : s === 'round' ? 0.78 : 0.66));
+  const foot = cfg.goal || cfg.topGiver ? Math.max(44, H * ((cfg.goal ? 0.08 : 0) + (cfg.topGiver ? 0.07 : 0))) : 0; // goal bar + top giver under the jar
+  const HH = H - foot;
+  const maxW = Math.min(W * 0.86, HH * (s === 'tall' ? 0.5 : s === 'round' ? 0.78 : 0.66));
   const cx = W / 2;
   const half = maxW / 2;
   const lidH = cfg.lid === 'none' ? 0 : Math.max(18, half * 0.2);
   const top = H * 0.05 + lidH + half * 0.08;           // inside top (mouth)
-  const bottom = H - Math.max(14, H * 0.035);          // inside bottom
-  const g = { cx, half, top, bottom, lidH, neck: half * 0.78, wall: Math.max(4, half * 0.035) };
+  const bottom = HH - Math.max(14, H * 0.035);         // inside bottom
+  const g = { cx, half, top, bottom, lidH, foot, neck: half * 0.78, wall: Math.max(4, half * 0.035) };
   const hgt = bottom - top;
   if (s === 'round') {
     const R = Math.min(half, hgt / 1.8);
@@ -102,9 +107,10 @@ addEventListener('resize', resize);
 
 // ---------- physics ----------
 const GRAV = 2200;
-function newItem(src, x, y) {
-  const k = 0.88 + Math.random() * 0.24;
-  return { img: getImg(src), x, y, px: x, py: y, r: J.r * k, k, rot: Math.random() * 6.28, vr: 0, out: false, alpha: 1, landed: false };
+function newItem(o, x, y) {
+  if (typeof o === 'string') o = { p: o };
+  const k = (0.88 + Math.random() * 0.24) * (Number(o.s) || 1);
+  return { img: getImg(o.p), x, y, px: x, py: y, r: J.r * k, k, glow: !!o.g, ph: Math.random() * 6.28, rot: Math.random() * 6.28, vr: 0, out: false, alpha: 1, landed: false };
 }
 function drop(src) {
   const y = J.spawn + J.r, w = Math.max(0, J.hw(y) - J.r * 1.2);
@@ -166,8 +172,27 @@ function collide() {
 let lastClink = 0;
 function land(it) {
   it.landed = true;
+  if (cfg.wobble) angV += (it.x < J.cx ? -1 : 1) * 0.12 * Math.min(2, it.k);
   if (!PREVIEW && cfg.sound && performance.now() - lastClink > 90) { lastClink = performance.now(); KBSound.play('bubble', (cfg.volume ?? 0.4) * 0.6); }
   if (cfg.sparkle && Math.random() < 0.5) for (let i = 0; i < 3; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 90; sparks.push({ x: it.x, y: it.y - it.r * 0.5, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, age: 0, life: 0.6 }); }
+}
+// 📳 shake: the jar rattles and everything inside jumps
+function shake(power) {
+  shakeT = 0.9 + 0.3 * power; shakePow = Math.min(3, power);
+  for (const it of items) if (!it.out) { it.py = it.y + (6 + Math.random() * 10) * power; it.px = it.x + (Math.random() - 0.5) * 10 * power; it.landed = false; }
+  if (!PREVIEW && cfg.sound) KBSound.play('rumble', cfg.volume ?? 0.4);
+}
+// floating "+กุหลาบ ×5 · name" tags (a few at a time)
+function addTag(text, color) { tagQ.push({ text, color }); if (tagQ.length > 12) tagQ.shift(); }
+// 🎉 jar full: lid pops off, confetti, everything bursts out, then the lid comes back
+function celebrate() {
+  dropHold = performance.now() + 2600;
+  party = { t: 0, lid: { dy: 0, vy: -900, rot: 0, vr: (Math.random() < 0.5 ? -1 : 1) * 2.2 } };
+  const cols = ['#ff4f8b', '#ffd23f', '#5ce1e6', '#7cf29c', '#b28dff', '#ffffff'];
+  for (let i = 0; i < 160; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, sp = 350 + Math.random() * 650; confetti.push({ x: J.cx, y: J.top, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 16, c: cols[i % cols.length], w: 6 + Math.random() * 8, age: 0 }); }
+  for (const it of items) if (!it.out) { it.out = true; it.vr = (Math.random() - 0.5) * 14; it.px = it.x - (Math.random() - 0.5) * 26; it.py = it.y + 22 + Math.random() * 22; }
+  angV += 1.2; shakeT = 0.6; shakePow = 1.5;
+  if (!PREVIEW && cfg.sound) { KBSound.play('fanfare', cfg.volume ?? 0.4); setTimeout(() => KBSound.play('pop', cfg.volume ?? 0.4), 150); }
 }
 // put saved pictures straight into the jar (page opened or reloaded)
 function settle(n) { for (let i = 0; i < n; i++) step(1 / 60); for (const it of items) { it.px = it.x; it.py = it.y; it.landed = true; } }
@@ -226,7 +251,8 @@ function drawFront() {
   const rimY = J.top - J.wall * 0.3;
   ctx.beginPath(); ctx.ellipse(J.cx, rimY, J.neck + J.wall * 1.6, Math.max(5, J.neck * 0.12), 0, 0, Math.PI * 2);
   ctx.lineWidth = J.wall; ctx.strokeStyle = rgba(cfg.glass, 0.95); ctx.stroke();
-  drawLid(rimY); if (cfg.bow) drawBow(); drawLabel();
+  if (party) { const l = party.lid, lc = rimY - J.lidH / 2; ctx.save(); ctx.translate(J.cx, lc + l.dy); ctx.rotate(l.rot); ctx.translate(-J.cx, -lc); drawLid(rimY); ctx.restore(); } else drawLid(rimY);
+  if (cfg.bow) drawBow(); drawLabel();
 }
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
 function drawLid(rimY) {
@@ -276,6 +302,69 @@ function drawLabel() {
   ctx.fillStyle = cfg.labelColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   lines.forEach((l, i) => { ctx.font = `${i === 0 && text ? 800 : 700} ${i === 0 && text ? fs : fs * 0.9}px "Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif`; ctx.fillText(l, J.cx, y + fs * 0.3 + fs * 1.25 * (i + 0.5), tw - fs * 0.6); });
 }
+function drawGlow(it, now) {
+  const r = it.r * (1.35 + 0.18 * Math.sin(now / 260 + it.ph));
+  const g = ctx.createRadialGradient(it.x, it.y, it.r * 0.3, it.x, it.y, r);
+  g.addColorStop(0, 'rgba(255,240,150,.85)'); g.addColorStop(0.6, 'rgba(255,200,80,.35)'); g.addColorStop(1, 'rgba(255,200,80,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(it.x, it.y, r, 0, 6.28); ctx.fill();
+  if (Math.random() < 0.04 && cfg.sparkle) sparks.push({ x: it.x + (Math.random() - 0.5) * it.r * 2, y: it.y + (Math.random() - 0.5) * it.r * 2, vx: 0, vy: -30, age: 0, life: 0.6 });
+}
+const FONT = '"Kanit","Prompt","Leelawadee UI",Tahoma,sans-serif';
+function pill(text, x, y, fs, bg, fg, alpha) {
+  ctx.font = `700 ${fs}px ${FONT}`; const w = Math.min(W - 16, ctx.measureText(text).width + fs * 1.2), h = fs * 1.6;
+  ctx.globalAlpha = alpha; rr(x - w / 2, y - h / 2, w, h, h / 2); ctx.fillStyle = bg; ctx.fill();
+  ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y + 1, w - fs * 0.8); ctx.globalAlpha = 1;
+}
+let tagWait = 0;
+function drawTags(dt) {
+  tagWait -= dt;
+  if (tagQ.length && tagWait <= 0 && tags.length < 4) { const t = tagQ.shift(); tags.push({ ...t, age: 0, dx: (Math.random() - 0.5) * J.half * 0.6 }); tagWait = 0.45; }
+  const fs = Math.max(12, Math.min(22, W * 0.034));
+  for (let i = tags.length - 1; i >= 0; i--) {
+    const t = tags[i]; t.age += dt; if (t.age > 2.6) { tags.splice(i, 1); continue; }
+    const a = t.age < 0.25 ? t.age / 0.25 : t.age > 2 ? (2.6 - t.age) / 0.6 : 1;
+    pill(t.text, J.cx + t.dx, J.top + J.half * 0.25 - t.age * J.half * 0.35, fs, t.color || cfg.labelBg, cfg.labelColor, a);
+  }
+}
+function drawFoot() {
+  if (!J.foot) return;
+  let y = J.bottom + Math.max(14, H * 0.035) + 6; const w = Math.min(W - 24, J.half * 2.1), x = J.cx - w / 2;
+  const fs = Math.max(11, Math.min(20, W * 0.03));
+  if (cfg.goal) {
+    const n = items.filter(i => !i.out).length, cap = Math.max(1, cfg.capacity || 120), pc = Math.min(1, n / cap), bh = Math.max(14, fs * 1.25);
+    if (cfg.goalText) { ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1; ctx.fillStyle = '#fff'; ctx.fillText(cfg.goalText, J.cx, y); ctx.restore(); y += fs * 1.35; }
+    rr(x, y, w, bh, bh / 2); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
+    if (pc > 0) { rr(x + 2, y + 2, Math.max(bh - 4, (w - 4) * pc), bh - 4, (bh - 4) / 2); const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, cfg.labelBg); g.addColorStop(1, cfg.bowColor); ctx.fillStyle = g; ctx.fill(); }
+    ctx.font = `800 ${bh * 0.7}px ${FONT}`; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(Math.round(pc * 100) + '%', J.cx, y + bh / 2 + 1);
+    y += bh + 8;
+  }
+  if (cfg.topGiver && best && best.name) {
+    const h = Math.max(22, fs * 1.7), av = best.avatar ? getImg(best.avatar) : null;
+    ctx.font = `700 ${fs}px ${FONT}`;
+    const text = `👑 ${best.name} · ${Number(best.coins || 0).toLocaleString()} 🪙`, tw = Math.min(w, ctx.measureText(text).width + h * (av ? 1.6 : 0.9));
+    rr(J.cx - tw / 2, y, tw, h, h / 2); ctx.fillStyle = 'rgba(255,215,64,.95)'; ctx.fill();
+    let tx = J.cx;
+    if (av && av.complete && !av.failed && av.naturalWidth) { const ax = J.cx - tw / 2 + h * 0.55; ctx.save(); ctx.beginPath(); ctx.arc(ax, y + h / 2, h * 0.38, 0, 6.28); ctx.clip(); ctx.drawImage(av, ax - h * 0.38, y + h * 0.12, h * 0.76, h * 0.76); ctx.restore(); tx += h * 0.35; }
+    ctx.fillStyle = '#5a3a00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, tx, y + h / 2 + 1, tw - h);
+  }
+}
+function drawParty(dt) {
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i]; c.age += dt; c.vy += 900 * dt; c.vx *= 0.99; c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.vr * dt;
+    if (c.y > H + 30 || c.age > 4) { confetti.splice(i, 1); continue; }
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot); ctx.fillStyle = c.c; ctx.fillRect(-c.w / 2, -c.w / 4, c.w, c.w / 2); ctx.restore();
+  }
+  if (!party) return;
+  party.t += dt; const l = party.lid;
+  if (party.t < 2.6) { l.vy += 1400 * dt; l.dy += l.vy * dt; l.rot += l.vr * dt; if (l.dy > 0 && l.vy > 0) { l.dy = 0; l.vy *= -0.4; l.vr *= 0.5; } }
+  else { l.dy *= 0.85; l.rot *= 0.85; }
+  if (party.t < 2.8) {
+    const k = Math.min(1, party.t * 4) * (party.t > 2.3 ? (2.8 - party.t) / 0.5 : 1), fs = Math.max(20, Math.min(54, W * 0.08));
+    ctx.save(); ctx.translate(J.cx, (J.top + J.bottom) / 2); ctx.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k);
+    pill('🎉 เต็มโหลแล้ว!', 0, 0, fs, '#ff4f8b', '#fff', k); ctx.restore();
+  }
+  if (party.t > 3.4) party = null;
+}
 function drawItem(it) {
   if (it.grow != null && it.grow < 1) it.grow = Math.min(1, it.grow + 0.08);
   const im = it.img, s = it.r * 2.1 * (it.grow == null ? 1 : 0.3 + 0.7 * it.grow);
@@ -292,11 +381,20 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; }
   for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it.out) { it.alpha -= dt * 0.8; if (it.alpha <= 0 || it.y > H + 200) items.splice(i, 1); } }
+  // rocking jar (spring) + shaking
+  angV += (-ang * 70 - angV * 6) * dt; ang += angV * dt; ang = Math.max(-0.25, Math.min(0.25, ang));
+  let sx = 0; if (shakeT > 0) { shakeT -= dt; sx = Math.sin(now / 22) * 9 * shakePow * Math.max(0, shakeT); ang += Math.sin(now / 37) * 0.012 * shakePow * Math.max(0, shakeT); }
   ctx.clearRect(0, 0, W, H);
+  ctx.save(); ctx.translate(J.cx + sx, J.bottom); ctx.rotate(ang); ctx.translate(-J.cx, -J.bottom);
   drawBack();
+  for (const it of items) if (!it.out && it.glow) drawGlow(it, now);
   for (const it of items) if (!it.out) drawItem(it);
   drawFront();
+  ctx.restore();
   for (const it of items) if (it.out) drawItem(it);
+  drawFoot();
+  drawTags(dt);
+  drawParty(dt);
   for (let i = sparks.length - 1; i >= 0; i--) {
     const s = sparks[i]; s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 200 * dt;
     if (s.age > s.life) { sparks.splice(i, 1); continue; }
@@ -308,18 +406,25 @@ function frame(now) {
 }
 
 // ---------- connection ----------
-const dropQ = []; let dropT = null;
-function queueDrops(list) { dropQ.push(...list); if (dropQ.length > 400) dropQ.splice(0, dropQ.length - 400); if (!dropT) dropT = setInterval(() => { const s = dropQ.shift(); if (s) drop(s); else { clearInterval(dropT); dropT = null; } }, 110); }
+const dropQ = []; let dropT = null, dropHold = 0;
+function queueDrops(list) { dropQ.push(...list); if (dropQ.length > 400) dropQ.splice(0, dropQ.length - 400); if (!dropT) dropT = setInterval(() => { if (performance.now() < dropHold) return; const s = dropQ.shift(); if (s) drop(s); else { clearInterval(dropT); dropT = null; } }, 110); }
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws?role=jar`);
   ws.onopen = () => { document.getElementById('status').style.display = 'none'; };
   ws.onclose = () => { if (!PREVIEW) document.getElementById('status').style.display = 'block'; setTimeout(connect, 2000); };
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
-    if (m.t === 'jarInit') { Object.assign(cfg, m.cfg || {}); total = m.total || 0; J = geometry(); dropQ.length = 0; fillNow((m.items || []).slice(-400)); }
-    else if (m.t === 'jarCfg') { const before = cfg.shape + cfg.itemSize + cfg.lid; Object.assign(cfg, m.cfg || {}); if (before !== cfg.shape + cfg.itemSize + cfg.lid) { J = geometry(); for (const it of items) it.r = J.r * it.k; settle(240); } }
-    else if (m.t === 'jarAdd') { total = m.total ?? total; queueDrops(m.items || []); }
-    else if (m.t === 'jarPour') { if (m.total != null) total = m.total; dropQ.length = 0; pour(); }
+    if (m.t === 'jarInit') { Object.assign(cfg, m.cfg || {}); total = m.total || 0; best = m.top || null; J = geometry(); dropQ.length = 0; fillNow((m.items || []).slice(-400)); }
+    else if (m.t === 'jarCfg') { const before = cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver; Object.assign(cfg, m.cfg || {}); if (before !== cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver) { J = geometry(); for (const it of items) it.r = J.r * it.k; settle(240); } }
+    else if (m.t === 'jarAdd') {
+      total = m.total ?? total; if (m.top !== undefined) best = m.top;
+      if (m.tag && cfg.names) addTag(`+${m.tag.gift}${m.tag.count > 1 ? ' ×' + m.tag.count : ''} · ${m.tag.name}`);
+      if (m.shake) shake(m.shake);
+      queueDrops(m.items || []);
+    }
+    else if (m.t === 'jarFull') { dropQ.length = 0; celebrate(); }
+    else if (m.t === 'jarShake') { shake(m.power || 1); if (m.by && cfg.names) addTag(`📳 ${m.by} เขย่าโหล!`, '#7c5cff'); }
+    else if (m.t === 'jarPour') { if (m.total != null) total = m.total; if ('top' in m) best = m.top; dropQ.length = 0; pour(); }
   };
 }
 resize(); J = geometry();

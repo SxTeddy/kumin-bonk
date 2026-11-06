@@ -560,3 +560,4 @@ nav, main, .updbar { position: relative; z-index: 1; }
 .jaropts .row select, .jaropts .row input:not([type=color]) { flex: 1; }
 .jarrow label { white-space: nowrap; }
 .jaropts label.check { display: flex; align-items: center; gap: 6px; }
+.jaropts #jrGoalText, .jaropts #jrShakeWord { margin: 2px 0 6px 26px; width: calc(100% - 26px) !important; }

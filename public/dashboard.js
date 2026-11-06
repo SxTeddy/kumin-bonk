@@ -1535,6 +1535,16 @@ function renderJar() {
   $('#jrLidColor').hidden = lid.value === 'none' || lid.value === 'cork';
   bindCheck('#jrBow', 'jar', 'bow'); bindText('#jrLabel', 'jar', 'label');
   bindCheck('#jrCount', 'jar', 'showCount'); bindCheck('#jrSparkle', 'jar', 'sparkle'); bindCheck('#jrSound', 'jar', 'sound');
+  for (const [id, key] of [['#jrBig', 'bigSize'], ['#jrNames', 'names'], ['#jrLikes', 'likes'], ['#jrFollows', 'follows'], ['#jrWobble', 'wobble'], ['#jrTop', 'topGiver']]) bindCheck(id, 'jar', key);
+  bindCheck('#jrGoal', 'jar', 'goal', () => { $('#jrGoalText').hidden = !j.goal; }); $('#jrGoalText').hidden = !j.goal; bindText('#jrGoalText', 'jar', 'goalText');
+  bindCheck('#jrShakeCmd', 'jar', 'shakeCmd', () => { $('#jrShakeWord').hidden = !j.shakeCmd; }); $('#jrShakeWord').hidden = !j.shakeCmd; bindText('#jrShakeWord', 'jar', 'shakeWord');
+  const off0 = v => v ? v.toLocaleString() : 'ปิด';
+  sliderBox($('#jrSliders2'), 'jar', [
+    ['shakeMin', 'ส่งครั้งเดียวรวมกี่เหรียญ โหลถึงสั่น (0 = ปิด)', 0, 10000, 100, off0],
+    ['glowMin', 'ของราคาตั้งแต่กี่เหรียญ เรืองแสงในโหล (0 = ปิด)', 0, 5000, 50, off0],
+    ['likesPer', 'กี่ไลค์ ได้หัวใจ 1 ดวง', 5, 200, 5],
+    ['shakeWait', 'คนดูแต่ละคนต้องรอก่อนเขย่าอีกครั้ง (วินาที)', 0, 300, 5],
+  ]);
   const full = $('#jrFull'); full.value = j.whenFull || 'empty'; full.onchange = () => setSec('jar', 'whenFull', full.value);
   sliderBox($('#jrSliders'), 'jar', [
     ['itemSize', 'ขนาดของขวัญในโหล', 0.6, 1.6, 0.1, v => '×' + v],
@@ -1546,6 +1556,8 @@ function renderJar() {
 }
 $('#btnJarCopy').onclick = () => { navigator.clipboard.writeText($('#jarUrl').value).then(() => toast('คัดลอกลิงก์แล้ว')); };
 $('#btnJarTest').onclick = () => send({ t: 'jarTest', n: 5 });
+$('#btnJarShake').onclick = () => send({ t: 'jarShake' });
+$('#btnJarParty').onclick = () => send({ t: 'jarParty' });
 $('#btnJarPour').onclick = () => { send({ t: 'jarPour' }); toast('เทโหลแล้ว เริ่มนับใหม่'); };
 $('#btnJarReset').onclick = () => { Object.assign(sec('jar'), JAR_LOOK); save(); renderJar(); toast('คืนค่าหน้าตาโหลแล้ว'); };
 function renderHelpers() {
