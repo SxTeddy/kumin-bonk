@@ -351,7 +351,7 @@ await t('gift jar fills, caps a big send, pours out when full, and ignores bad s
     j3.add('rose', 25, 1, open, { name: 'a' }); j3.add('rose', 5, 1, open, { name: 'b' });
     assert.equal(sent3.filter(m => m.t === 'jarGoal').length, 1); assert.ok(!sent3.some(m => m.t === 'jarFull'), 'open jar never pours out');
     assert.equal(j3.items.length, 20, 'saved list stays at capacity');
-    assert.ok(!jarOpen(sanitizeJar({ shape: 'jar', lid: 'metal' }))); assert.ok(jarOpen(sanitizeJar({ shape: 'jar', lid: 'none' }))); assert.ok(!jarOpen(sanitizeJar({ shape: 'piggy' })));
+    assert.ok(jarOpen(sanitizeJar({ shape: 'jar', lid: 'metal' })), 'lid gets pushed up, then it spills'); assert.ok(!jarOpen(sanitizeJar({ shape: 'heart', lid: 'metal' }))); assert.ok(jarOpen(sanitizeJar({ shape: 'jar', lid: 'none' }))); assert.ok(!jarOpen(sanitizeJar({ shape: 'piggy' })));
   }
   { // a 300-rose combo arrives as 300 small sends: still at most perGift pictures, and it shakes once
     const j2 = new GiftJar({}, () => {}, () => {}), c2 = sanitizeJar({ perGift: 10, shakeMin: 100 }); let put = 0, shakes = 0;

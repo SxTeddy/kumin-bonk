@@ -1554,8 +1554,9 @@ function renderJar() {
     ['shakeWait', 'คนดูแต่ละคนต้องรอก่อนเขย่าอีกครั้ง (วินาที)', 0, 300, 5],
   ]);
   const full = $('#jrFull'); full.value = j.whenFull || 'empty'; full.onchange = () => setSec('jar', 'whenFull', full.value);
-  const open = glassy ? j.lid === 'none' : JAR_OPEN.includes(j.shape);
-  full.hidden = open; $('#jrFullLbl').textContent = open ? 'พอเต็ม: แบบนี้ไม่มีฝา ของจะล้นออกมากองข้าง ๆ (มีฉลองตอนเต็มครั้งแรก)' : 'พอโหลเต็ม (แบบมีฝา ของไม่ล้น)';
+  const pushLid = glassy && j.shape !== 'heart' && j.lid !== 'none';
+  const open = glassy ? (pushLid || j.lid === 'none') : JAR_OPEN.includes(j.shape);
+  full.hidden = open; $('#jrFullLbl').textContent = pushLid ? 'พอเต็ม: ของจะดันฝาขึ้นแล้วล้นออกมากองข้าง ๆ (มีฉลองตอนเต็มครั้งแรก)' : open ? 'พอเต็ม: แบบนี้ไม่มีฝา ของจะล้นออกมากองข้าง ๆ (มีฉลองตอนเต็มครั้งแรก)' : 'พอโหลเต็ม (แบบมีฝา ของไม่ล้น)';
   sliderBox($('#jrSliders'), 'jar', [
     ['itemSize', 'ขนาดของขวัญในโหล', 0.6, 1.6, 0.1, v => '×' + v],
     ['capacity', 'โหลจุได้ (ชิ้น)', 20, 400, 10],

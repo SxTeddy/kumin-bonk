@@ -35,7 +35,8 @@ export const JAR_SHAPES = ['jar', 'tall', 'round', 'heart', // glass jars
 export const JAR_LIDS = ['metal', 'cork', 'cloth', 'none'];
 // containers without a lid: when they're full, gifts spill out over the rim instead of being poured out
 export const OPEN_THEMES = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket', 'bag', 'bucket', 'trophy', 'pumpkin', 'flowerpot'];
-export function jarOpen(cfg) { return ['jar', 'tall', 'round', 'heart'].includes(cfg.shape) ? cfg.lid === 'none' : OPEN_THEMES.includes(cfg.shape); }
+// glass jars spill too: an open one over the rim, a lidded one pushes its lid up and spills out under it (the heart's lid can't move)
+export function jarOpen(cfg) { return ['jar', 'tall', 'round'].includes(cfg.shape) || (cfg.shape === 'heart' && cfg.lid === 'none') || OPEN_THEMES.includes(cfg.shape); }
 
 const hex = (v, d) => /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : d;
 const num = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };

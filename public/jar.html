@@ -140,7 +140,7 @@ function drop(src) {
     it.y = it.py = y; it.carry = { x0: J.home, y0: y, x1: tx, y1: y, t: 0, dur: 0.6, claw: true }; items.push(it); return;
   }
   let y = J.spawn + J.r;
-  if (J.open) { let pile = Infinity; for (const o of items) if (o.landed && !o.out && !o.spill && !o.carry && Math.abs(o.x - J.cx) < J.neck + o.r) pile = Math.min(pile, o.y - o.r); if (pile - J.r * 1.2 < y) y = Math.max(J.r, pile - J.r * 1.2); } // drop in on top of the pile
+  if (J.open || J.liftable) { let pile = Infinity; for (const o of items) if (o.landed && !o.out && !o.spill && !o.carry && Math.abs(o.x - J.cx) < J.neck + o.r) pile = Math.min(pile, o.y - o.r); if (pile - J.r * 1.2 < y) y = Math.max(J.r, J.liftable ? J.ceil - lidLift + J.r : -1e9, pile - J.r * 1.2); } // drop in on top of the pile
   const w = J.entry === 'slot' ? Math.min(J.slotW || J.r * 2, Math.max(0, J.hw(y) - J.r * 1.2) * 2) * 0.5 : Math.max(0, J.hw(y) - J.r * 1.2);
   const it = newItem(src, J.cx + (Math.random() - 0.5) * w * 1.6, y);
   it.py = it.y - 3; it.grow = 0; items.push(it);
@@ -177,11 +177,16 @@ function spillWalls(it) {
   if (it.y + r > J.floor) { it.y = J.floor - r; if (!it.landed) land(it); }
   if (it.x < r) it.x = r; if (it.x > W - r) it.x = W - r;
   if (it.y + r * 0.5 > J.top) { const yy = Math.max(J.top, Math.min(J.bottom, it.y)), edge = J.hw(yy) + J.wall + r * 0.9, dx = it.x - J.cx; if (Math.abs(dx) < edge) it.x = J.cx + (dx < 0 ? -1 : 1) * edge; }
+  if (J.liftable && J.lidH) { // the lifted lid is solid too: gifts coming out underneath go sideways, not through it
+    const lt = J.top - J.wall * 0.3 - J.lidH * 1.2 - lidLift, lb = J.top, lh = J.neck + J.wall * 2.6 + r * 0.8, dx = it.x - J.cx;
+    if (Math.abs(dx) < lh && it.y + r * 0.6 > lt && it.y < lb) { if (it.y < lt + r * 0.2) it.y = lt - r * 0.6; else it.x = J.cx + (dx < 0 ? -1 : 1) * lh; }
+  }
 }
 function walls(it) {
   if (it.spill) return spillWalls(it);
   const r = it.r, cx = J.cx;
-  if (J.open && it.y < J.top && (Math.abs(it.x - cx) > J.hw(J.top) + J.wall || it.y < J.top - J.half * 0.5)) { it.spill = true; it.spillAt = performance.now(); it.landed = false; return spillWalls(it); }
+  const gap = J.liftable && lidLift > r * 1.1; // lid pushed up far enough: gifts can slip out under it
+  if ((J.open && it.y < J.top && (Math.abs(it.x - cx) > J.hw(J.top) + J.wall || it.y < J.top - J.half * 0.5)) || (gap && it.y < J.top - r * 0.3 && Math.abs(it.x - cx) > J.neck - r * 0.6)) { it.spill = true; it.spillAt = performance.now(); it.landed = false; const out = it.x < cx ? -1 : 1; it.px = it.x - out * r * 0.12; it.py = Math.max(it.py, it.y); return spillWalls(it); } // tips over the edge and away
   const ceil = J.ceil - (J.liftable ? lidLift : 0);
   if (it.y < ceil + r * 0.8) { it.y = ceil + r * 0.8; if (J.liftable) { lidPush++; lidSide += it.x - J.cx; } } // the lid
   // test points around the picture's edge against the glass
@@ -189,7 +194,7 @@ function walls(it) {
     const a = (i / 10) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
     if (sa < -0.5) continue; // upper edge never touches glass
     const px = it.x + ca * r, py = it.y + sa * r;
-    if (J.open && py < J.top) continue; // above an open rim: nothing holds it in
+    if ((J.open || gap) && py < J.top) continue; // above an open rim: nothing holds it in
     const hw = J.hw(py);
     let dx = 0, dy = 0;
     if (py > J.bottom) dy = J.bottom - py;
@@ -472,7 +477,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; tnow = now; fdt = dt;
   acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; }
   let spilled = 0;
-  for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it.spill && !it.out && (now - it.spillAt > 9000 || ++spilled > 80)) { it.alpha -= dt * 0.8; if (it.alpha <= 0) { items.splice(i, 1); continue; } } if (it.out) { it.alpha -= dt * 0.8; if (it.alpha <= 0 || it.y > H + 200) items.splice(i, 1); } }
+  for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it.spill && !it.out && (now - it.spillAt > 6000 || ++spilled > 45)) { it.alpha -= dt * 0.8; if (it.alpha <= 0) { items.splice(i, 1); continue; } } if (it.out) { it.alpha -= dt * 0.8; if (it.alpha <= 0 || it.y > H + 200) items.splice(i, 1); } }
   // rocking jar (spring) + shaking
   angV += (-ang * 70 - angV * 6) * dt; ang += angV * dt; ang = Math.max(-0.25, Math.min(0.25, ang));
   let sx = 0; if (shakeT > 0) { shakeT -= dt; sx = Math.sin(now / 22) * 9 * shakePow * Math.max(0, shakeT); ang += Math.sin(now / 37) * 0.012 * shakePow * Math.max(0, shakeT); }
