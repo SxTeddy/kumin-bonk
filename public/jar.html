@@ -114,23 +114,40 @@ function geometry() {
   return g;
 }
 function resize() {
+  wake();
   DPR = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight;
   cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   const old = J; J = geometry();
-  if (old && items.length) { for (const it of items) { it.r = J.r * it.k; } settle(240); }
+  if (old && items.length) { refit(); settle(240); }
 }
 addEventListener('resize', resize);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) resize(); });
 
 // ---------- physics ----------
 const GRAV = 2200;
+// 📦 a closed container never gets over-stuffed: when more gifts arrive than fit, every picture shrinks a little
+// (squeezing too many in makes them shake non-stop, which looks choppy on the live)
+let fit = 1;
+function inside() { let a = 0; const top = Math.max(J.ceil, J.top), st = 2; for (let y = top; y < J.bottom; y += st) a += 2 * Math.max(0, J.hw(y)) * st; return a; }
+function refit() {
+  if (!J || J.open || J.liftable) { fit = 1; } else {
+    let need = 0; for (const it of items) if (!it.out && !it.spill) need += Math.PI * (J.r * it.k) ** 2;
+    const room = inside() * 0.6; fit = need > room ? Math.sqrt(room / need) : 1;
+    if (fit < 0.8) { // keep the gifts a sensible size: past that, the oldest ones quietly make room for new ones
+      fit = 0.8; let over = need * 0.64 - room;
+      for (let i = 0; i < items.length && over > 0; i++) { const it = items[i]; if (it.out || it.spill || it.carry) continue; over -= Math.PI * (J.r * it.k * 0.8) ** 2; items.splice(i--, 1); }
+    }
+  }
+  for (const it of items) it.r = J.r * it.k * fit;
+}
 function newItem(o, x, y) {
   if (typeof o === 'string') o = { p: o };
   const k = (0.88 + Math.random() * 0.24) * (Number(o.s) || 1);
-  return { img: getImg(o.p), x, y, px: x, py: y, r: J.r * k, k, glow: !!o.g, ph: Math.random() * 6.28, rot: Math.random() * 6.28, vr: 0, out: false, alpha: 1, landed: false };
+  return { img: getImg(o.p), x, y, px: x, py: y, r: J.r * k * fit, k, glow: !!o.g, ph: Math.random() * 6.28, rot: Math.random() * 6.28, vr: 0, out: false, alpha: 1, landed: false };
 }
 function drop(src) {
+  wake();
   J.T?.onDrop?.(J);
   if (J.entry === 'belt') { // 🏭 rides the conveyor, then falls into the crate
     const it = newItem(src, J.belt.x0, J.belt.y), y = J.belt.y - it.r; it.y = it.py = y;
@@ -138,18 +155,21 @@ function drop(src) {
   }
   if (J.entry === 'claw') { // 🕹️ the claw brings it in and lets go
     const it = newItem(src, J.home, J.top + 30), y = J.top + 30 + it.r * 0.6, tx = J.cx + (Math.random() - 0.5) * Math.max(0, J.half - it.r) * 1.7;
-    it.y = it.py = y; it.carry = { x0: J.home, y0: y, x1: tx, y1: y, t: 0, dur: 0.6, claw: true }; items.push(it); return;
+    it.y = it.py = y; it.carry = { x0: J.home, y0: y, x1: tx, y1: y, t: 0, dur: 0.6, claw: true }; items.push(it); refit(); return;
   }
   let y = J.spawn + J.r;
   if (J.open || J.liftable) { let pile = Infinity; for (const o of items) if (o.landed && !o.out && !o.spill && !o.carry && Math.abs(o.x - J.cx) < J.neck + o.r) pile = Math.min(pile, o.y - o.r); if (pile - J.r * 1.2 < y) y = Math.max(J.r, J.liftable ? J.ceil - lidLift + J.r : -1e9, pile - J.r * 1.2); } // drop in on top of the pile
   const w = J.entry === 'slot' ? Math.min(J.slotW || J.r * 2, Math.max(0, J.hw(y) - J.r * 1.2) * 2) * 0.5 : Math.max(0, J.hw(y) - J.r * 1.2);
   const it = newItem(src, J.cx + (Math.random() - 0.5) * w * 1.6, y);
-  it.py = it.y - 3; it.grow = 0; items.push(it);
+  it.py = it.y - 3; it.grow = 0; items.push(it); refit();
   if (cfg.sparkle) for (let i = 0; i < 6; i++) { const a = Math.random() * 6.28, sp = 80 + Math.random() * 120; sparks.push({ x: it.x, y: it.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, age: 0, life: 0.5 }); }
 }
 // Verlet steps: gravity, keep each picture inside the glass, push overlapping pictures apart
+// 😴 when nothing in the jar is moving any more, the physics sleeps (saves the computer's effort during a live)
+let calm = 0;
+function wake() { calm = 0; }
 function step(dt) {
-  const dm = J.damp || 0.99;
+  const dm = J.damp || 0.99, lift0 = lidLift;
   for (const it of items) {
     if (it.carry) { // carried by the belt or the claw: follows its path, no physics yet
       const c = it.carry; c.t += dt; const k = Math.min(1, c.t / c.dur);
@@ -159,7 +179,8 @@ function step(dt) {
       continue;
     }
     const lim = it.out ? 1e9 : J.r * 0.6; // no gift gets flung out by a squeeze
-    const vx = Math.max(-lim, Math.min(lim, (it.x - it.px) * dm)), vy = Math.max(it.spill ? -J.r * 0.08 : -lim, Math.min(lim, (it.y - it.py) * dm)); // spilled gifts tumble down, they don't fly up
+    const d = it.landed ? Math.min(dm, 0.95) : dm; // resting gifts lose energy quickly: no endless jiggling
+    const vx = Math.max(-lim, Math.min(lim, (it.x - it.px) * d)), vy = Math.max(it.spill ? -J.r * 0.08 : -lim, Math.min(lim, (it.y - it.py) * d)); // spilled gifts tumble down, they don't fly up
     it.px = it.x; it.py = it.y;
     it.x += vx; it.y += vy + GRAV * dt * dt * (it.out ? 1 : 1);
     it.rot += it.out ? it.vr * dt : vx / it.r;
@@ -171,6 +192,9 @@ function step(dt) {
     const want = lidPush ? Math.max(-0.22, Math.min(0.22, lidSide / (J.half * Math.max(3, lidPush)) * 0.5)) : 0;
     lidTilt += (want * Math.min(1, lidLift / (J.lidH + 1)) - lidTilt) * 0.04;
   }
+  let move = Math.abs(lidLift - lift0) * 10;
+  for (const it of items) { if (it.carry || it.out || (!it.landed && !it.spill)) { move = 1; break; } const m = Math.abs(it.x - it.px) + Math.abs(it.y - it.py); if (m > move) move = m; }
+  calm = move < 0.04 ? calm + 1 : 0;
 }
 // 🌊 no lid: gifts that roll over the rim fall down outside and land on the floor beside it
 function spillWalls(it) {
@@ -201,7 +225,11 @@ function walls(it) {
     if (py > J.bottom) dy = J.bottom - py;
     else if (Math.abs(px - cx) > hw) {
       const over = Math.abs(px - cx) - hw;
-      if (hw <= 0.5) dy = -over; else { dx = -Math.sign(px - cx) * over * Math.abs(ca); dy = -over * Math.max(0, sa); }
+      if (hw <= 0.5) dy = -over;
+      else { // push straight out of the wall (along its slope), so round bottoms don't make gifts shake
+        const sg = Math.sign(px - cx) || 1, slope = (J.hw(py + 1) - J.hw(py - 1)) / 2, g2 = 1 + slope * slope;
+        dx = -sg * over / g2; dy = over * slope / g2;
+      }
     }
     if (dx || dy) { it.x += dx; it.y += dy; if (!it.landed && dy < 0) land(it); }
   }
@@ -221,7 +249,7 @@ function collide() {
       const list = grid.get((gx + ox) + ',' + (gy + oy)); if (!list) continue;
       for (const j of list) {
         if (j <= i) continue;
-        const b = items[j]; if (b.carry) continue; const dx = b.x - a.x, dy = b.y - a.y, min = (a.r + b.r) * 0.9, d2 = dx * dx + dy * dy;
+        const b = items[j]; if (b.carry) continue; const dx = b.x - a.x, dy = b.y - a.y, min = (a.r + b.r) * 0.98, d2 = dx * dx + dy * dy;
         if (d2 >= min * min || d2 === 0) continue;
         const d = Math.sqrt(d2), push = (min - d) / 2, nx = dx / d, ny = dy / d;
         a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
@@ -239,6 +267,7 @@ function land(it) {
 }
 // 📳 shake: the jar rattles and everything inside jumps
 function shake(power) {
+  wake();
   shakeT = 0.9 + 0.3 * power; shakePow = Math.min(3, power);
   for (const it of items) if (!it.out) { it.py = it.y + (6 + Math.random() * 10) * power; it.px = it.x + (Math.random() - 0.5) * 10 * power; it.landed = false; }
   if (!PREVIEW && cfg.sound) KBSound.play('rumble', cfg.volume ?? 0.4);
@@ -247,6 +276,7 @@ function shake(power) {
 function addTag(text, color) { tagQ.push({ text, color }); if (tagQ.length > 12) tagQ.shift(); }
 // 🎉 jar full: lid pops off, confetti, everything bursts out, then the lid comes back
 function celebrate(pourOut = true) {
+  wake();
   dropHold = performance.now() + 2600;
   party = { t: 0, lid: { dy: 0, vy: -900, rot: 0, vr: (Math.random() < 0.5 ? -1 : 1) * 2.2 } };
   const cols = ['#ff4f8b', '#ffd23f', '#5ce1e6', '#7cf29c', '#b28dff', '#ffffff'];
@@ -259,6 +289,7 @@ function celebrate(pourOut = true) {
 // put saved pictures straight into the jar (page opened or reloaded)
 function settle(n) { for (let i = 0; i < n; i++) step(1 / 60); for (const it of items) { it.px = it.x; it.py = it.y; it.landed = true; } }
 function fillNow(list) {
+  wake();
   items.length = 0;
   let row = 0, col = 0;
   for (const src of list) {
@@ -267,10 +298,13 @@ function fillNow(list) {
     const it = newItem(src, x + (Math.random() - 0.5) * 2, y); it.landed = true; items.push(it);
     if (++col >= per) { col = 0; row++; }
   }
+  refit();
   settle(180);
 }
 // pour everything out (jar was full, or "🫗 เทโหล" was pressed)
 function pour() {
+  wake();
+  setTimeout(refit, 50);
   for (const it of items) { if (it.out) continue; it.out = true; it.vr = (Math.random() - 0.5) * 14; it.px = it.x - (Math.random() - 0.5) * 18; it.py = it.y + 14 + Math.random() * 14; }
   if (!PREVIEW && cfg.sound) KBSound.play('whoosh', cfg.volume ?? 0.4);
 }
@@ -431,7 +465,7 @@ function drawFoot() {
   let y = H - J.foot + 6; const w = Math.min(W - 24, J.half * 2.1), x = J.cx - w / 2;
   const fs = Math.max(11, Math.min(20, W * 0.03));
   if (cfg.goal) {
-    const n = items.filter(i => !i.out).length, cap = Math.max(1, cfg.capacity || 120), pc = Math.min(1, n / cap), bh = Math.max(14, fs * 1.25);
+    const n = items.filter(i => !i.out).length, cap = Math.max(1, cfg.capacity || 120), pc = fit < 0.999 ? 1 : Math.min(1, n / cap), bh = Math.max(14, fs * 1.25);
     if (cfg.goalText) { ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1; ctx.fillStyle = '#fff'; ctx.fillText(cfg.goalText, J.cx, y); ctx.restore(); y += fs * 1.35; }
     rr(x, y, w, bh, bh / 2); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
     if (pc > 0) { rr(x + 2, y + 2, Math.max(bh - 4, (w - 4) * pc), bh - 4, (bh - 4) / 2); const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, cfg.labelBg); g.addColorStop(1, cfg.bowColor); ctx.fillStyle = g; ctx.fill(); }
@@ -465,21 +499,44 @@ function drawParty(dt) {
   }
   if (party.t > 3.4) party = null;
 }
+// each gift is drawn once into a small ready-made picture (with its shadow / capsule) and then just stamped every frame:
+// much lighter for LIVE Studio than redrawing shadows for 100+ gifts 60 times a second
+const sprites = new Map();
+function makeSprite(key, px, paint) {
+  let c = sprites.get(key); if (c) return c;
+  const d = Math.min(2, devicePixelRatio || 1), pad = Math.ceil(px * 0.2), w = px + pad * 2;
+  c = document.createElement('canvas'); c.width = c.height = Math.ceil(w * d); c.size = w;
+  const g = c.getContext('2d'); g.scale(d, d); g.translate(w / 2, w / 2);
+  g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = Math.min(10, px * 0.14); g.shadowOffsetY = px * 0.06;
+  paint(g, px);
+  if (sprites.size > 1500) sprites.delete(sprites.keys().next().value);
+  sprites.set(key, c); return c;
+}
+const bucket = size => Math.max(8, Math.round(size / 4) * 4);
+function giftSprite(im, size) {
+  const px = bucket(size);
+  return makeSprite(im.src + '|' + px, px, (g, s) => { const q = im.naturalWidth / im.naturalHeight || 1, iw = q >= 1 ? s : s * q, ih = q >= 1 ? s / q : s; g.drawImage(im, -iw / 2, -ih / 2, iw, ih); });
+}
+function capsuleSprite(size, hue) { // 🍬 gacha capsule around the gift
+  const px = bucket(size), hb = Math.floor(hue / 45);
+  return makeSprite('cap|' + hb + '|' + px, px, (g, s) => {
+    const r = s * 0.5; g.beginPath(); g.arc(0, 0, r, 0, 6.2832); g.fillStyle = 'rgba(255,255,255,.35)'; g.fill(); g.shadowColor = 'transparent';
+    g.beginPath(); g.arc(0, 0, r, Math.PI, 6.2832); g.closePath(); g.fillStyle = `hsla(${hb * 45 + 20},85%,65%,.8)`; g.fill();
+    g.beginPath(); g.arc(0, 0, r, 0, 6.2832); g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 2; g.stroke();
+  });
+}
+const stamp = (c, size) => { const k = size / bucket(size); ctx.drawImage(c, -c.size * k / 2, -c.size * k / 2, c.size * k, c.size * k); };
 function drawItem(it) {
   if (it.grow != null && it.grow < 1) it.grow = Math.min(1, it.grow + 0.08);
-  let s = it.r * 2.1 * (it.grow == null ? 1 : 0.3 + 0.7 * it.grow);
-  const im = it.img;
-  ctx.save(); ctx.globalAlpha = it.alpha; ctx.translate(it.x, it.y); ctx.rotate(it.rot);
-  if (!it.out) { ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.min(10, it.r * 0.3); ctx.shadowOffsetX = Math.sin(it.rot) * it.r * 0.12; ctx.shadowOffsetY = Math.cos(it.rot) * it.r * 0.12; }
-  if (J.T?.capsule) { // 🍬 gacha capsule around the gift
-    const r = s * 0.5; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
-    ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 6.2832); ctx.closePath(); ctx.fillStyle = `hsla(${(it.ph * 57) % 360},85%,65%,.8)`; ctx.fill();
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.stroke(); s *= 0.72;
-  }
-  if (im.complete && !im.failed && im.naturalWidth) {
-    const q = im.naturalWidth / im.naturalHeight || 1, w = q >= 1 ? s : s * q, h = q >= 1 ? s / q : s;
-    ctx.drawImage(im, -w / 2, -h / 2, w, h);
-  } else { ctx.fillStyle = '#ff7aa8'; ctx.beginPath(); ctx.arc(0, 0, it.r * 0.7, 0, 6.28); ctx.fill(); }
+  const s = it.r * 2 * (it.grow == null ? 1 : 0.3 + 0.7 * it.grow), im = it.img;
+  // draw at a smoothed position: tiny back-and-forth nudges between packed gifts don't show as shaking
+  if (it.sx == null || it.out || it.carry || Math.abs(it.sx - it.x) + Math.abs(it.sy - it.y) > it.r) { it.sx = it.x; it.sy = it.y; it.sr = it.rot; }
+  else { it.sx += (it.x - it.sx) * 0.25; it.sy += (it.y - it.sy) * 0.25; it.sr += (it.rot - it.sr) * 0.25; }
+  ctx.save(); ctx.globalAlpha = it.alpha; ctx.translate(it.sx, it.sy); ctx.rotate(it.sr);
+  const cap = J.T?.capsule;
+  if (cap) stamp(capsuleSprite(s, (it.ph * 57) % 360), s);
+  if (im.complete && !im.failed && im.naturalWidth) stamp(giftSprite(im, cap ? s * 0.72 : s), cap ? s * 0.72 : s);
+  else { ctx.fillStyle = '#ff7aa8'; ctx.beginPath(); ctx.arc(0, 0, it.r * 0.7, 0, 6.28); ctx.fill(); }
   ctx.restore();
 }
 
@@ -492,7 +549,9 @@ function frame(now) {
   try { drawScene(now, dt); } catch (e) { console.error('jar', e); }
 }
 function drawScene(now, dt) {
-  acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; }
+  acc += dt;
+  if (calm > 120 && !dropQ.length && shakeT <= 0) acc = 0; // asleep
+  while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; }
   let spilled = 0;
   for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it.spill && !it.out && (now - it.spillAt > 6000 || ++spilled > 45)) { it.alpha -= dt * 0.8; if (it.alpha <= 0) { items.splice(i, 1); continue; } } if (it.out) { it.alpha -= dt * 0.8; if (it.alpha <= 0 || it.y > H + 200) items.splice(i, 1); } }
   // rocking jar (spring) + shaking
@@ -532,7 +591,7 @@ function connect() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.t === 'jarInit') { Object.assign(cfg, m.cfg || {}); total = m.total || 0; coinsTotal = m.coins || 0; best = m.top || null; J = geometry(); dropQ.length = 0; fillNow((m.items || []).slice(-400)); }
-    else if (m.t === 'jarCfg') { const before = cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver; Object.assign(cfg, m.cfg || {}); if (before !== cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver) { J = geometry(); for (const it of items) it.r = J.r * it.k; settle(240); } }
+    else if (m.t === 'jarCfg') { wake(); const before = cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver; Object.assign(cfg, m.cfg || {}); if (before !== cfg.shape + cfg.itemSize + cfg.lid + cfg.goal + cfg.topGiver) { J = geometry(); refit(); settle(240); } }
     else if (m.t === 'jarAdd') {
       total = m.total ?? total; coinsTotal = m.coins ?? coinsTotal; if (m.top !== undefined) best = m.top;
       if (m.tag && cfg.names) addTag(`+${m.tag.gift}${m.tag.count > 1 ? ' ×' + m.tag.count : ''} · ${m.tag.name}`);
