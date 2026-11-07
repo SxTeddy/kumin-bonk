@@ -1,7 +1,7 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // KuminBonk dashboard
-// links for LIVE Studio: its Link box rejects addresses without a dot ("localhost"), so give the 127.0.0.1 form (same app, same computer)
-const LINK_BASE = `http://127.0.0.1:${location.port || 3939}`;
+// links for LIVE Studio: its Link box only takes a web-style name; kumin.localtest.me always points back to this computer
+const LINK_BASE = `http://kumin.localtest.me:${location.port || 3939}`;
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

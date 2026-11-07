@@ -24,7 +24,7 @@ import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.1.2';
+const VERSION = '1.1.3';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -688,16 +688,24 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 // 🔒 Only this app may talk to the server: web pages from other sites (and DNS-rebinding tricks) are refused.
 const LOCAL_HOSTS = () => [`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`];
 const hostOk = req => LOCAL_HOSTS().includes(String(req.headers.host || '').toLowerCase());
+// 🔗 TikTok LIVE Studio's Link box only takes a web-style name, not localhost / 127.0.0.1. kumin.localtest.me is a
+// public name that always points back to this same computer (127.0.0.1). Through it, only the on-screen pages
+// (overlay, jar, widgets) and their pictures/sounds can be opened — never the app's controls or settings.
+const LINK_HOST = 'kumin.localtest.me';
+const linkHostOk = req => String(req.headers.host || '').toLowerCase() === `${LINK_HOST}:${PORT}`;
+const LINK_PATHS = /^\/(overlay\.html|jar\.html|widget\.html|jar-themes\.js|sounds\.js|assets\/[\w.-]+|gifts\/[\w.-]+|media\/[\w.-]+|usound\/[\w.-]+)$/;
 const originOk = req => { const o = req.headers.origin; return !o || LOCAL_HOSTS().some(h => String(o).toLowerCase() === 'http://' + h); };
 const server = http.createServer((req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
-  if (!hostOk(req)) { res.writeHead(403); return res.end('forbidden'); }
+  const local = hostOk(req);
+  if (!local && !linkHostOk(req)) { res.writeHead(403); return res.end('forbidden'); }
   const url = new URL(req.url, 'http://x');
   let p = url.pathname;
   if (p === '/') p = '/dashboard.html';
   if (p === '/overlay') p = '/overlay.html';
   if (p === '/jar') p = '/jar.html';
   if (/^\/(garden|fireworks|timer|board|goal|stage|subs)$/.test(p)) p = '/widget.html'; // 🖼️ every widget is the same page; it reads its kind from the address
+  if (!local && !((req.method === 'GET' || req.method === 'HEAD') && LINK_PATHS.test(p))) { res.writeHead(403); return res.end('forbidden'); } // via the LIVE Studio name: on-screen pages only
   if (p === '/api/media' && req.method === 'POST') return uploadMedia(req, res, url);
   if (p.startsWith('/media/')) return serveMedia(req, res, p.slice(7));
   if (p === '/api/ping') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('kuminbonk'); }
@@ -758,10 +766,12 @@ function serveMedia(req, res, id) {
   fs.createReadStream(file).pipe(res);
 }
 
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 6 * 1024 * 1024, verifyClient: ({ req }) => hostOk(req) && originOk(req) });
+const linkOriginOk = req => { const o = req.headers.origin; return !o || String(o).toLowerCase() === `http://${LINK_HOST}:${PORT}`; };
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 6 * 1024 * 1024, verifyClient: ({ req }) => (hostOk(req) && originOk(req)) || (linkHostOk(req) && linkOriginOk(req)) });
 wss.on('error', () => {}); // listen errors are handled on the http server
 wss.on('connection', (ws, req) => {
   const role = new URL(req.url, 'http://x').searchParams.get('role');
+  if (!hostOk(req) && !['overlay', 'jar', 'widget'].includes(role)) return ws.close(); // the LIVE Studio name can't open the app's controls
   if (role === 'widget') {
     ws.kind = String(new URL(req.url, 'http://x').searchParams.get('k') || '').slice(0, 20);
     widgetWs.add(ws);

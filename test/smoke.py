@@ -107,6 +107,12 @@ with sync_playwright() as p:
     pg.evaluate("window._played = []; send({t:'simulate', ev:{type:'gift', user:{nickname:'t'}, gift:{name:'Rose', diamonds:1}, count:1}})"); pg.wait_for_timeout(800)
     if not pg.evaluate('window._played.length'): fails.append('gift did not play its song')
     import urllib.request, urllib.error
+    # 🔗 the LIVE Studio name (kumin.localtest.me) opens on-screen pages only, never the controls
+    port = URL.rstrip('/').rsplit(':', 1)[1]
+    for path, want in (('jar', 200), ('garden', 200), ('overlay', 200), ('', 403), ('api/ping', 403), ('dashboard.html', 403)):
+        try: code = urllib.request.urlopen(urllib.request.Request(URL + path, headers={'Host': f'kumin.localtest.me:{port}'})).status
+        except urllib.error.HTTPError as e: code = e.code
+        if code != want: fails.append(f'LIVE Studio link name: /{path} gave {code}, expected {want}')
     for hdr in ({'Content-Type': 'audio/wav'}, {'Content-Type': 'audio/wav', 'X-KB': '1', 'Origin': 'http://evil.example'}):
         try: code = urllib.request.urlopen(urllib.request.Request(URL + 'api/media?name=x', data=b'abc', headers=hdr, method='POST')).status
         except urllib.error.HTTPError as e: code = e.code
