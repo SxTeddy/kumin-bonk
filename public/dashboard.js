@@ -1,5 +1,7 @@
 // KuminBonk — สร้างโดย HXZ ! · Copyright (c) 2026 HXZ ! · ดูเงื่อนไขใน LICENSE
 // KuminBonk dashboard
+// links for LIVE Studio: its Link box rejects addresses without a dot ("localhost"), so give the 127.0.0.1 form (same app, same computer)
+const LINK_BASE = `http://127.0.0.1:${location.port || 3939}`;
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -367,7 +369,7 @@ function renderAll() {
   renderChat();
   $('#tUser').value = config.tiktokUsername || '';
   $('#autoConnect').checked = !!config.autoConnect;
-  $('#obsUrl').value = `${location.origin}/overlay`;
+  $('#obsUrl').value = `${LINK_BASE}/overlay`;
   $('#optKey').value = config.eulerApiKey || '';
   $('#optVtsPort').value = config.vtsPort || 8001;
   $('#optSound').checked = config.throwing.sound;
@@ -1533,7 +1535,7 @@ const JAR_OPEN = ['factory', 'chest', 'aquarium', 'cauldron', 'giftbox', 'basket
 const JAR_LOOK = { shape: 'jar', glass: '#bfe6ff', lid: 'metal', lidColor: '#ff7aa8', bow: true, bowColor: '#ff4f8b', label: 'โหลของขวัญ', labelColor: '#ffffff', labelBg: '#ff7aa8', showCount: true, labelSize: 1, labelPos: 50, labelStyle: 'sticker', countMode: 'gifts', countIcon: '🎁', itemSize: 1, sparkle: true };
 function renderJar() {
   const j = sec('jar');
-  $('#jarUrl').value = `${location.origin}/jar`;
+  $('#jarUrl').value = `${LINK_BASE}/jar`;
   const pv = $('#jarPrev'); if (!pv.src) pv.src = '/jar?preview=1';
   bindCheck('#jrOn', 'jar', 'enabled');
   $('#jrShape').innerHTML = JAR_SHAPES.map(([k, n]) => `<button type="button" class="small${j.shape === k ? ' on' : ''}" data-shape="${k}">${n}</button>`).join('');
@@ -1718,7 +1720,7 @@ function renderPads() {
   });
   sliderList($('#padVol'), b, [['volume', 'ความดังรวมของแผงปุ่ม', 0, 1, 0.05, v => Math.round(v * 100) + '%']]);
   const so = $('#padStopOthers'); so.checked = !!b.stopOthers; so.onchange = () => { b.stopOthers = so.checked; save(); };
-  $('#stageUrl').value = `${location.origin}/stage`;
+  $('#stageUrl').value = `${LINK_BASE}/stage`;
   renderMediaList(); renderGiftSongs();
   if (padEditing) editPad(padEditing, true);
 }
@@ -1817,7 +1819,7 @@ function renderWidgets() {
   for (const k of Object.keys(W_SLIDERS)) {
     const c = w[k] ||= {};
     const on = $(`[data-won="${k}"]`); on.checked = c.on !== false; on.onchange = () => { c.on = on.checked; save(); };
-    $(`[data-wurl="${k}"]`).value = `${location.origin}/${k}`;
+    $(`[data-wurl="${k}"]`).value = `${LINK_BASE}/${k}`;
     const pv = $(`[data-wprev="${k}"]`); if (!pv.src) pv.src = `/${k}?preview=1`;
     sliderList($(`[data-wsl="${k}"]`), c, W_SLIDERS[k]);
   }
@@ -1846,7 +1848,7 @@ const TR_LANGS = [['en', 'English'], ['th', 'ไทย'], ['ja', '日本語'], [
 let rec = null, recOn = false, recLine = 0;
 function renderSubs() {
   const s = sec('subs'); s.tr ||= [];
-  $('#subsUrl').value = `${location.origin}/subs`;
+  $('#subsUrl').value = `${LINK_BASE}/subs`;
   const pv = $('#subsPrev'); if (!pv.src) pv.src = '/subs?preview=1';
   const lang = $('#subsLang'); lang.innerHTML = SPEECH_LANGS.map(([k, v]) => `<option value="${k}" ${k === s.lang ? 'selected' : ''}>${esc(v)}</option>`).join('');
   lang.onchange = () => { s.lang = lang.value; save(); if (recOn) { stopRec(); startRec(); } };
