@@ -43,6 +43,7 @@ function handle(m) {
     case 'media': config.media = m.media || []; if (m.board) config.board = m.board; renderPads(); break;
     case 'padPlay': padPlay(m); break;
     case 'padStop': padStop(); break;
+    case 'jarFps': { const el = $('#jrFps'); if (el) el.textContent = m.link ? `📺 โหลบน LIVE Studio ตอนนี้: ${m.fps} เฟรม/วินาที${m.lite ? ' · โหมดลื่น' : ''}` : `🖥️ โหลในเบราว์เซอร์ตอนนี้: ${m.fps} เฟรม/วินาที`; break; }
     case 'wState': wView = { ...m, timer: { ...m.timer, at: Date.now() } }; renderTimerState(); break;
     case 'sessions': renderSessions(m); break;
     case 'renderBanner': drawBanner(m); break;
@@ -1538,6 +1539,7 @@ function renderJar() {
   $('#jarUrl').value = `${LINK_BASE}/jar`;
   const pv = $('#jarPrev'); if (!pv.src) pv.src = '/jar?preview=1';
   bindCheck('#jrOn', 'jar', 'enabled');
+  const sm = $('#jrSmooth'); sm.value = j.smooth || 'auto'; sm.onchange = () => setSec('jar', 'smooth', sm.value);
   $('#jrShape').innerHTML = JAR_SHAPES.map(([k, n]) => `<button type="button" class="small${j.shape === k ? ' on' : ''}" data-shape="${k}">${n}</button>`).join('');
   $('#jrShape').querySelectorAll('button').forEach(b => b.onclick = () => { setSec('jar', 'shape', b.dataset.shape); renderJar(); });
   for (const [id, key] of [['#jrGlass', 'glass'], ['#jrLidColor', 'lidColor'], ['#jrBowColor', 'bowColor'], ['#jrLabelBg', 'labelBg'], ['#jrLabelColor', 'labelColor']]) {

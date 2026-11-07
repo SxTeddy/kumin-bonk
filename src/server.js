@@ -24,7 +24,7 @@ import { Sessions, Thanks } from './live.js';
 import { Hotkey, HOTKEYS } from './hotkey.js';
 import { reportHtml, reportName, summaryDir, listReports, openPath, findDocuments } from './report.js';
 
-const VERSION = '1.1.4';
+const VERSION = '1.1.5';
 const DATA = DATA_DIR;
 
 // --selftest: used by the updater to check a downloaded version before switching to it.
@@ -780,8 +780,18 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => { widgetWs.delete(ws); pushStatus(); });
   } else if (role === 'jar') {
     jars.add(ws);
+    ws.link = !hostOk(req); // opened through the LIVE Studio link name
     send(ws, jarInit());
     pushStatus();
+    ws.on('message', raw => { // 📈 how smooth the jar really runs where it is shown (LIVE Studio or a browser)
+      if (raw.length > 200) return;
+      let m; try { m = JSON.parse(raw); } catch { return; }
+      if (m.t !== 'fps') return;
+      const fps = Math.max(0, Math.min(240, Math.round(Number(m.fps) || 0))), lite = !!m.lite;
+      if (m.preview) return;
+      toDashboards({ t: 'jarFps', fps, lite, link: ws.link });
+      if (!ws.fpsLogged && ws.link) { ws.fpsLogged = true; log('jar', `🫙 โหลบน LIVE Studio: ${fps} เฟรม/วินาที${lite ? ' (โหมดลื่น)' : ''} · วาดภาพละ ${Math.round((Number(m.ms) || 0) * 10) / 10} ms`); }
+    });
     ws.on('close', () => { jars.delete(ws); pushStatus(); });
   } else if (role === 'overlay') {
     overlays.add(ws);

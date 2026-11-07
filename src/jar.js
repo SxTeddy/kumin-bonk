@@ -33,6 +33,7 @@ export const JAR_DEFAULT = {
   shakeCmd: true, shakeWord: '!เขย่า', shakeWait: 30, // viewers type this in chat to shake the jar (seconds each viewer waits)
   topGiver: true,        // 👑 who has given the most since the jar was last emptied
   wobble: true,          // the jar rocks a little when things land in it
+  smooth: 'auto',        // auto = light drawing inside LIVE Studio, full look elsewhere | lite | full
 };
 export const JAR_SHAPES = ['jar', 'tall', 'round', 'heart', // glass jars
   'factory', 'gacha', 'chest', 'piggy', 'aquarium', 'cauldron', 'giftbox', 'basket', 'boba', 'bag', // themed containers (public/jar-themes.js)
@@ -79,6 +80,7 @@ export function sanitizeJar(j) {
     shakeCmd: s.shakeCmd !== false, shakeWord: String(s.shakeWord ?? D.shakeWord).trim().slice(0, 20) || D.shakeWord, shakeWait: int(s.shakeWait, 0, 600, D.shakeWait),
     topGiver: s.topGiver !== false,
     wobble: s.wobble !== false,
+    smooth: ['auto', 'lite', 'full'].includes(s.smooth) ? s.smooth : 'auto',
   };
 }
 

@@ -1,5 +1,10 @@
 # Extra dictionary entries: (thai, en, ja, zh, ko, vi, id, es)
 EXTRA = [
+("ความลื่นบน LIVE Studio", "Smoothness in LIVE Studio", "LIVE Studioでの滑らかさ", "LIVE Studio 流畅度", "LIVE Studio 부드러움", "Độ mượt trên LIVE Studio", "Kelancaran di LIVE Studio", "Fluidez en LIVE Studio"),
+("อัตโนมัติ (แนะนำ)", "Automatic (recommended)", "自動（おすすめ）", "自动（推荐）", "자동 (추천)", "Tự động (khuyên dùng)", "Otomatis (disarankan)", "Automático (recomendado)"),
+("ลื่นสุด ทุกที่", "Smoothest everywhere", "どこでも最も滑らか", "处处最流畅", "어디서나 가장 부드럽게", "Mượt nhất mọi nơi", "Paling lancar di mana saja", "Lo más fluido en todas partes"),
+("สวยสุด (เครื่องต้องแรง)", "Prettiest (needs a strong PC)", "最もきれい（高性能PC向け）", "最美观（需要高性能电脑）", "가장 예쁘게 (고사양 PC 필요)", "Đẹp nhất (cần máy mạnh)", "Paling cantik (perlu PC kuat)", "Lo más bonito (requiere PC potente)"),
+("ใส่โหลใน LIVE Studio แล้ว ตรงนี้จะบอกว่าโหลวิ่งได้กี่เฟรม/วินาที", "Once the jar is in LIVE Studio, this shows how many frames per second it runs at", "LIVE Studioにジャーを追加すると、ここに毎秒のフレーム数が表示されます", "把礼物罐加到 LIVE Studio 后，这里会显示每秒帧数", "LIVE Studio에 병을 넣으면 여기에 초당 프레임 수가 표시돼요", "Khi đã thêm hũ vào LIVE Studio, đây sẽ hiện số khung hình mỗi giây", "Setelah toples ada di LIVE Studio, di sini tampil berapa frame per detik", "Cuando el frasco esté en LIVE Studio, aquí verás cuántos fotogramas por segundo da"),
 ("🌐 ภาษา", "🌐 Language", "🌐 言語", "🌐 语言", "🌐 언어", "🌐 Ngôn ngữ", "🌐 Bahasa", "🌐 Idioma"),
 ("เลือกภาษาของแอป", "Choose the app language", "アプリの言語を選ぶ", "选择应用语言", "앱 언어 선택", "Chọn ngôn ngữ ứng dụng", "Pilih bahasa aplikasi", "Elige el idioma de la app"),
 ("เปลี่ยนภาษาของเมนูและปุ่มทั้งหมดในแอป · ชื่อของขวัญและข้อความบางส่วนจากโปรแกรมยังเป็นภาษาไทย", "Changes the language of all menus and buttons · gift names and some messages from the app stay in Thai", "すべてのメニューとボタンの言語を変更 · ギフト名とアプリからの一部メッセージはタイ語のままです", "更改所有菜单和按钮的语言 · 礼物名称和部分程序消息仍为泰语", "모든 메뉴와 버튼의 언어를 바꿔요 · 선물 이름과 일부 앱 메시지는 태국어로 남아요", "Đổi ngôn ngữ của mọi menu và nút · tên quà và một số thông báo từ app vẫn là tiếng Thái", "Mengubah bahasa semua menu dan tombol · nama hadiah dan sebagian pesan aplikasi tetap bahasa Thai", "Cambia el idioma de todos los menús y botones · los nombres de regalos y algunos mensajes del programa siguen en tailandés"),
@@ -549,6 +554,10 @@ EXTRA = [
 
 # Patterns for dynamic text: (regex on normalized Thai, en, ja, zh, ko, vi, id, es). $1.. = captured groups (translated if possible)
 PATS = [
+(r"^📺 โหลบน LIVE Studio ตอนนี้: (\d+) เฟรม/วินาที · โหมดลื่น$", "📺 Jar in LIVE Studio now: $1 fps · smooth mode", "📺 LIVE Studioのジャー: $1 fps · 軽量モード", "📺 LIVE Studio 中的礼物罐：$1 fps · 流畅模式", "📺 LIVE Studio의 병: $1 fps · 부드러움 모드", "📺 Hũ trên LIVE Studio: $1 fps · chế độ mượt", "📺 Toples di LIVE Studio: $1 fps · mode lancar", "📺 Frasco en LIVE Studio: $1 fps · modo fluido"),
+(r"^📺 โหลบน LIVE Studio ตอนนี้: (\d+) เฟรม/วินาที$", "📺 Jar in LIVE Studio now: $1 fps", "📺 LIVE Studioのジャー: $1 fps", "📺 LIVE Studio 中的礼物罐：$1 fps", "📺 LIVE Studio의 병: $1 fps", "📺 Hũ trên LIVE Studio: $1 fps", "📺 Toples di LIVE Studio: $1 fps", "📺 Frasco en LIVE Studio: $1 fps"),
+(r"^🖥️ โหลในเบราว์เซอร์ตอนนี้: (\d+) เฟรม/วินาที$", "🖥️ Jar in a browser now: $1 fps", "🖥️ ブラウザのジャー: $1 fps", "🖥️ 浏览器中的礼物罐：$1 fps", "🖥️ 브라우저의 병: $1 fps", "🖥️ Hũ trong trình duyệt: $1 fps", "🖥️ Toples di browser: $1 fps", "🖥️ Frasco en el navegador: $1 fps"),
+(r"^🫙 โหลบน LIVE Studio: (\d+) เฟรม/วินาที(.*) · วาดภาพละ ([\d.]+) ms$", "🫙 Jar in LIVE Studio: $1 fps$2 · $3 ms per frame", "🫙 LIVE Studioのジャー: $1 fps$2 · 1フレーム $3 ms", "🫙 LIVE Studio 礼物罐：$1 fps$2 · 每帧 $3 ms", "🫙 LIVE Studio 병: $1 fps$2 · 프레임당 $3 ms", "🫙 Hũ trên LIVE Studio: $1 fps$2 · $3 ms/khung", "🫙 Toples di LIVE Studio: $1 fps$2 · $3 ms/frame", "🫙 Frasco en LIVE Studio: $1 fps$2 · $3 ms por fotograma"),
 (r"^อัตโนมัติ: (.+)$", "Auto: $1", "自動: $1", "自动：$1", "자동: $1", "Tự động: $1", "Otomatis: $1", "Automático: $1"),
 (r"^เช็คล่าสุด (.+)$", "Last checked $1", "最終チェック $1", "上次检查 $1", "마지막 확인 $1", "Kiểm tra lần cuối $1", "Terakhir dicek $1", "Última revisión $1"),
 (r"^([\d,]+) เหรียญ · ยังไม่มีใครส่ง$", "$1 coins · not sent yet", "$1 コイン · まだ誰も送っていません", "$1 金币 · 还没人送", "$1 코인 · 아직 아무도 안 보냄", "$1 xu · chưa ai tặng", "$1 koin · belum ada yang kirim", "$1 monedas · aún no enviado"),
